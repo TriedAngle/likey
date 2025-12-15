@@ -59,7 +59,7 @@ fn build_good_suffix_table(pattern: &[u8]) -> Vec<usize> {
     shift
 }
 
-/// Find the first occurrence of `needle` in `haystack` using Boyer–Moore.
+/// Find the first occurrence of `pattern` in `text` using Boyer–Moore.
 /// Returns Some(start_index) if found, None otherwise.
 ///
 /// Operates on raw bytes; UTF-8 is fine but not required.
@@ -77,7 +77,7 @@ pub fn bm_find(text: &[u8], pattern: &[u8]) -> Option<usize> {
     let bad_char = build_bad_char_table(pattern);
     let good_suffix = build_good_suffix_table(pattern);
 
-    let mut i = 0usize; // index in haystack where the current pattern alignment starts
+    let mut i = 0usize; // index in text where the current pattern alignment starts
 
     while i <= n - m {
         let mut j  = (m - 1) as isize;
@@ -108,11 +108,11 @@ pub fn bm_find(text: &[u8], pattern: &[u8]) -> Option<usize> {
     None
 }
 
-/// Find all (possibly overlapping) occurrences of `needle` in `haystack`
+/// Find all (possibly overlapping) occurrences of `pattern` in `text`
 /// using Boyer–Moore. Returns a vector of starting indices.
-pub fn bm_find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
-    let n = haystack.len();
-    let m = needle.len();
+pub fn bm_find_all(text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    let n = text.len();
+    let m = pattern.len();
 
     if m == 0 {
         // Convention: match at every index (including at the end)
@@ -122,8 +122,8 @@ pub fn bm_find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
         return Vec::new();
     }
 
-    let bad_char = build_bad_char_table(needle);
-    let good_suffix = build_good_suffix_table(needle);
+    let bad_char = build_bad_char_table(pattern);
+    let good_suffix = build_good_suffix_table(pattern);
 
     let mut res = Vec::new();
     let mut i = 0usize;
@@ -131,7 +131,7 @@ pub fn bm_find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
     while i <= n - m {
         let mut j = (m - 1) as isize;
 
-        while j >= 0 && needle[j as usize] == haystack[i + j as usize] {
+        while j >= 0 && pattern[j as usize] == text[i + j as usize] {
             j -= 1;
         }
 
@@ -142,7 +142,7 @@ pub fn bm_find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
             i += good_suffix[0];
         } else {
             let mismatch_index = j as usize;
-            let bad_byte = haystack[i + mismatch_index];
+            let bad_byte = text[i + mismatch_index];
 
             let last_occurrence = bad_char[bad_byte as usize];
             let bc_shift = mismatch_index as isize - last_occurrence;

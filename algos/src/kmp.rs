@@ -92,8 +92,8 @@ pub fn kmp_find_all(text: &[u8], pattern: &[u8]) -> Vec<usize> {
     let lps = build_lps(pattern);
     let mut result = Vec::new();
 
-    let mut i = 0usize; // index in haystack
-    let mut j = 0usize; // index in needle
+    let mut i = 0usize;
+    let mut j = 0usize;
 
     while i < n {
         let t = unsafe { *text.get_unchecked(i) };
