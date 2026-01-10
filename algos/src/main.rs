@@ -124,13 +124,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let (matches, duration) = run_algorithm(&cli, &text, &pattern)?;
-        
+
         writeln!(out, "text={:?}", text_path)?;
-        
+
         if let Some(d) = duration {
             writeln!(out, "execution_time: {}ns", d.as_nanos())?;
         }
-        
+
         writeln!(out, "matches: {:?}", matches)?;
         writeln!(out)?;
     }
@@ -202,11 +202,11 @@ fn run_algorithm(
     };
 
     let result = match cli.algo {
-        Algorithm::Naive => Naive::find_all((), text, pattern),
-        Algorithm::NaiveScalar => NaiveScalar::find_all((), text, pattern),
-        Algorithm::NaiveVectorized => NaiveVectorized::find_all((), text, pattern),
-        Algorithm::Kmp => KMP::find_all((), text, pattern),
-        Algorithm::Bm => BM::find_all((), text, pattern),
+        Algorithm::Naive => Naive::find_all(&(), text, pattern),
+        Algorithm::NaiveScalar => NaiveScalar::find_all(&(), text, pattern),
+        Algorithm::NaiveVectorized => NaiveVectorized::find_all(&(), text, pattern),
+        Algorithm::Kmp => KMP::find_all(&(), text, pattern),
+        Algorithm::Bm => BM::find_all(&(), text, pattern),
         Algorithm::Kmer => {
             let cfg = KmerConfig {
                 pattern: pattern.as_bytes().to_vec(),
@@ -214,7 +214,7 @@ fn run_algorithm(
                 min_hits: cli.kmer_min_hits,
             };
             let index = KmerSearch::build(cfg);
-            <KmerSearch as StringSearch>::find_all(index, text, pattern)
+            <KmerSearch as StringSearch>::find_all(&index, text, pattern)
         }
     };
 

@@ -7,11 +7,14 @@ pub struct NaiveVectorized;
 impl StringSearch for Naive {
     type Config = ();
     type State = ();
-    fn find_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
+    fn build(_config: Self::Config) -> Self::State {
+        ()
+    }
+    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
         naive_find(text, pattern)
     }
 
-    fn find_all_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
         naive_find_all(text, pattern)
     }
 }
@@ -19,11 +22,14 @@ impl StringSearch for Naive {
 impl StringSearch for NaiveScalar {
     type Config = ();
     type State = ();
-    fn find_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
+    fn build(_config: Self::Config) -> Self::State {
+        ()
+    }
+    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
         naive_find_scalar(text, pattern)
     }
 
-    fn find_all_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
         naive_find_all_scalar(text, pattern)
     }
 }
@@ -31,11 +37,14 @@ impl StringSearch for NaiveScalar {
 impl StringSearch for NaiveVectorized {
     type Config = ();
     type State = ();
-    fn find_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
+    fn build(_config: Self::Config) -> Self::State {
+        ()
+    }
+    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
         unsafe { neon::naive_find_neon(text, pattern) }
     }
 
-    fn find_all_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
         unsafe { neon::naive_find_all_neon(text, pattern) }
     }
 }

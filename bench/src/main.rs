@@ -49,7 +49,10 @@ fn main() {
 
     let binary_path = Path::new("target").join("release").join(BINARY_NAME);
     if !binary_path.exists() {
-        eprintln!("Error: Binary not found at {:?}. Check crate name.", binary_path);
+        eprintln!(
+            "Error: Binary not found at {:?}. Check crate name.",
+            binary_path
+        );
         std::process::exit(1);
     }
 
@@ -80,7 +83,7 @@ fn main() {
                 args.push(k.to_string());
                 args.push("--kmer-min-hits".to_string());
                 // Lower hits for short patterns
-                args.push("1".to_string()); 
+                args.push("1".to_string());
             }
 
             let output = Command::new(&binary_path)
@@ -110,14 +113,14 @@ fn parse_output(output: &str, algo: &str, pattern: &str) -> Vec<ResultEntry> {
 
     for line in output.lines() {
         let line = line.trim();
-        
+
         if line.starts_with("text=") {
             current_file = line
                 .trim_start_matches("text=\"")
                 .trim_end_matches('"')
                 .to_string();
         }
-        
+
         if line.starts_with("execution_time:") {
             if let Some(ns_str) = line.split_whitespace().nth(1) {
                 let ns_val = ns_str.trim_end_matches("ns");
@@ -145,7 +148,7 @@ fn print_summary_table(results: &[ResultEntry]) {
 
     for entry in results {
         let micros = entry.duration_ns as f64 / 1000.0;
-        
+
         let short_file = Path::new(&entry.file)
             .file_name()
             .unwrap_or_default()
@@ -153,9 +156,9 @@ fn print_summary_table(results: &[ResultEntry]) {
 
         println!(
             "{:<18} | {:<15} | {:<25} | {:>15.2}",
-            entry.algo, 
-            entry.pattern.chars().take(12).collect::<String>(), 
-            short_file, 
+            entry.algo,
+            entry.pattern.chars().take(12).collect::<String>(),
+            short_file,
             micros
         );
     }

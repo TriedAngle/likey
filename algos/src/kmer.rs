@@ -51,8 +51,8 @@ impl StringSearch for KmerSearch {
         }
     }
 
-    fn find_bytes(state: Self::State, text: &[u8], _pattern: &[u8]) -> Option<usize> {
-        let state = state.inner;
+    fn find_bytes(state: &Self::State, text: &[u8], _pattern: &[u8]) -> Option<usize> {
+        let state = state.inner.clone();
         if state.map.is_empty() || text.len() < state.k {
             return None;
         }
@@ -83,8 +83,8 @@ impl StringSearch for KmerSearch {
         None
     }
 
-    fn find_all_bytes(state: Self::State, text: &[u8], _pattern: &[u8]) -> Vec<usize> {
-        let state = state.inner;
+    fn find_all_bytes(state: &Self::State, text: &[u8], _pattern: &[u8]) -> Vec<usize> {
+        let state = state.inner.clone();
         if state.map.is_empty() || text.len() < state.k {
             return Vec::new();
         }
@@ -142,16 +142,16 @@ mod tests {
 
         let text_single = b"__ACGTACGT__";
         // The match "ACGTACGT" starts at index 2 in text_single
-        let found = KmerSearch::find_bytes(index.clone(), text_single, &[]);
+        let found = KmerSearch::find_bytes(&index, text_single, &[]);
         assert_eq!(found, Some(2));
 
         // Create text with two occurrences: index 0 and index 10
         let text_multi = b"ACGTACGT__ACGTACGT";
-        let all_found = KmerSearch::find_all_bytes(index.clone(), text_multi, &[]);
+        let all_found = KmerSearch::find_all_bytes(&index, text_multi, &[]);
         assert_eq!(all_found, vec![0, 10]);
 
         let text_none = b"ZZZZZZZZZZ";
-        let none_found = KmerSearch::find_bytes(index, text_none, &[]);
+        let none_found = KmerSearch::find_bytes(&index, text_none, &[]);
         assert_eq!(none_found, None);
     }
 
@@ -168,10 +168,10 @@ mod tests {
 
         // Text has 3 'A's -> 2 kmers (AA, AA). Should fail (2 < 3).
         let text_fail = b"AAA";
-        assert_eq!(KmerSearch::find_bytes(index.clone(), text_fail, &[]), None);
+        assert_eq!(KmerSearch::find_bytes(&index.clone(), text_fail, &[]), None);
 
         // Text has 4 'A's -> 3 kmers (AA, AA, AA). Should pass (3 >= 3).
         let text_pass = b"AAAA";
-        assert_eq!(KmerSearch::find_bytes(index, text_pass, &[]), Some(0));
+        assert_eq!(KmerSearch::find_bytes(&index, text_pass, &[]), Some(0));
     }
 }

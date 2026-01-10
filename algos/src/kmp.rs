@@ -5,11 +5,14 @@ pub struct KMP;
 impl StringSearch for KMP {
     type Config = ();
     type State = ();
-    fn find_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
+    fn build(_config: Self::Config) -> Self::State {
+        ()
+    }
+    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
         kmp_find(text, pattern)
     }
 
-    fn find_all_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
         kmp_find_all(text, pattern)
     }
 }
@@ -23,7 +26,7 @@ fn build_lps(pattern: &[u8]) -> Vec<usize> {
     let mut i = 1;
 
     while i < m {
-        if pattern[i] == pattern[len] {
+        if unsafe { pattern.get_unchecked(i) == pattern.get_unchecked(len) } {
             len += 1;
             lps[i] = len;
             i += 1;

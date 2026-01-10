@@ -119,8 +119,8 @@ mod x86 {
             let va = _mm_loadu_si128(pa);
             let vb = _mm_loadu_si128(pb);
 
-            let cmp = _mm_cmpeq_epi8(va, vb);    // 0xFF where equal
-            let mask = _mm_movemask_epi8(cmp);   // 16 bits
+            let cmp = _mm_cmpeq_epi8(va, vb); // 0xFF where equal
+            let mask = _mm_movemask_epi8(cmp); // 16 bits
 
             if mask != 0xFFFF {
                 return false;
@@ -295,4 +295,3 @@ mod tests {
         assert!(!eq_padded_bytes_simd(&a, &b));
     }
 }
-

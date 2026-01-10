@@ -5,12 +5,14 @@ pub struct BM;
 impl StringSearch for BM {
     type Config = ();
     type State = ();
-
-    fn find_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
+    fn build(_config: Self::Config) -> Self::State {
+        ()
+    }
+    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
         bm_find(text, pattern)
     }
 
-    fn find_all_bytes(_state: Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
+    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
         bm_find_all(text, pattern)
     }
 }
@@ -80,7 +82,7 @@ pub fn bm_find(text: &[u8], pattern: &[u8]) -> Option<usize> {
     let mut i = 0usize; // index in text where the current pattern alignment starts
 
     while i <= n - m {
-        let mut j  = (m - 1) as isize;
+        let mut j = (m - 1) as isize;
 
         while j >= 0 && pattern[j as usize] == text[i + j as usize] {
             j -= 1;
@@ -211,4 +213,3 @@ mod tests {
         assert_eq!(bm_find_all(hay, pat), vec![0, pat_s.len()]);
     }
 }
-
