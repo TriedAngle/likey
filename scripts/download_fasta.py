@@ -23,14 +23,12 @@ TARGETS = {
     },
 
     # 3. DNA: E. Coli K-12 Substr. MG1655 (NCBI RefSeq)
-    # Format: Nucleotides, larger file (~4.6 MB)
     "ecoli_genome.fasta": {
         "url": "https://www.ncbi.nlm.nih.gov/sviewer/viewer.fcgi?id=NC_000913.3&db=nuccore&report=fasta&retmode=text",
         "is_gzipped": False
     },
 
     # 4. MANY ENTRIES: The entire Human Proteome (Swiss-Prot reviewed)
-    # ~20,400 entries. URL returns GZIP stream.
     "human_proteome.fasta": {
         "url": "https://rest.uniprot.org/uniprotkb/stream?format=fasta&query=%28proteome:UP000005640%29%20AND%20%28reviewed:true%29&compressed=true",
         "is_gzipped": True
@@ -50,7 +48,7 @@ def download_file(filename, config):
     try:
         with urllib.request.urlopen(url) as response:
             if config["is_gzipped"]:
-                print("  -> Decompressing GZIP stream on the fly...")
+                print("  -> Decompressing GZIP stream...")
                 with gzip.GzipFile(fileobj=response) as uncompressed:
                     with open(filepath, 'wb') as out_file:
                         shutil.copyfileobj(uncompressed, out_file)

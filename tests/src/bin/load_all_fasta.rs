@@ -9,7 +9,7 @@ pub fn main() {
     let arena_size = 1024 * 1024 * 1024;
     let arena = BumpArena::new(arena_size);
 
-    println!("\n--- [Extensive Test] Started ---");
+    println!("\n--- Arena Test Started ---");
     println!("Arena Capacity: {} MB", arena.capacity() / 1024 / 1024);
 
     let data_path = Path::new("data/fasta");

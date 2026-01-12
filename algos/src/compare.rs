@@ -1,5 +1,3 @@
-use log::debug;
-
 pub fn eq_padded_bytes_simd(a: &[u8], b: &[u8]) -> bool {
     assert_eq!(a.len(), b.len(), "Slices must have the same length");
 
@@ -113,11 +111,11 @@ mod x86 {
         let mut i = 0;
 
         while i + 16 <= len {
-            let pa = a.as_ptr().add(i) as *const __m128i;
-            let pb = b.as_ptr().add(i) as *const __m128i;
+            let pa = unsafe { a.as_ptr().add(i) as *const __m128i };
+            let pb = unsafe { b.as_ptr().add(i) as *const __m128i };
 
-            let va = _mm_loadu_si128(pa);
-            let vb = _mm_loadu_si128(pb);
+            let va = unsafe { _mm_loadu_si128(pa) };
+            let vb = unsafe { _mm_loadu_si128(pb) };
 
             let cmp = _mm_cmpeq_epi8(va, vb); // 0xFF where equal
             let mask = _mm_movemask_epi8(cmp); // 16 bits
@@ -130,7 +128,7 @@ mod x86 {
         }
 
         while i < len {
-            if *a.get_unchecked(i) != *b.get_unchecked(i) {
+            if unsafe { *a.get_unchecked(i) != *b.get_unchecked(i) } {
                 return false;
             }
             i += 1;
@@ -145,11 +143,11 @@ mod x86 {
         let mut i = 0;
 
         while i + 32 <= len {
-            let pa = a.as_ptr().add(i) as *const __m256i;
-            let pb = b.as_ptr().add(i) as *const __m256i;
+            let pa = unsafe { a.as_ptr().add(i) as *const __m256i };
+            let pb = unsafe { b.as_ptr().add(i) as *const __m256i };
 
-            let va = _mm256_loadu_si256(pa);
-            let vb = _mm256_loadu_si256(pb);
+            let va = unsafe { _mm256_loadu_si256(pa) };
+            let vb = unsafe { _mm256_loadu_si256(pb) };
 
             let cmp = _mm256_cmpeq_epi8(va, vb);
             let mask = _mm256_movemask_epi8(cmp);
@@ -163,11 +161,11 @@ mod x86 {
 
         // 16-byte SSE tail
         while i + 16 <= len {
-            let pa = a.as_ptr().add(i) as *const __m128i;
-            let pb = b.as_ptr().add(i) as *const __m128i;
+            let pa = unsafe { a.as_ptr().add(i) as *const __m128i };
+            let pb = unsafe { b.as_ptr().add(i) as *const __m128i };
 
-            let va = _mm_loadu_si128(pa);
-            let vb = _mm_loadu_si128(pb);
+            let va = unsafe { _mm_loadu_si128(pa) };
+            let vb = unsafe { _mm_loadu_si128(pb) };
 
             let cmp = _mm_cmpeq_epi8(va, vb);
             let mask = _mm_movemask_epi8(cmp);
@@ -181,7 +179,7 @@ mod x86 {
 
         // Scalar tail
         while i < len {
-            if *a.get_unchecked(i) != *b.get_unchecked(i) {
+            if unsafe { *a.get_unchecked(i) != *b.get_unchecked(i) } {
                 return false;
             }
             i += 1;
@@ -196,11 +194,11 @@ mod x86 {
         let mut i = 0;
 
         while i + 64 <= len {
-            let pa = a.as_ptr().add(i) as *const __m512i;
-            let pb = b.as_ptr().add(i) as *const __m512i;
+            let pa = unsafe { a.as_ptr().add(i) as *const __m512i };
+            let pb = unsafe { b.as_ptr().add(i) as *const __m512i };
 
-            let va = _mm512_loadu_si512(pa);
-            let vb = _mm512_loadu_si512(pb);
+            let va = unsafe { _mm512_loadu_si512(pa) };
+            let vb = unsafe { _mm512_loadu_si512(pb) };
 
             let mask: __mmask64 = _mm512_cmpeq_epi8_mask(va, vb);
 
@@ -212,7 +210,7 @@ mod x86 {
         }
 
         while i < len {
-            if *a.get_unchecked(i) != *b.get_unchecked(i) {
+            if unsafe { *a.get_unchecked(i) != *b.get_unchecked(i) } {
                 return false;
             }
             i += 1;

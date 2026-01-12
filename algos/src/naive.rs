@@ -34,7 +34,16 @@ impl<'a> StringSearch for NaiveVectorized<'a> {
         ()
     }
     fn find_bytes(config: &Self::Config, _state: &Self::State, text: &[u8]) -> Option<usize> {
-        unsafe { neon::naive_find_neon(text, config) }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        unsafe {
+            neon::naive_find_neon(text, config)
+        }
+        #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+        {
+            let _ = config;
+            let _ = text;
+            unimplemented!("only valid neon")
+        }
     }
 }
 

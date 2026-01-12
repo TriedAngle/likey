@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 storage = { path = "../storage" }
 algos = { path = "../algos" }
+like = { path = "../like" }

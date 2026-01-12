@@ -73,6 +73,10 @@ dependencies = [
 [[package]]
 name = "bench"
 version = "0.1.0"
+dependencies = [
+ "algos",
+ "like",
+]
 
 [[package]]
 name = "clap"
@@ -312,6 +316,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "algos",
+ "like",
  "storage",
 ]
 
