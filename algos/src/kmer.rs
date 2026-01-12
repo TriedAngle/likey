@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::StringSearch;
 
@@ -29,7 +26,7 @@ impl StringSearch for KmerSearch {
     type Config = KmerConfig;
     type State = KmerIndex;
 
-    fn build(config: Self::Config) -> Self::State {
+    fn build(config: &Self::Config) -> Self::State {
         let mut map = HashMap::<Vec<u8>, Vec<usize>>::new();
         let k = config.k;
 
@@ -51,8 +48,9 @@ impl StringSearch for KmerSearch {
         }
     }
 
-    fn find_bytes(state: &Self::State, text: &[u8], _pattern: &[u8]) -> Option<usize> {
-        let state = state.inner.clone();
+    fn find_bytes(_config: &Self::Config, state: &Self::State, text: &[u8]) -> Option<usize> {
+        let state = &state.inner;
+
         if state.map.is_empty() || text.len() < state.k {
             return None;
         }
@@ -73,6 +71,7 @@ impl StringSearch for KmerSearch {
                     let count = diagonal_counts.entry(diagonal).or_insert(0);
                     *count += 1;
 
+                    // If we reach min_hits, we return the diagonal (start index)
                     if *count >= state.min_hits {
                         return Some(diagonal as usize);
                     }
@@ -81,43 +80,6 @@ impl StringSearch for KmerSearch {
         }
 
         None
-    }
-
-    fn find_all_bytes(state: &Self::State, text: &[u8], _pattern: &[u8]) -> Vec<usize> {
-        let state = state.inner.clone();
-        if state.map.is_empty() || text.len() < state.k {
-            return Vec::new();
-        }
-
-        let mut diagonal_counts: HashMap<isize, usize> = HashMap::new();
-        let mut found_diagonals: HashSet<isize> = HashSet::new();
-        let mut results = Vec::new();
-
-        for text_pos in 0..=text.len() - state.k {
-            let kmer = &text[text_pos..text_pos + state.k];
-
-            if let Some(query_positions) = state.map.get(kmer) {
-                for &query_pos in query_positions {
-                    let diagonal = text_pos as isize - query_pos as isize;
-
-                    if diagonal < 0 {
-                        continue;
-                    }
-
-                    let count = diagonal_counts.entry(diagonal).or_insert(0);
-                    *count += 1;
-
-                    if *count >= state.min_hits {
-                        if found_diagonals.insert(diagonal) {
-                            results.push(diagonal as usize);
-                        }
-                    }
-                }
-            }
-        }
-
-        results.sort();
-        results
     }
 }
 
@@ -138,24 +100,27 @@ mod tests {
             k,
             min_hits,
         };
-        let index = KmerSearch::build(config);
+
+        // 1. Build State
+        let state = KmerSearch::build(&config);
 
         let text_single = b"__ACGTACGT__";
         // The match "ACGTACGT" starts at index 2 in text_single
-        let found = KmerSearch::find_bytes(&index, text_single, &[]);
+        let found = KmerSearch::find_bytes(&config, &state, text_single);
         assert_eq!(found, Some(2));
 
+        // 2. Test find_all (provided by trait)
         // Create text with two occurrences: index 0 and index 10
         let text_multi = b"ACGTACGT__ACGTACGT";
-        let all_found = KmerSearch::find_all_bytes(&index, text_multi, &[]);
+        let all_found = KmerSearch::find_all_bytes(&config, &state, text_multi);
         assert_eq!(all_found, vec![0, 10]);
 
+        // 3. Test None
         let text_none = b"ZZZZZZZZZZ";
-        let none_found = KmerSearch::find_bytes(&index, text_none, &[]);
+        let none_found = KmerSearch::find_bytes(&config, &state, text_none);
         assert_eq!(none_found, None);
     }
 
-    // this test illustrates that the amount of kmers should be >= min_hits
     #[test]
     fn test_partial_hits_threshold() {
         let pattern = b"AAAAA".to_vec();
@@ -164,14 +129,14 @@ mod tests {
             k: 2,
             min_hits: 3,
         };
-        let index = KmerSearch::build(config);
+        let index = KmerSearch::build(&config);
 
         // Text has 3 'A's -> 2 kmers (AA, AA). Should fail (2 < 3).
         let text_fail = b"AAA";
-        assert_eq!(KmerSearch::find_bytes(&index.clone(), text_fail, &[]), None);
+        assert_eq!(KmerSearch::find_bytes(&config, &index, text_fail), None);
 
         // Text has 4 'A's -> 3 kmers (AA, AA, AA). Should pass (3 >= 3).
         let text_pass = b"AAAA";
-        assert_eq!(KmerSearch::find_bytes(&index, text_pass, &[]), Some(0));
+        assert_eq!(KmerSearch::find_bytes(&config, &index, text_pass), Some(0));
     }
 }

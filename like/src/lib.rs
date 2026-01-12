@@ -13,7 +13,7 @@ pub struct Pattern<'a, S: StringSearch> {
     tokens: Box<[Token<'a>]>,
     min_len: usize,
 
-    // pre-calculated states for every literal in the pattern
+    literal_configs: Box<[S::Config]>,
     literal_states: Box<[S::State]>,
 
     _marker: PhantomData<S>,
@@ -29,26 +29,29 @@ where
     F: FnMut(&mut D, &'a str) -> S::Config,
 {
     let mut tokens = Vec::new();
+    let mut literal_configs = Vec::new();
     let mut literal_states = Vec::new();
     let mut start_idx = 0;
     let mut min_len = 0;
 
     for (idx, c) in pattern.char_indices() {
         if c == '%' || c == '_' {
-            // 1. Handle Preceding Literal
             if idx > start_idx {
                 let lit = &pattern[start_idx..idx];
                 tokens.push(Token::Literal(lit));
 
+                // Generate config and state
                 let config = config_factory(&mut user_data, lit);
-                literal_states.push(S::build(config));
+                let state = S::build(&config);
+
+                literal_configs.push(config);
+                literal_states.push(state);
 
                 min_len += lit.len();
             }
 
             match c {
                 '%' => {
-                    // 2. Merge Multiple %
                     if tokens.last() != Some(&Token::Any) {
                         tokens.push(Token::Any);
                     }
@@ -72,7 +75,10 @@ where
         tokens.push(Token::Literal(lit));
 
         let config = config_factory(&mut user_data, lit);
-        literal_states.push(S::build(config));
+        let state = S::build(&config);
+
+        literal_configs.push(config);
+        literal_states.push(state);
 
         min_len += lit.len();
     }
@@ -80,6 +86,7 @@ where
     Pattern {
         tokens: tokens.into_boxed_slice(),
         min_len,
+        literal_configs: literal_configs.into_boxed_slice(),
         literal_states: literal_states.into_boxed_slice(),
         _marker: PhantomData,
     }
@@ -97,7 +104,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
     let mut state_idx = 0;
 
     let mut last_wildcard_t_idx = None;
-    let mut last_wildcard_state_idx = 0; // Snapshot of state index
+    let mut last_wildcard_state_idx = 0;
     let mut match_s_idx = 0;
 
     while s_idx < text.len() {
@@ -107,7 +114,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                     if text[s_idx..].starts_with(lit) {
                         s_idx += lit.len();
                         t_idx += 1;
-                        state_idx += 1; // Move to next pre-calc state
+                        state_idx += 1;
                         continue;
                     }
                 }
@@ -131,14 +138,16 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                 }
                 Token::Any => {
                     last_wildcard_t_idx = Some(t_idx);
-                    last_wildcard_state_idx = state_idx; // Save where we were in state list
+                    last_wildcard_state_idx = state_idx;
 
                     // OPTIMIZATION: Smart Jump
-                    if let Some(Token::Literal(next_lit)) = tokens.get(t_idx + 1) {
-                        // Use the pre-calculated state for the NEXT literal
+                    if let Some(Token::Literal(_)) = tokens.get(t_idx + 1) {
+                        let next_config = &pattern.literal_configs[state_idx];
                         let next_state = &pattern.literal_states[state_idx];
 
-                        if let Some(found_offset) = S::find(next_state, &text[s_idx..], next_lit) {
+                        if let Some(found_offset) =
+                            S::find_str(next_config, next_state, &text[s_idx..])
+                        {
                             match_s_idx = s_idx + found_offset;
                             s_idx = match_s_idx;
                             t_idx += 1;
@@ -158,18 +167,21 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
         // Backtracking
         if let Some(wildcard_idx) = last_wildcard_t_idx {
             t_idx = wildcard_idx + 1;
-            state_idx = last_wildcard_state_idx; // Reset state index
+            state_idx = last_wildcard_state_idx;
 
-            if let Some(Token::Literal(next_lit)) = tokens.get(t_idx) {
+            if let Some(Token::Literal(_)) = tokens.get(t_idx) {
                 // Smart Jump Backtracking
                 let search_start = match_s_idx + 1;
                 if search_start >= text.len() {
                     return false;
                 }
 
+                let next_config = &pattern.literal_configs[state_idx];
                 let next_state = &pattern.literal_states[state_idx];
 
-                if let Some(found_offset) = S::find(next_state, &text[search_start..], next_lit) {
+                if let Some(found_offset) =
+                    S::find_str(next_config, next_state, &text[search_start..])
+                {
                     match_s_idx = search_start + found_offset;
                     s_idx = match_s_idx;
                     continue;
@@ -202,17 +214,15 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use algos::{BM, KMP, Naive, StdSearch};
 
-    use super::*;
-
-    // A generic tester that runs the assertions for a specific algorithm.
     fn run_test_suite<S, F>(factory: F)
     where
         S: StringSearch,
         F: FnMut(&mut (), &str) -> S::Config + Clone,
     {
-        // lifetime is broken lol
+        // Wrapper to simplify the calls inside tests
         macro_rules! compile {
             ($pat:expr) => {
                 compile_pattern::<S, _, _>($pat, (), factory.clone())
@@ -260,22 +270,28 @@ mod tests {
     }
 
     #[test]
-    fn test_naive_algorithm() {
-        run_test_suite::<Naive, _>(|_, _| ());
-    }
-
-    #[test]
     fn test_std_algorithm() {
-        run_test_suite::<StdSearch, _>(|_, _| ());
+        run_test_suite::<StdSearch, _>(|_, pat| unsafe { std::mem::transmute::<&str, &str>(pat) });
     }
 
     #[test]
     fn test_kmp_algorithm() {
-        run_test_suite::<KMP, _>(|_, _| ());
+        run_test_suite::<KMP, _>(|_, pat| unsafe {
+            std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
+        });
+    }
+
+    #[test]
+    fn test_naive_algorithm() {
+        run_test_suite::<Naive, _>(|_, pat| unsafe {
+            std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
+        });
     }
 
     #[test]
     fn test_bm_algorithm() {
-        run_test_suite::<BM, _>(|_, _| ());
+        run_test_suite::<BM, _>(|_, pat| unsafe {
+            std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
+        });
     }
 }

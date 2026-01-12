@@ -156,7 +156,6 @@ mod tests {
         assert_eq!(*val_a, 10);
         assert_eq!(*val_b, 20);
 
-        // Verify they persist
         *val_a = 99;
         assert_eq!(*val_a, 99);
         assert_eq!(*val_b, 20);
@@ -174,7 +173,6 @@ mod tests {
         let ptr_b = b as *const u32 as usize;
         let ptr_c = c as *const u32 as usize;
 
-        // u32 is 4 bytes. They should be exactly 4 bytes apart.
         assert_eq!(ptr_b - ptr_a, 4, "Allocations are not contiguous!");
         assert_eq!(ptr_c - ptr_b, 4, "Allocations are not contiguous!");
 

@@ -1,23 +1,30 @@
 use crate::StringSearch;
+use std::cmp::max;
+use std::marker::PhantomData;
 
-pub struct BM;
+pub struct BM<'a>(PhantomData<&'a ()>);
 
-impl StringSearch for BM {
-    type Config = ();
-    type State = ();
-    fn build(_config: Self::Config) -> Self::State {
-        ()
+pub struct BMState {
+    bad_char: [isize; 256],
+    good_suffix: Vec<usize>,
+}
+
+impl<'a> StringSearch for BM<'a> {
+    type Config = &'a [u8];
+    type State = BMState;
+
+    fn build(pattern: &Self::Config) -> Self::State {
+        BMState {
+            bad_char: build_bad_char_table(pattern),
+            good_suffix: build_good_suffix_table(pattern),
+        }
     }
-    fn find_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Option<usize> {
-        bm_find(text, pattern)
-    }
 
-    fn find_all_bytes(_state: &Self::State, text: &[u8], pattern: &[u8]) -> Vec<usize> {
-        bm_find_all(text, pattern)
+    fn find_bytes(pattern: &Self::Config, state: &Self::State, text: &[u8]) -> Option<usize> {
+        bm_find(text, pattern, state)
     }
 }
 
-/// Build the bad-character shift table for Boyer–Moore.
 fn build_bad_char_table(pattern: &[u8]) -> [isize; 256] {
     let mut table = [-1isize; 256];
     for (i, &b) in pattern.iter().enumerate() {
@@ -26,7 +33,6 @@ fn build_bad_char_table(pattern: &[u8]) -> [isize; 256] {
     table
 }
 
-/// Build the good-suffix shift table for Boyer–Moore.
 fn build_good_suffix_table(pattern: &[u8]) -> Vec<usize> {
     let m = pattern.len();
     let mut shift = vec![0usize; m + 1];
@@ -61,11 +67,7 @@ fn build_good_suffix_table(pattern: &[u8]) -> Vec<usize> {
     shift
 }
 
-/// Find the first occurrence of `pattern` in `text` using Boyer–Moore.
-/// Returns Some(start_index) if found, None otherwise.
-///
-/// Operates on raw bytes; UTF-8 is fine but not required.
-pub fn bm_find(text: &[u8], pattern: &[u8]) -> Option<usize> {
+fn bm_find(text: &[u8], pattern: &[u8], state: &BMState) -> Option<usize> {
     let n = text.len();
     let m = pattern.len();
 
@@ -76,58 +78,6 @@ pub fn bm_find(text: &[u8], pattern: &[u8]) -> Option<usize> {
         return None;
     }
 
-    let bad_char = build_bad_char_table(pattern);
-    let good_suffix = build_good_suffix_table(pattern);
-
-    let mut i = 0usize; // index in text where the current pattern alignment starts
-
-    while i <= n - m {
-        let mut j = (m - 1) as isize;
-
-        while j >= 0 && pattern[j as usize] == text[i + j as usize] {
-            j -= 1;
-        }
-
-        if j < 0 {
-            // full match
-            return Some(i);
-        } else {
-            let mismatch_index = j as usize;
-            let bad_byte = text[i + mismatch_index];
-
-            // Bad-character shift
-            let last_occurrence = bad_char[bad_byte as usize]; // isize
-            let bc_shift = mismatch_index as isize - last_occurrence;
-            let bc_shift = if bc_shift > 0 { bc_shift as usize } else { 1 };
-
-            // Good-suffix shift (note +1 indexing)
-            let gs_shift = good_suffix[mismatch_index + 1];
-
-            i += bc_shift.max(gs_shift);
-        }
-    }
-
-    None
-}
-
-/// Find all (possibly overlapping) occurrences of `pattern` in `text`
-/// using Boyer–Moore. Returns a vector of starting indices.
-pub fn bm_find_all(text: &[u8], pattern: &[u8]) -> Vec<usize> {
-    let n = text.len();
-    let m = pattern.len();
-
-    if m == 0 {
-        // Convention: match at every index (including at the end)
-        return (0..=n).collect();
-    }
-    if m > n {
-        return Vec::new();
-    }
-
-    let bad_char = build_bad_char_table(pattern);
-    let good_suffix = build_good_suffix_table(pattern);
-
-    let mut res = Vec::new();
     let mut i = 0usize;
 
     while i <= n - m {
@@ -138,25 +88,24 @@ pub fn bm_find_all(text: &[u8], pattern: &[u8]) -> Vec<usize> {
         }
 
         if j < 0 {
-            // full match
-            res.push(i);
-            // Shift by the full-match good-suffix entry
-            i += good_suffix[0];
+            return Some(i);
         } else {
             let mismatch_index = j as usize;
             let bad_byte = text[i + mismatch_index];
 
-            let last_occurrence = bad_char[bad_byte as usize];
+            // Bad-character shift
+            let last_occurrence = state.bad_char[bad_byte as usize]; // isize
             let bc_shift = mismatch_index as isize - last_occurrence;
             let bc_shift = if bc_shift > 0 { bc_shift as usize } else { 1 };
 
-            let gs_shift = good_suffix[mismatch_index + 1];
+            // Good-suffix shift (note +1 indexing)
+            let gs_shift = state.good_suffix[mismatch_index + 1];
 
-            i += bc_shift.max(gs_shift);
+            i += max(bc_shift, gs_shift);
         }
     }
 
-    res
+    None
 }
 
 #[cfg(test)]
@@ -166,50 +115,33 @@ mod tests {
     #[test]
     fn test_bm_basic() {
         let hay = b"ababcabcabababd";
-        let pat = b"ababd";
-        assert_eq!(bm_find(hay, pat), Some(10));
+        let pat: &[u8] = b"ababd";
+
+        // Convenience method
+        assert_eq!(BM::find(&pat, std::str::from_utf8(hay).unwrap()), Some(10));
     }
 
     #[test]
     fn test_bm_not_found() {
         let hay = b"hello world";
-        let pat = b"rust";
-        assert_eq!(bm_find(hay, pat), None);
+        let pat: &[u8] = b"rust";
+        assert_eq!(BM::find(&pat, std::str::from_utf8(hay).unwrap()), None);
     }
 
     #[test]
     fn test_bm_empty_pattern() {
         let hay = b"abc";
         let pat: &[u8] = b"";
-        assert_eq!(bm_find(hay, pat), Some(0));
-        assert_eq!(bm_find_all(hay, pat), vec![0, 1, 2, 3]);
-    }
-
-    #[test]
-    fn test_bm_find_all_overlapping() {
-        let hay = b"aaaa";
-        let pat = b"aa";
-        assert_eq!(bm_find_all(hay, pat), vec![0, 1, 2]);
-    }
-
-    #[test]
-    fn test_bm_find_all_cut() {
-        let hay = b"aabaa";
-        let pat = b"aa";
-        assert_eq!(bm_find_all(hay, pat), vec![0, 3]);
+        assert_eq!(BM::find(&pat, std::str::from_utf8(hay).unwrap()), Some(0));
     }
 
     #[test]
     fn test_bm_utf8() {
         let hay_s = "🌍hello🌍hello";
         let pat_s = "🌍hello";
-        let hay = hay_s.as_bytes();
-        let pat = pat_s.as_bytes();
+        let pat_bytes = pat_s.as_bytes();
 
-        assert_eq!(pat_s.len(), 9);
-        assert_eq!(hay_s.len(), 18);
-
-        assert_eq!(bm_find(hay, pat), Some(0));
-        assert_eq!(bm_find_all(hay, pat), vec![0, pat_s.len()]);
+        let state = BM::build(&pat_bytes);
+        assert_eq!(BM::find_str(&pat_bytes, &state, hay_s), Some(0));
     }
 }

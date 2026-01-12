@@ -201,20 +201,22 @@ fn run_algorithm(
         None
     };
 
+    let pat_bytes = pattern.as_bytes();
+
     let result = match cli.algo {
-        Algorithm::Naive => Naive::find_all(&(), text, pattern),
-        Algorithm::NaiveScalar => NaiveScalar::find_all(&(), text, pattern),
-        Algorithm::NaiveVectorized => NaiveVectorized::find_all(&(), text, pattern),
-        Algorithm::Kmp => KMP::find_all(&(), text, pattern),
-        Algorithm::Bm => BM::find_all(&(), text, pattern),
+        Algorithm::Naive => Naive::find_all(&pat_bytes, text),
+        Algorithm::NaiveScalar => NaiveScalar::find_all(&pat_bytes, text),
+        Algorithm::NaiveVectorized => NaiveVectorized::find_all(&pat_bytes, text),
+        Algorithm::Kmp => KMP::find_all(&pat_bytes, text),
+        Algorithm::Bm => BM::find_all(&pat_bytes, text),
+
         Algorithm::Kmer => {
             let cfg = KmerConfig {
-                pattern: pattern.as_bytes().to_vec(),
+                pattern: pat_bytes.to_vec(),
                 k: cli.kmer_k,
                 min_hits: cli.kmer_min_hits,
             };
-            let index = KmerSearch::build(cfg);
-            <KmerSearch as StringSearch>::find_all(&index, text, pattern)
+            KmerSearch::find_all(&cfg, text)
         }
     };
 

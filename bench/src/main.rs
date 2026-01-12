@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::process::Command;
 
-// Configuration
 const BINARY_NAME: &str = "algos";
 const TEXT_FILES: &[&str] = &[
     "data/chimpansee_dna.txt",
