@@ -26,7 +26,20 @@ const PATTERNS: &[(&str, &str)] = &[
     ("%Lorem%", "Common Word"),
     ("h%o", "Wildcard Simple"),
     ("%a_%_b%", "Wildcard Complex"),
-    ("%GAT%____TACA%", "Complex Dna"),
+    ("%a_%_b%", "Wildcard Complex2"),
+    ("%GA_T%____T%%ACA%", "Complex DNA Pattern"),
+    ("%TGCGAGATTTGGACGGAC%", "DNA Simple (original complex)"),
+    ("%TGCG%A___GGACGGAC%", "Complex DNA Pattern2"),
+    (
+        "%GTTGCGAGATTTGGACGGACGTTGACGGGGTCTATACCTGCGACCCGCGT
+%CAGGTGCCCGATGCGAGGTTGTTGAAGTCGATGTCCTACCAGGAAGCGATGGAGCTTTCCTACTTCGGCG
+CTAAAGTTCTTCACCCCCGCACCATTACCCCCATCGCCCAGTTCCAGATCCCTTGCCTGATTAAAAATAC
+CGGAAATCCTCAAGCACCAGGTACGCTCATTGGTGCCAGCCGTGATGAAGACGAATTACCGGTCAAGGGC
+ATTTCCAATCTGAATAACATGGCAATGTTCAGCGTTTCTGGTCCGGGGATGAAAGGGATGGTCGGCATGG
+CGGCGCGCGTCTTTGCAGCGATGTCACGCGCCCGTATTTCCGTGGTGCTGATTACGCAATCATCTTCCGA
+ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
+        "Long DNA Patern",
+    ),
 ];
 
 const ALGORITHMS: &[&str] = &["naive-scalar", "naive-vector", "kmp", "bm", "std"];
@@ -68,17 +81,21 @@ fn main() {
             );
 
             let entries = match *algo_name {
-                "naive-scalar" => {
-                    run_benchmark::<NaiveScalar, _>(algo_name, pat_str, &database, |_, pat| unsafe {
-                        std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
-                    })
-                }
-                "naive-vectorized" => {
+                "naive-scalar" => run_benchmark::<NaiveScalar, _>(
+                    algo_name,
+                    pat_str,
+                    &database,
+                    |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                ),
+                "naive-vector" => {
                     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
                     {
-                    run_benchmark::<NaiveVectorized, _>(algo_name, pat_str, &database, |_, pat| unsafe {
-                        std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
-                    })
+                        run_benchmark::<NaiveVectorized, _>(
+                            algo_name,
+                            pat_str,
+                            &database,
+                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                        )
                     }
 
                     #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
@@ -86,9 +103,6 @@ fn main() {
                         let _: [NaiveVectorized; 0] = [];
                         Vec::new()
                     }
-                }
-                "naive-vector" => {
-                    Vec::new()
                 }
                 "kmp" => run_benchmark::<KMP, _>(algo_name, pat_str, &database, |_, pat| unsafe {
                     std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
@@ -110,6 +124,8 @@ fn main() {
 
     print_summary_table(&results);
     print_algo_ranking(&results);
+    print_per_pattern_ranking(&results);
+    print_per_file_ranking(&results);
 }
 
 fn load_database<'a>(arena: &'a BumpArena) -> Vec<DatabaseItem<'a>> {
@@ -207,7 +223,7 @@ fn extract_filename(path: &str) -> String {
 fn print_summary_table(results: &[ResultEntry]) {
     println!("\n\n{:=^95}", " RESULTS SUMMARY ");
     println!(
-        "{:<15} | {:<15} | {:<20} | {:<6} | {:>10} | {:>15}",
+        "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15}",
         "Algorithm", "Pattern", "File", "Type", "Hits", "Time (µs)"
     );
     println!("{:-^95}", "");
@@ -215,8 +231,8 @@ fn print_summary_table(results: &[ResultEntry]) {
     for entry in results {
         let micros = entry.duration.as_micros() as f64;
 
-        let pat_display = if entry.pattern.len() > 15 {
-            format!("{}...", &entry.pattern[..9])
+        let pat_display = if entry.pattern.len() > 20 {
+            format!("{}...", &entry.pattern[..17])
         } else {
             entry.pattern.clone()
         };
@@ -228,7 +244,7 @@ fn print_summary_table(results: &[ResultEntry]) {
         };
 
         println!(
-            "{:<15} | {:<15} | {:<20} | {:<6} | {:>10} | {:>15.2}",
+            "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15.2}",
             entry.algo, pat_display, file_display, entry.file_type, entry.found_count, micros
         );
     }
@@ -259,4 +275,64 @@ fn print_algo_ranking(results: &[ResultEntry]) {
     }
 
     println!("{:=^50}", " END ");
+}
+
+fn print_per_pattern_ranking(results: &[ResultEntry]) {
+    println!("\n\n{:=^60}", " PER PATTERN RANKING ");
+
+    let mut unique_patterns: Vec<&String> = results.iter().map(|r| &r.pattern).collect();
+    unique_patterns.sort();
+    unique_patterns.dedup();
+
+    for pat in unique_patterns {
+        println!("\n>> Pattern: [{}]", pat);
+        println!(
+            "{:<5} | {:<15} | {:>20}",
+            "Rank", "Algorithm", "Total Time (µs)"
+        );
+        println!("{:-^46}", "");
+
+        let mut sums: HashMap<&String, Duration> = HashMap::new();
+        for entry in results.iter().filter(|r| &r.pattern == pat) {
+            *sums.entry(&entry.algo).or_default() += entry.duration;
+        }
+
+        let mut ranked: Vec<(&String, Duration)> = sums.into_iter().collect();
+        ranked.sort_by_key(|(_, d)| *d);
+
+        for (i, (algo, duration)) in ranked.iter().enumerate() {
+            println!("{:<5} | {:<15} | {:>20}", i + 1, algo, duration.as_micros());
+        }
+    }
+    println!("\n{:=^60}", " END PATTERN RANKING ");
+}
+
+fn print_per_file_ranking(results: &[ResultEntry]) {
+    println!("\n\n{:=^60}", " PER FILE RANKING ");
+
+    let mut unique_files: Vec<&String> = results.iter().map(|r| &r.file).collect();
+    unique_files.sort();
+    unique_files.dedup();
+
+    for file in unique_files {
+        println!("\n>> File: [{}]", file);
+        println!(
+            "{:<5} | {:<15} | {:>20}",
+            "Rank", "Algorithm", "Total Time (µs)"
+        );
+        println!("{:-^46}", "");
+
+        let mut sums: HashMap<&String, Duration> = HashMap::new();
+        for entry in results.iter().filter(|r| &r.file == file) {
+            *sums.entry(&entry.algo).or_default() += entry.duration;
+        }
+
+        let mut ranked: Vec<(&String, Duration)> = sums.into_iter().collect();
+        ranked.sort_by_key(|(_, d)| *d);
+
+        for (i, (algo, duration)) in ranked.iter().enumerate() {
+            println!("{:<5} | {:<15} | {:>20}", i + 1, algo, duration.as_micros());
+        }
+    }
+    println!("\n{:=^60}", " END FILE RANKING ");
 }

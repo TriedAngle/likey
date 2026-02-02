@@ -92,6 +92,8 @@ where
     }
 }
 
+// skip if pattern locally bigger or optimize around that
+// also suffix match
 pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
     if text.len() < pattern.min_len {
         return false;
@@ -220,7 +222,7 @@ mod tests {
     fn run_test_suite<S, F>(factory: F)
     where
         S: StringSearch,
-        F: FnMut(&mut (), &str) -> S::Config + Clone,
+        F: FnMut(&mut (), &'static str) -> S::Config + Clone,
     {
         // Wrapper to simplify the calls inside tests
         macro_rules! compile {

@@ -3,7 +3,7 @@ pub fn eq_padded_bytes_simd(a: &[u8], b: &[u8]) -> bool {
 
     #[cfg(target_arch = "aarch64")]
     {
-        debug!("eq_padded_bytes_simd: using NEON (aarch64)");
+        log::debug!("eq_padded_bytes_simd: using NEON (aarch64)");
         unsafe { arm::eq_padded_bytes_neon(a, b) }
     }
 
