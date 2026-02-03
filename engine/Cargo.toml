@@ -1,10 +1,9 @@
 [package]
-name = "tests"
+name = "engine"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-storage = { path = "../storage" }
 algos = { path = "../algos" }
 like = { path = "../like" }
-engine = { path = "../engine" }
+storage = { path = "../storage" }
