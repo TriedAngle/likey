@@ -16,18 +16,57 @@ pub struct Pattern<'a, S: StringSearch> {
     literal_configs: Box<[S::Config]>,
     literal_states: Box<[S::State]>,
 
+    literal_underscore_is_wildcard: bool,
+
     _marker: PhantomData<S>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CompileOptions {
+    pub treat_underscore_as_literal: bool,
+    pub literal_underscore_is_wildcard: bool,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            treat_underscore_as_literal: false,
+            literal_underscore_is_wildcard: false,
+        }
+    }
 }
 
 pub fn compile_pattern<'a, S, D, F>(
     pattern: &'a str,
-    mut user_data: D,
-    mut config_factory: F,
+    user_data: D,
+    config_factory: F,
 ) -> Pattern<'a, S>
 where
     S: StringSearch,
     F: FnMut(&mut D, &'a str) -> S::Config,
 {
+    compile_pattern_with_options(
+        pattern,
+        user_data,
+        config_factory,
+        CompileOptions::default(),
+    )
+}
+
+pub fn compile_pattern_with_options<'a, S, D, F>(
+    pattern: &'a str,
+    mut user_data: D,
+    mut config_factory: F,
+    options: CompileOptions,
+) -> Pattern<'a, S>
+where
+    S: StringSearch,
+    F: FnMut(&mut D, &'a str) -> S::Config,
+{
+    if options.literal_underscore_is_wildcard && !options.treat_underscore_as_literal {
+        panic!("literal underscore wildcard requires treat_underscore_as_literal");
+    }
+
     let mut tokens = Vec::new();
     let mut literal_configs = Vec::new();
     let mut literal_states = Vec::new();
@@ -35,7 +74,8 @@ where
     let mut min_len = 0;
 
     for (idx, c) in pattern.char_indices() {
-        if c == '%' || c == '_' {
+        let is_wildcard = c == '%' || (c == '_' && !options.treat_underscore_as_literal);
+        if is_wildcard {
             if idx > start_idx {
                 let lit = &pattern[start_idx..idx];
                 tokens.push(Token::Literal(lit));
@@ -50,21 +90,17 @@ where
                 min_len += lit.len();
             }
 
-            match c {
-                '%' => {
-                    if tokens.last() != Some(&Token::Any) {
-                        tokens.push(Token::Any);
-                    }
+            if c == '%' {
+                if tokens.last() != Some(&Token::Any) {
+                    tokens.push(Token::Any);
                 }
-                '_' => {
-                    if let Some(Token::Skip(count)) = tokens.last_mut() {
-                        *count += 1;
-                    } else {
-                        tokens.push(Token::Skip(1));
-                    }
-                    min_len += 1;
+            } else if c == '_' {
+                if let Some(Token::Skip(count)) = tokens.last_mut() {
+                    *count += 1;
+                } else {
+                    tokens.push(Token::Skip(1));
                 }
-                _ => unreachable!(),
+                min_len += 1;
             }
             start_idx = idx + c.len_utf8();
         }
@@ -88,7 +124,31 @@ where
         min_len,
         literal_configs: literal_configs.into_boxed_slice(),
         literal_states: literal_states.into_boxed_slice(),
+        literal_underscore_is_wildcard: options.literal_underscore_is_wildcard,
         _marker: PhantomData,
+    }
+}
+
+#[inline(always)]
+fn slice_from(text: &str, idx: usize) -> &str {
+    debug_assert!(idx <= text.len());
+    unsafe { text.get_unchecked(idx..) }
+}
+
+#[inline(always)]
+fn literal_matches_at<S: StringSearch>(
+    pattern: &Pattern<S>,
+    lit: &str,
+    text: &str,
+    idx: usize,
+    state_idx: usize,
+) -> bool {
+    if pattern.literal_underscore_is_wildcard && lit.as_bytes().contains(&b'_') {
+        let config = &pattern.literal_configs[state_idx];
+        let state = &pattern.literal_states[state_idx];
+        S::find_str(config, state, slice_from(text, idx)) == Some(0)
+    } else {
+        slice_from(text, idx).starts_with(lit)
     }
 }
 
@@ -100,6 +160,8 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
     }
 
     let tokens = &pattern.tokens;
+    let starts_with_any = matches!(tokens.first(), Some(Token::Any));
+    let ends_with_any = matches!(tokens.last(), Some(Token::Any));
     let mut t_idx = 0;
     let mut s_idx = 0;
 
@@ -109,11 +171,43 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
     let mut last_wildcard_state_idx = 0;
     let mut match_s_idx = 0;
 
+    if !starts_with_any {
+        if let Some(Token::Literal(lit)) = tokens.first() {
+            if !lit.is_empty() {
+                if !literal_matches_at(pattern, lit, text, 0, 0) {
+                    return false;
+                }
+                s_idx = lit.len();
+                t_idx = 1;
+                state_idx = 1;
+            }
+        }
+    }
+
+    if !ends_with_any {
+        if let Some(Token::Literal(lit)) = tokens.last() {
+            if !lit.is_empty() {
+                let last_state_idx = pattern.literal_configs.len().saturating_sub(1);
+                if text.len() < lit.len()
+                    || !literal_matches_at(
+                        pattern,
+                        lit,
+                        text,
+                        text.len() - lit.len(),
+                        last_state_idx,
+                    )
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
     while s_idx < text.len() {
         if t_idx < tokens.len() {
             match tokens[t_idx] {
                 Token::Literal(lit) => {
-                    if text[s_idx..].starts_with(lit) {
+                    if literal_matches_at(pattern, lit, text, s_idx, state_idx) {
                         s_idx += lit.len();
                         t_idx += 1;
                         state_idx += 1;
@@ -121,7 +215,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                     }
                 }
                 Token::Skip(count) => {
-                    let mut chars = text[s_idx..].chars();
+                    let mut chars = slice_from(text, s_idx).chars();
                     let mut advanced = 0;
                     let mut met = 0;
                     while met < count {
@@ -148,7 +242,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                         let next_state = &pattern.literal_states[state_idx];
 
                         if let Some(found_offset) =
-                            S::find_str(next_config, next_state, &text[s_idx..])
+                            S::find_str(next_config, next_state, slice_from(text, s_idx))
                         {
                             match_s_idx = s_idx + found_offset;
                             s_idx = match_s_idx;
@@ -182,7 +276,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                 let next_state = &pattern.literal_states[state_idx];
 
                 if let Some(found_offset) =
-                    S::find_str(next_config, next_state, &text[search_start..])
+                    S::find_str(next_config, next_state, slice_from(text, search_start))
                 {
                     match_s_idx = search_start + found_offset;
                     s_idx = match_s_idx;
@@ -192,7 +286,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
                 }
             } else {
                 // Dumb Backtracking
-                if let Some(c) = text[match_s_idx..].chars().next() {
+                if let Some(c) = slice_from(text, match_s_idx).chars().next() {
                     match_s_idx += c.len_utf8();
                     s_idx = match_s_idx;
                     continue;
@@ -217,7 +311,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algos::{BM, KMP, Naive, StdSearch};
+    use algos::{FftConfig, FftStr1, Naive, StdSearch, BM, KMP};
 
     fn run_test_suite<S, F>(factory: F)
     where
@@ -295,5 +389,60 @@ mod tests {
         run_test_suite::<BM, _>(|_, pat| unsafe {
             std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes())
         });
+    }
+
+    #[test]
+    fn test_underscore_literal_option() {
+        let options = CompileOptions {
+            treat_underscore_as_literal: true,
+            literal_underscore_is_wildcard: false,
+        };
+        let pattern = compile_pattern_with_options::<StdSearch, _, _>(
+            "%a_c%",
+            (),
+            |_, pat| unsafe { std::mem::transmute::<&str, &str>(pat) },
+            options,
+        );
+
+        assert!(like_match(&pattern, "zza_czz"));
+        assert!(!like_match(&pattern, "zzabczz"));
+    }
+
+    #[test]
+    #[ignore]
+    fn reproduce_fftstr_underscore_literal_mismatch() {
+        let options = CompileOptions {
+            treat_underscore_as_literal: true,
+            literal_underscore_is_wildcard: true,
+        };
+        let pattern = compile_pattern_with_options::<FftStr1, _, _>(
+            "%a_%_b%",
+            (),
+            |_, pat| FftConfig::from_str(pat),
+            options,
+        );
+        let text = "zzaXfooYbzz";
+        let first_config = &pattern.literal_configs[0];
+        let first_state = &pattern.literal_states[0];
+        let second_config = &pattern.literal_configs[1];
+        let second_state = &pattern.literal_states[1];
+
+        assert_eq!(FftStr1::find_str(first_config, first_state, text), Some(2));
+        assert_eq!(
+            FftStr1::find_str(first_config, first_state, &text[2..]),
+            Some(0)
+        );
+        assert_eq!(
+            FftStr1::find_str(second_config, second_state, &text[4..]),
+            Some(3)
+        );
+        assert_eq!(
+            FftStr1::find_str(second_config, second_state, &text[7..]),
+            Some(0)
+        );
+        assert!(literal_matches_at(&pattern, "a_", text, 2, 0));
+        assert!(literal_matches_at(&pattern, "_b", text, 7, 1));
+
+        assert!(like_match(&pattern, text));
     }
 }

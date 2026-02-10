@@ -31,3 +31,12 @@ pattern -> like::compile_pattern ----------> engine::execute
 ## Testing
 - Unit tests: `cargo test -p storage` and `cargo test -p engine`
 - Benchmark + correctness report: `cargo run -p tests --bin bench_like --release`
+
+
+## Further ideas:
+- LUT table + simd like simdjson (1 table per 8 characters)
+- partitioned multithreading hotspot finding
+- exact naive string search on gpu
+- prefix sum based search, (rolling hash, robin carp?) hot spots + exact search "filter + compact"
+
+- assumption: hotspots and gpu should perform well in sparse.

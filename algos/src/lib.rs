@@ -1,4 +1,5 @@
 mod bm;
+mod fftstr;
 mod kmer;
 mod kmp;
 mod naive;
@@ -53,6 +54,8 @@ pub trait StringSearch {
 use std::marker::PhantomData;
 
 pub use bm::BM;
+pub use fftstr::{FftConfig, FftStr0, FftStr1};
+pub type FftStr = FftStr0;
 pub use kmer::{KmerConfig, KmerIndex, KmerSearch};
 pub use kmp::KMP;
 pub use naive::{Naive, NaiveScalar, NaiveVectorized};

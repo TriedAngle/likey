@@ -1,9 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, collections::HashSet, marker::PhantomData, sync::Arc};
 
 use crate::StringSearch;
 
-pub struct KmerConfig {
-    pub pattern: Vec<u8>,
+pub struct KmerConfig<'a> {
+    pub pattern: &'a [u8],
     pub k: usize,
     pub min_hits: usize,
 }
@@ -20,10 +20,10 @@ pub struct KmerIndexInner {
     min_hits: usize,
 }
 
-pub struct KmerSearch;
+pub struct KmerSearch<'a>(PhantomData<&'a ()>);
 
-impl StringSearch for KmerSearch {
-    type Config = KmerConfig;
+impl<'a> StringSearch for KmerSearch<'a> {
+    type Config = KmerConfig<'a>;
     type State = KmerIndex;
 
     fn build(config: &Self::Config) -> Self::State {
@@ -48,14 +48,17 @@ impl StringSearch for KmerSearch {
         }
     }
 
-    fn find_bytes(_config: &Self::Config, state: &Self::State, text: &[u8]) -> Option<usize> {
+    fn find_bytes(config: &Self::Config, state: &Self::State, text: &[u8]) -> Option<usize> {
         let state = &state.inner;
+        let pattern = config.pattern;
 
-        if state.map.is_empty() || text.len() < state.k {
+        if state.map.is_empty() || text.len() < state.k || pattern.is_empty() {
             return None;
         }
 
         let mut diagonal_counts: HashMap<isize, usize> = HashMap::new();
+        let mut candidates: Vec<isize> = Vec::new();
+        let mut candidate_seen: HashSet<isize> = HashSet::new();
 
         for text_pos in 0..=text.len() - state.k {
             let kmer = &text[text_pos..text_pos + state.k];
@@ -71,11 +74,29 @@ impl StringSearch for KmerSearch {
                     let count = diagonal_counts.entry(diagonal).or_insert(0);
                     *count += 1;
 
-                    // If we reach min_hits, we return the diagonal (start index)
                     if *count >= state.min_hits {
-                        return Some(diagonal as usize);
+                        if !candidate_seen.contains(&diagonal) {
+                            candidates.push(diagonal);
+                            candidate_seen.insert(diagonal);
+                        }
                     }
                 }
+            }
+        }
+
+        if candidates.is_empty() {
+            return None;
+        }
+
+        candidates.sort_unstable();
+
+        for diagonal in candidates {
+            let start = diagonal as usize;
+            if start + pattern.len() > text.len() {
+                continue;
+            }
+            if &text[start..start + pattern.len()] == pattern {
+                return Some(start);
             }
         }
 
@@ -89,14 +110,14 @@ mod tests {
 
     #[test]
     fn test_interface_compliance() {
-        let pattern = b"ACGTACGT".to_vec();
+        let pattern = b"ACGTACGT";
         let k = 3;
         // Total k-mers in pattern: 8 - 3 + 1 = 6.
         // We set min_hits to 6 to require a full match.
         let min_hits = 6;
 
         let config = KmerConfig {
-            pattern: pattern.clone(),
+            pattern,
             k,
             min_hits,
         };
@@ -123,7 +144,7 @@ mod tests {
 
     #[test]
     fn test_partial_hits_threshold() {
-        let pattern = b"AAAAA".to_vec();
+        let pattern = b"AAAAA";
         let config = KmerConfig {
             pattern,
             k: 2,
@@ -137,6 +158,6 @@ mod tests {
 
         // Text has 4 'A's -> 3 kmers (AA, AA, AA). Should pass (3 >= 3).
         let text_pass = b"AAAA";
-        assert_eq!(KmerSearch::find_bytes(&config, &index, text_pass), Some(0));
+        assert_eq!(KmerSearch::find_bytes(&config, &index, text_pass), None);
     }
 }

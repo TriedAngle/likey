@@ -1,9 +1,9 @@
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use std::time::{Duration, Instant}; // Added Duration and Instant
+use std::time::Instant;
 
-use algos::{BM, KMP, KmerConfig, KmerSearch, Naive, NaiveScalar, NaiveVectorized, StringSearch};
+use algos::{KmerConfig, KmerSearch, Naive, NaiveScalar, NaiveVectorized, StringSearch, BM, KMP};
 use clap::Parser;
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -107,32 +107,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         pattern.len()
     )?;
 
-    for (idx, text_path) in cli.texts.iter().enumerate() {
-        let text = load_text(text_path)?;
+    let pat_bytes = pattern.as_bytes();
 
-        let (alpha_text, alpha_pattern) = per_text_and_pattern_alpha
-            .as_ref()
-            .map(|v| (v[idx], v[v.len() - 1]))
-            .unwrap_or((None, None));
-
-        if alpha_text.is_some() || alpha_pattern.is_some() {
-            writeln!(
-                out,
-                "# alphabet-size text={:?} pattern={:?} (for text {:?})",
-                alpha_text, alpha_pattern, text_path
+    match cli.algo {
+        Algorithm::Naive => {
+            let config = pat_bytes;
+            let state = Naive::build(&config);
+            run_over_texts::<Naive>(&cli, &per_text_and_pattern_alpha, &config, &state, &mut out)?;
+        }
+        Algorithm::NaiveScalar => {
+            let config = pat_bytes;
+            let state = NaiveScalar::build(&config);
+            run_over_texts::<NaiveScalar>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
             )?;
         }
-
-        let (matches, duration) = run_algorithm(&cli, &text, &pattern)?;
-
-        writeln!(out, "text={:?}", text_path)?;
-
-        if let Some(d) = duration {
-            writeln!(out, "execution_time: {}ns", d.as_nanos())?;
+        Algorithm::NaiveVectorized => {
+            let config = pat_bytes;
+            let state = NaiveVectorized::build(&config);
+            run_over_texts::<NaiveVectorized>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
+            )?;
         }
-
-        writeln!(out, "matches: {:?}", matches)?;
-        writeln!(out)?;
+        Algorithm::Kmp => {
+            let config = pat_bytes;
+            let state = KMP::build(&config);
+            run_over_texts::<KMP>(&cli, &per_text_and_pattern_alpha, &config, &state, &mut out)?;
+        }
+        Algorithm::Bm => {
+            let config = pat_bytes;
+            let state = BM::build(&config);
+            run_over_texts::<BM>(&cli, &per_text_and_pattern_alpha, &config, &state, &mut out)?;
+        }
+        Algorithm::Kmer => {
+            let config = KmerConfig {
+                pattern: pat_bytes,
+                k: cli.kmer_k,
+                min_hits: cli.kmer_min_hits,
+            };
+            let state = KmerSearch::build(&config);
+            run_over_texts::<KmerSearch>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
+            )?;
+        }
     }
 
     Ok(())
@@ -190,37 +219,47 @@ fn resolve_alphabet_sizes(
     .into())
 }
 
-fn run_algorithm(
+fn run_over_texts<S: StringSearch>(
     cli: &Cli,
-    text: &str,
-    pattern: &str,
-) -> Result<(Vec<usize>, Option<Duration>), Box<dyn std::error::Error>> {
-    let start = if cli.measure_time {
-        Some(Instant::now())
-    } else {
-        None
-    };
+    per_text_and_pattern_alpha: &Option<Vec<Option<usize>>>,
+    config: &S::Config,
+    state: &S::State,
+    out: &mut dyn Write,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for (idx, text_path) in cli.texts.iter().enumerate() {
+        let text = load_text(text_path)?;
 
-    let pat_bytes = pattern.as_bytes();
+        let (alpha_text, alpha_pattern) = per_text_and_pattern_alpha
+            .as_ref()
+            .map(|v| (v[idx], v[v.len() - 1]))
+            .unwrap_or((None, None));
 
-    let result = match cli.algo {
-        Algorithm::Naive => Naive::find_all(&pat_bytes, text),
-        Algorithm::NaiveScalar => NaiveScalar::find_all(&pat_bytes, text),
-        Algorithm::NaiveVectorized => NaiveVectorized::find_all(&pat_bytes, text),
-        Algorithm::Kmp => KMP::find_all(&pat_bytes, text),
-        Algorithm::Bm => BM::find_all(&pat_bytes, text),
-
-        Algorithm::Kmer => {
-            let cfg = KmerConfig {
-                pattern: pat_bytes.to_vec(),
-                k: cli.kmer_k,
-                min_hits: cli.kmer_min_hits,
-            };
-            KmerSearch::find_all(&cfg, text)
+        if alpha_text.is_some() || alpha_pattern.is_some() {
+            writeln!(
+                out,
+                "# alphabet-size text={:?} pattern={:?} (for text {:?})",
+                alpha_text, alpha_pattern, text_path
+            )?;
         }
-    };
 
-    let duration = start.map(|s| s.elapsed());
+        let start = if cli.measure_time {
+            Some(Instant::now())
+        } else {
+            None
+        };
 
-    Ok((result, duration))
+        let matches = S::find_all_bytes(config, state, text.as_bytes());
+        let duration = start.map(|s| s.elapsed());
+
+        writeln!(out, "text={:?}", text_path)?;
+
+        if let Some(d) = duration {
+            writeln!(out, "execution_time: {}ns", d.as_nanos())?;
+        }
+
+        writeln!(out, "matches: {:?}", matches)?;
+        writeln!(out)?;
+    }
+
+    Ok(())
 }

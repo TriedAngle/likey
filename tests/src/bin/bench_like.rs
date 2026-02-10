@@ -4,12 +4,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use algos::{BM, KMP, NaiveScalar, NaiveVectorized, StdSearch, StringSearch};
+use algos::{
+    FftConfig, FftStr0, FftStr1, NaiveScalar, NaiveVectorized, StdSearch, StringSearch, BM, KMP,
+};
 use engine::execute;
-use like::compile_pattern;
+use like::{compile_pattern, compile_pattern_with_options, CompileOptions};
 use storage::{
+    dataset::{load_dataset_from_paths, DataSet},
     BumpArena,
-    dataset::{DataSet, load_dataset_from_paths},
 };
 
 const ARENA_SIZE: usize = 1024 * 1024 * 1024; // 1 GB
@@ -45,7 +47,15 @@ ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
     ),
 ];
 
-const ALGORITHMS: &[&str] = &["naive-scalar", "naive-vector", "kmp", "bm", "std"];
+const ALGORITHMS: &[&str] = &[
+    "naive-scalar",
+    "naive-vector",
+    "kmp",
+    "bm",
+    "std",
+    "fftstr0",
+    "fftstr1",
+];
 
 #[derive(Debug)]
 struct ResultEntry {
@@ -56,6 +66,7 @@ struct ResultEntry {
     file_type: String,
     duration: Duration,
     found_count: usize,
+    skipped: bool,
 }
 
 #[derive(Debug)]
@@ -135,6 +146,40 @@ fn main() {
                     &database,
                     |_, pat| unsafe { std::mem::transmute::<&str, &str>(pat) },
                 ),
+                "fftstr0" => {
+                    if should_skip_fftstr0(pat_str) {
+                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    } else {
+                        run_benchmark_with_options::<FftStr0, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            &database,
+                            |_, pat| FftConfig::from_str(pat),
+                            CompileOptions {
+                                treat_underscore_as_literal: true,
+                                literal_underscore_is_wildcard: true,
+                            },
+                        )
+                    }
+                }
+                "fftstr1" => {
+                    if should_skip_fftstr1(pat_str) {
+                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    } else {
+                        run_benchmark_with_options::<FftStr1, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            &database,
+                            |_, pat| FftConfig::from_str(pat),
+                            CompileOptions {
+                                treat_underscore_as_literal: true,
+                                literal_underscore_is_wildcard: true,
+                            },
+                        )
+                    }
+                }
                 _ => panic!("Unknown algorithm: {}", algo_name),
             };
 
@@ -196,10 +241,102 @@ where
             file_type: infer_file_type(&table.name),
             duration,
             found_count: matches.len(),
+            skipped: false,
         });
     }
 
     results
+}
+
+fn run_benchmark_with_options<'a, S, F>(
+    algo_name: &str,
+    pat_str: &str,
+    pattern_index: usize,
+    database: &'a DataSet<'a>,
+    factory: F,
+    options: CompileOptions,
+) -> Vec<ResultEntry>
+where
+    S: StringSearch,
+    F: FnMut(&mut (), &str) -> S::Config + Clone,
+{
+    let mut results = Vec::new();
+
+    let pattern = compile_pattern_with_options::<S, _, _>(pat_str, (), factory, options);
+
+    for table in database.tables.iter() {
+        let table_dataset = DataSet {
+            tables: vec![table.clone()].into_boxed_slice(),
+        };
+
+        let start = Instant::now();
+        let matches = execute(&pattern, &table_dataset);
+        let duration = start.elapsed();
+
+        results.push(ResultEntry {
+            algo: algo_name.to_string(),
+            pattern_index,
+            pattern: pat_str.to_string(),
+            file: table.name.clone(),
+            file_type: infer_file_type(&table.name),
+            duration,
+            found_count: matches.len(),
+            skipped: false,
+        });
+    }
+
+    results
+}
+
+fn skipped_entries<'a>(
+    algo_name: &str,
+    pat_str: &str,
+    pattern_index: usize,
+    database: &'a DataSet<'a>,
+) -> Vec<ResultEntry> {
+    database
+        .tables
+        .iter()
+        .map(|table| ResultEntry {
+            algo: algo_name.to_string(),
+            pattern_index,
+            pattern: pat_str.to_string(),
+            file: table.name.clone(),
+            file_type: infer_file_type(&table.name),
+            duration: Duration::from_micros(0),
+            found_count: 0,
+            skipped: true,
+        })
+        .collect()
+}
+
+fn fftstr_max_literal_len(pattern: &str) -> usize {
+    pattern.split('%').map(str::len).max().unwrap_or(0)
+}
+
+fn log2ceil(value: u64) -> u32 {
+    assert!(value > 1);
+    let v = value - 1;
+    64 - v.leading_zeros()
+}
+
+fn fftstr_log2n(pattern: &str) -> u32 {
+    let max_literal_len = fftstr_max_literal_len(pattern) as u64;
+    let required = max_literal_len.saturating_mul(3);
+    if required <= 1 {
+        return 0;
+    }
+    log2ceil(required)
+}
+
+fn should_skip_fftstr0(pattern: &str) -> bool {
+    let log2n = fftstr_log2n(pattern);
+    log2n == 0 || log2n >= 8
+}
+
+fn should_skip_fftstr1(pattern: &str) -> bool {
+    let log2n = fftstr_log2n(pattern);
+    log2n == 0 || log2n > 27
 }
 
 fn infer_file_type(file_name: &str) -> String {
@@ -237,9 +374,20 @@ fn print_summary_table(results: &[ResultEntry]) {
             entry.file.clone()
         };
 
+        let hits_display = if entry.skipped {
+            "-".to_string()
+        } else {
+            entry.found_count.to_string()
+        };
+        let time_display = if entry.skipped {
+            "SKIP".to_string()
+        } else {
+            format!("{:.2}", micros)
+        };
+
         println!(
-            "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15.2}",
-            entry.algo, pat_display, file_display, entry.file_type, entry.found_count, micros
+            "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15}",
+            entry.algo, pat_display, file_display, entry.file_type, hits_display, time_display
         );
     }
     println!("{:=^95}", " END ");
@@ -255,7 +403,7 @@ fn print_algo_ranking(results: &[ResultEntry]) {
 
     let mut sums: HashMap<String, Duration> = HashMap::new();
 
-    for entry in results {
+    for entry in results.iter().filter(|entry| !entry.skipped) {
         *sums.entry(entry.algo.clone()).or_default() += entry.duration;
     }
 
@@ -287,7 +435,7 @@ fn print_per_pattern_ranking(results: &[ResultEntry]) {
         println!("{:-^46}", "");
 
         let mut sums: HashMap<&String, Duration> = HashMap::new();
-        for entry in results.iter().filter(|r| &r.pattern == pat) {
+        for entry in results.iter().filter(|r| &r.pattern == pat && !r.skipped) {
             *sums.entry(&entry.algo).or_default() += entry.duration;
         }
 
@@ -317,7 +465,7 @@ fn print_per_file_ranking(results: &[ResultEntry]) {
         println!("{:-^46}", "");
 
         let mut sums: HashMap<&String, Duration> = HashMap::new();
-        for entry in results.iter().filter(|r| &r.file == file) {
+        for entry in results.iter().filter(|r| &r.file == file && !r.skipped) {
             *sums.entry(&entry.algo).or_default() += entry.duration;
         }
 
@@ -336,11 +484,11 @@ fn print_correctness_report(results: &[ResultEntry]) {
     let mut mismatches = Vec::<Mismatch>::new();
     let mut total_checks = 0usize;
 
-    for entry in results.iter().filter(|r| r.algo == "std") {
+    for entry in results.iter().filter(|r| r.algo == "std" && !r.skipped) {
         baseline.insert((entry.pattern_index, entry.file.clone()), entry.found_count);
     }
 
-    for entry in results.iter().filter(|r| r.algo != "std") {
+    for entry in results.iter().filter(|r| r.algo != "std" && !r.skipped) {
         total_checks += 1;
         match baseline.get(&(entry.pattern_index, entry.file.clone())) {
             Some(expected) if *expected == entry.found_count => {}
