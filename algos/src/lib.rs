@@ -1,8 +1,11 @@
 mod bm;
 mod fftstr;
+mod fm_index;
 mod kmer;
 mod kmp;
+mod lut_short;
 mod naive;
+mod trigram_index;
 
 pub mod compare;
 
@@ -55,10 +58,13 @@ use std::marker::PhantomData;
 
 pub use bm::BM;
 pub use fftstr::{FftConfig, FftStr0, FftStr1};
+pub use fm_index::FMIndex;
 pub type FftStr = FftStr0;
 pub use kmer::{KmerConfig, KmerIndex, KmerSearch};
 pub use kmp::KMP;
+pub use lut_short::LutShort;
 pub use naive::{Naive, NaiveScalar, NaiveVectorized};
+pub use trigram_index::TrigramIndex;
 
 pub struct StdSearch<'a>(PhantomData<&'a ()>);
 

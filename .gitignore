@@ -1,4 +1,7 @@
 target
 data/fasta
+data/benchmarks
 fftstr
+.venv
+venv
 

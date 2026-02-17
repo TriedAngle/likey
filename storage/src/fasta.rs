@@ -147,11 +147,9 @@ GGCC";
         let result = parse_fasta_into_arena(&arena, raw);
         assert!(result.is_err());
         println!("result {:?}", result);
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Invalid UTF-8 in sequence data for ID: seq1")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Invalid UTF-8 in sequence data for ID: seq1"));
     }
 
     #[test]

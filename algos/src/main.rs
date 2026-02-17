@@ -3,7 +3,9 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::time::Instant;
 
-use algos::{KmerConfig, KmerSearch, Naive, NaiveScalar, NaiveVectorized, StringSearch, BM, KMP};
+use algos::{
+    KmerConfig, KmerSearch, LutShort, Naive, NaiveScalar, NaiveVectorized, StringSearch, BM, KMP,
+};
 use clap::Parser;
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -11,6 +13,7 @@ enum Algorithm {
     Naive,
     NaiveScalar,
     NaiveVectorized,
+    LutShort,
     Kmp,
     Bm,
     Kmer,
@@ -130,6 +133,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let config = pat_bytes;
             let state = NaiveVectorized::build(&config);
             run_over_texts::<NaiveVectorized>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
+            )?;
+        }
+        Algorithm::LutShort => {
+            let config = pat_bytes;
+            let state = LutShort::build(&config);
+            run_over_texts::<LutShort>(
                 &cli,
                 &per_text_and_pattern_alpha,
                 &config,

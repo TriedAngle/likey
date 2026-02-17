@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub fn eq_padded_bytes_simd(a: &[u8], b: &[u8]) -> bool {
     assert_eq!(a.len(), b.len(), "Slices must have the same length");
 

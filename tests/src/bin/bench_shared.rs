@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
     time::{Duration, Instant},
 };
 
@@ -10,54 +10,10 @@ use algos::{
 };
 use engine::execute;
 use like::{compile_pattern, compile_pattern_with_options, like_match, CompileOptions, Pattern};
-use storage::{
-    dataset::{load_dataset_from_paths, DataSet},
-    BumpArena,
-};
+use storage::dataset::DataSet;
 
-const ARENA_SIZE: usize = 1024 * 1024 * 1024; // 1 GB
 const FM_SEPARATOR: u8 = 0x1F;
 const FM_SENTINEL: u8 = 0x00;
-
-const PLAIN_TEXT_FILES: &[&str] = &["data/ipsum.txt"];
-
-const FASTA_FILES: &[&str] = &[
-    "data/fasta/covid19_genome.fasta",
-    "data/fasta/ecoli_genome.fasta",
-    "data/fasta/human_p53_protein.fasta",
-    "data/fasta/human_proteome.fasta",
-];
-
-const PATTERNS: &[(&str, &str)] = &[
-    ("%TCGC%", "Short DNA"),
-    ("%GATTACA%", "Medium DNA"),
-    ("%Lorem%", "Common Word"),
-    ("h%o", "Wildcard Simple"),
-    ("%a_%_b%", "Wildcard Complex"),
-    ("%a_%_b%", "Wildcard Complex2"),
-    ("%GA_T%____T%%ACA%", "Complex DNA Pattern"),
-    ("%TGCGAGATTTGGACGGAC%", "DNA Simple (original complex)"),
-    ("%TGCG%A___GGACGGAC%", "Complex DNA Pattern2"),
-    (
-        "%GTTGCGAGATTTGGACGGACGTTGACGGGGTCTATACCTGCGACCCGCGT
-%CAGGTGCCCGATGCGAGGTTGTTGAAGTCGATGTCCTACCAGGAAGCGATGGAGCTTTCCTACTTCGGCG
-CTAAAGTTCTTCACCCCCGCACCATTACCCCCATCGCCCAGTTCCAGATCCCTTGCCTGATTAAAAATAC
-CGGAAATCCTCAAGCACCAGGTACGCTCATTGGTGCCAGCCGTGATGAAGACGAATTACCGGTCAAGGGC
-ATTTCCAATCTGAATAACATGGCAATGTTCAGCGTTTCTGGTCCGGGGATGAAAGGGATGGTCGGCATGG
-CGGCGCGCGTCTTTGCAGCGATGTCACGCGCCCGTATTTCCGTGGTGCTGATTACGCAATCATCTTCCGA
-ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
-        "Long DNA Patern split",
-    ),
-    (
-        "%CAGGTGCCCGATGCGAGGTTGTTGAAGTCGATGTCCTACCAGGAAGCGATGGAGCTTTCCTACTTCGGCG
-CTAAAGTTCTTCACCCCCGCACCATTACCCCCATCGCCCAGTTCCAGATCCCTTGCCTGATTAAAAATAC
-CGGAAATCCTCAAGCACCAGGTACGCTCATTGGTGCCAGCCGTGATGAAGACGAATTACCGGTCAAGGGC
-ATTTCCAATCTGAATAACATGGCAATGTTCAGCGTTTCTGGTCCGGGGATGAAAGGGATGGTCGGCATGG
-CGGCGCGCGTCTTTGCAGCGATGTCACGCGCCCGTATTTCCGTGGTGCTGATTACGCAATCATCTTCCGA
-ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
-        "Long DNA Patern",
-    ),
-];
 
 const ALGORITHMS: &[&str] = &[
     "naive-scalar",
@@ -121,6 +77,20 @@ struct TrigramRow<'a> {
     data: &'a str,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BenchOptions {
+    pub skip_naive_scalar: bool,
+    pub skip_naive_vector: bool,
+    pub skip_kmp: bool,
+    pub skip_bm: bool,
+    pub skip_std: bool,
+    pub skip_lut_short: bool,
+    pub skip_fftstr0: bool,
+    pub skip_fftstr1: bool,
+    pub skip_fm: bool,
+    pub skip_trigram: bool,
+}
+
 impl<'a> FmIndexDatabase<'a> {
     fn row_index_for_pos(&self, pos: usize) -> Option<usize> {
         let idx = match self.row_starts.binary_search(&pos) {
@@ -138,42 +108,35 @@ impl<'a> FmIndexDatabase<'a> {
     }
 }
 
-fn main() {
-    let skip_fftstr0 = has_flag("--skip-fftstr0");
-    let skip_fftstr1 = has_flag("--skip-fftstr1");
-    let skip_fm = has_flag("--skip-fm");
-    let skip_trigram = has_flag("--skip-trigram");
-    let skip_lut_short = !lut_short_available() || has_flag("--skip-lut-short");
-    let skip_naive_vector = !naive_vector_available() || has_flag("--skip-naive-vector");
-    let skip_naive_scalar = has_flag("--skip-naive-scalar");
-    let skip_kmp = has_flag("--skip-kmp");
-    let skip_bm = has_flag("--skip-bm");
-    let skip_std = has_flag("--skip-std");
+pub fn run_like_benchmarks(
+    database: &DataSet<'_>,
+    patterns: &[(&str, &str)],
+    options: BenchOptions,
+) {
+    let skip_lut_short = options.skip_lut_short || !lut_short_available();
+    let skip_naive_vector = options.skip_naive_vector || !naive_vector_available();
 
     println!("--- Starting Like Benchmark ---");
+    println!("> Database loaded. Total tables: {}", database.tables.len());
 
-    println!("> Allocating {} bytes for Arena...", ARENA_SIZE);
-    let arena = BumpArena::new(ARENA_SIZE);
-
-    println!("> Loading Database into memory...");
-    let database = load_database(&arena);
-    println!("> Database loaded. Total files: {}", database.tables.len());
-    println!("> Arena used: {} bytes", arena.used());
-
-    let fm_database = if skip_fm {
+    let fm_database = if options.skip_fm {
         None
     } else {
         println!("> Building FM-index...");
-        let (fm_database, fm_build_time) = build_fm_index(&database);
+        let (fm_database, fm_build_time) = build_fm_index(database);
         println!("> FM-index built in {} ms", fm_build_time.as_millis());
         Some(fm_database)
     };
 
-    let trigram_database = if skip_trigram {
+    let trigram_database = if options.skip_trigram {
         None
     } else {
         println!("> Building trigram index...");
-        Some(build_trigram_index(&database))
+        let start = Instant::now();
+        let trigram = build_trigram_index(database);
+        let duration = start.elapsed();
+        println!("> Trigram index built in {} ms", duration.as_millis());
+        Some(trigram)
     };
 
     let mut fm_literal_cache: HashMap<String, HashSet<usize>> = HashMap::new();
@@ -181,7 +144,7 @@ fn main() {
     let mut results = Vec::new();
 
     for algo_name in ALGORITHMS {
-        for (pattern_index, (pat_str, _pat_desc)) in PATTERNS.iter().enumerate() {
+        for (pattern_index, (pat_str, _pat_desc)) in patterns.iter().enumerate() {
             println!(
                 "> Benchmarking Algo: [{}] Pattern: [{}]",
                 algo_name, pat_str
@@ -189,92 +152,92 @@ fn main() {
 
             let entries = match *algo_name {
                 "naive-scalar" => {
-                    if skip_naive_scalar {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_naive_scalar {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveScalar, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
                         )
                     }
                 }
                 "naive-vector" => {
                     if skip_naive_vector {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveVectorized, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
                         )
                     }
                 }
                 "kmp" => {
-                    if skip_kmp {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_kmp {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<KMP, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
                         )
                     }
                 }
                 "bm" => {
-                    if skip_bm {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_bm {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<BM, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
                         )
                     }
                 }
                 "std" => {
-                    if skip_std {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_std {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<StdSearch, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&str, &str>(pat) },
                         )
                     }
                 }
                 "lut-short" => {
-                    if skip_lut_short {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_lut_short || skip_lut_short {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<algos::LutShort, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
                         )
                     }
                 }
                 "fftstr0" => {
-                    if skip_fftstr0 || should_skip_fftstr0(pat_str) {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_fftstr0 || should_skip_fftstr0(pat_str) {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark_with_options::<FftStr0, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| FftConfig::from_str(pat),
                             CompileOptions {
                                 treat_underscore_as_literal: true,
@@ -284,14 +247,14 @@ fn main() {
                     }
                 }
                 "fftstr1" => {
-                    if skip_fftstr1 || should_skip_fftstr1(pat_str) {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_fftstr1 || should_skip_fftstr1(pat_str) {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark_with_options::<FftStr1, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             |_, pat| FftConfig::from_str(pat),
                             CompileOptions {
                                 treat_underscore_as_literal: true,
@@ -301,23 +264,23 @@ fn main() {
                     }
                 }
                 "fm" => {
-                    if skip_fm {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_fm {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         let fm_database = fm_database.as_ref().expect("fm index not built");
                         run_fm_benchmark(
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             fm_database,
                             &mut fm_literal_cache,
                         )
                     }
                 }
                 "trigram" => {
-                    if skip_trigram {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    if options.skip_trigram {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         let trigram_database =
                             trigram_database.as_ref().expect("trigram index not built");
@@ -325,7 +288,7 @@ fn main() {
                             algo_name,
                             pat_str,
                             pattern_index,
-                            &database,
+                            database,
                             trigram_database,
                         )
                     }
@@ -344,10 +307,6 @@ fn main() {
     print_correctness_report(&results);
 }
 
-fn has_flag(flag: &str) -> bool {
-    std::env::args().any(|arg| arg == flag)
-}
-
 fn lut_short_available() -> bool {
     cfg!(all(target_arch = "x86_64", target_feature = "ssse3"))
         || cfg!(all(target_arch = "aarch64", target_feature = "neon"))
@@ -356,21 +315,6 @@ fn lut_short_available() -> bool {
 fn naive_vector_available() -> bool {
     cfg!(all(target_arch = "x86_64", target_feature = "sse2"))
         || cfg!(all(target_arch = "aarch64", target_feature = "neon"))
-}
-
-fn load_database<'a>(arena: &'a BumpArena) -> DataSet<'a> {
-    let mut paths: Vec<PathBuf> = Vec::new();
-
-    for file_path in PLAIN_TEXT_FILES.iter().chain(FASTA_FILES.iter()) {
-        if !Path::new(file_path).exists() {
-            eprintln!("  ! Skipping missing file: {}", file_path);
-            continue;
-        }
-
-        paths.push(PathBuf::from(file_path));
-    }
-
-    load_dataset_from_paths(arena, &paths).expect("load dataset")
 }
 
 fn run_benchmark<'a, S, F>(
@@ -424,6 +368,19 @@ fn run_fm_benchmark<'a>(
     let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
 
     for table in database.tables.iter() {
+        if table.rows.is_empty() {
+            results.push(ResultEntry {
+                algo: algo_name.to_string(),
+                pattern_index,
+                pattern: pat_str.to_string(),
+                file: table.name.clone(),
+                file_type: infer_file_type(&table.name),
+                duration: Duration::from_micros(0),
+                found_count: 0,
+                skipped: false,
+            });
+            continue;
+        }
         let table_name = table.name.as_str();
         let start = Instant::now();
         let found =
@@ -456,6 +413,19 @@ fn run_trigram_benchmark<'a>(
     let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
 
     for table in database.tables.iter() {
+        if table.rows.is_empty() {
+            results.push(ResultEntry {
+                algo: algo_name.to_string(),
+                pattern_index,
+                pattern: pat_str.to_string(),
+                file: table.name.clone(),
+                file_type: infer_file_type(&table.name),
+                duration: Duration::from_micros(0),
+                found_count: 0,
+                skipped: false,
+            });
+            continue;
+        }
         let table_name = table.name.as_str();
         let start = Instant::now();
         let found = trigram_like_search_table(trigram_database, table_name, &pattern, pat_str);

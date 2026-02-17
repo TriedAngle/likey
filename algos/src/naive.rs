@@ -38,11 +38,20 @@ impl<'a> StringSearch for NaiveVectorized<'a> {
         unsafe {
             neon::naive_find_neon(text, config)
         }
-        #[cfg(not(all(target_arch = "aarch64", target_feature = "neon")))]
+
+        #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+        unsafe {
+            x86::naive_find_sse2(text, config)
+        }
+
+        #[cfg(not(any(
+            all(target_arch = "aarch64", target_feature = "neon"),
+            all(target_arch = "x86_64", target_feature = "sse2")
+        )))]
         {
             let _ = config;
             let _ = text;
-            unimplemented!("only valid neon")
+            unimplemented!("no vector backend")
         }
     }
 }
@@ -120,6 +129,58 @@ pub mod neon {
         }
 
         // Scalar tail
+        while i + m <= n {
+            if &text[i..i + m] == pattern {
+                return Some(i);
+            }
+            i += 1;
+        }
+
+        None
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "sse2"))]
+pub mod x86 {
+    use core::arch::x86_64::*;
+
+    /// SSE2 accelerated naive string search
+    /// # Safety
+    /// Requires x86_64 with SSE2 support.
+    pub unsafe fn naive_find_sse2(text: &[u8], pattern: &[u8]) -> Option<usize> {
+        let n = text.len();
+        let m = pattern.len();
+
+        if m == 0 {
+            return Some(0);
+        }
+        if m > n {
+            return None;
+        }
+
+        let first = pattern[0] as i8;
+        let first_vec = unsafe { _mm_set1_epi8(first) };
+        let chunk_size = 16;
+
+        let mut i = 0usize;
+        while i + chunk_size <= n {
+            let ptr = unsafe { text.as_ptr().add(i) as *const __m128i };
+            let chunk = unsafe { _mm_loadu_si128(ptr) };
+            let cmp = unsafe { _mm_cmpeq_epi8(chunk, first_vec) };
+            let mut mask = unsafe { _mm_movemask_epi8(cmp) } as u32;
+
+            while mask != 0 {
+                let lane = mask.trailing_zeros() as usize;
+                let cand = i + lane;
+                if cand + m <= n && &text[cand..cand + m] == pattern {
+                    return Some(cand);
+                }
+                mask &= mask - 1;
+            }
+
+            i += chunk_size;
+        }
+
         while i + m <= n {
             if &text[i..i + m] == pattern {
                 return Some(i);

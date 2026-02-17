@@ -1,5 +1,6 @@
 #![allow(unused)]
 pub mod dataset;
+pub mod delimited;
 pub mod fasta;
 mod system;
 
