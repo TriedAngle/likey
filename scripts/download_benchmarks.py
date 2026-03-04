@@ -3,11 +3,13 @@ import os
 import shutil
 import subprocess
 import tarfile
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
 
 JOB_URLS = [
+    "https://db.in.tum.de/~fent/dbgen/job/imdb.tzst",
     "https://event.cwi.nl/da/job/imdb.tgz",
     "http://event.cwi.nl/da/job/imdb.tgz",
 ]
@@ -46,9 +48,45 @@ def download_file(url: str, destination: Path, use_curl: bool) -> None:
             shutil.copyfileobj(response, out_file)
 
 
+def extract_job_archive(archive_path: Path, out_dir: Path) -> None:
+    lower_name = archive_path.name.lower()
+
+    if lower_name.endswith((".tgz", ".tar.gz")):
+        with tarfile.open(archive_path, "r:gz") as tar:
+            tar.extractall(out_dir)
+        return
+
+    if lower_name.endswith((".tzst", ".zst", ".tar.zst")):
+        try:
+            import zstandard  # type: ignore
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(
+                "Extracting .tzst requires python package 'zstandard'. "
+                "Install with: python3 -m pip install zstandard"
+            ) from exc
+
+        tmp_tar = out_dir / "imdb.tar"
+        if tmp_tar.exists():
+            tmp_tar.unlink()
+
+        dctx = zstandard.ZstdDecompressor()
+        with open(archive_path, "rb") as src, open(tmp_tar, "wb") as dst:
+            dctx.copy_stream(src, dst)
+
+        try:
+            with tarfile.open(tmp_tar, "r:") as tar:
+                tar.extractall(out_dir)
+        finally:
+            if tmp_tar.exists():
+                tmp_tar.unlink()
+        return
+
+    raise RuntimeError(f"Unsupported JOB archive format: {archive_path.name}")
+
+
 def download_job_dataset(out_dir: Path, force: bool) -> None:
     ensure_dir(out_dir)
-    archive_path = out_dir / "imdb.tgz"
+    archive_path = out_dir / "imdb.tzst"
 
     extract_marker = out_dir / ".extracted"
     if extract_marker.exists() and not force:
@@ -62,6 +100,8 @@ def download_job_dataset(out_dir: Path, force: bool) -> None:
         else:
             last_error = None
             for url in JOB_URLS:
+                archive_name = Path(urllib.parse.urlparse(url).path).name or "imdb.tzst"
+                archive_path = out_dir / archive_name
                 order = (True, False) if prefer_curl else (False, True)
                 for use_curl in order:
                     downloader = "curl" if use_curl else "urllib"
@@ -84,12 +124,11 @@ def download_job_dataset(out_dir: Path, force: bool) -> None:
 
         print("Extracting JOB dataset...")
         try:
-            with tarfile.open(archive_path, "r:gz") as tar:
-                tar.extractall(out_dir)
+            extract_job_archive(archive_path, out_dir)
             extract_marker.write_text("ok")
             print(f"JOB dataset extracted to {out_dir}")
             return
-        except (tarfile.ReadError, EOFError) as exc:
+        except (tarfile.ReadError, EOFError, RuntimeError) as exc:
             print(f"Extract failed (attempt {attempt + 1}): {exc}")
             if archive_path.exists():
                 archive_path.unlink()

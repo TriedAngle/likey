@@ -1,0 +1,21 @@
+# pattern	description
+ATG%	Start codon prefix
+%TAA	Stop codon suffix
+%TAG	Stop codon suffix
+%TGA	Stop codon suffix
+%CGCG%	CpG-rich motif
+%AATAAA%	PolyA signal motif
+%TTTTT%	Poly-T run
+%AAAAA%	Poly-A run
+%GATA%	GATA-like motif
+%CAGCAG%	Repeat motif
+%ACGTACGT%	Alternating motif
+%NNNN%	Ambiguous base run
+G%G%G	Sparse Gs pattern
+%A_CG%	Single wildcard motif
+%TT_GA%	Single wildcard motif
+%CC__GG%	Two wildcard spacer
+%ATG___TAA%	Codon with spacer
+%GGG%CCC%	GC block with gap
+%TATA%	Promoter-like motif
+%AGGT%	Splice donor-like motif

@@ -59,6 +59,7 @@ pub fn load_delimited_columns<'a>(
     options: &DelimitedOptions,
     columns: &[ColumnSpec],
     limit: &mut Option<ByteLimit>,
+    max_rows: Option<usize>,
 ) -> Result<Vec<Table<'a>>, String> {
     let file = File::open(path)
         .map_err(|e| format!("Failed to read delimited file {}: {}", path.display(), e))?;
@@ -76,7 +77,15 @@ pub fn load_delimited_columns<'a>(
 
     let mut rows_by_column: Vec<Vec<Row<'a>>> = vec![Vec::new(); columns.len()];
 
+    let mut accepted_rows = 0usize;
+
     for record_result in reader.records() {
+        if let Some(max_rows) = max_rows {
+            if accepted_rows >= max_rows {
+                break;
+            }
+        }
+
         let record =
             record_result.map_err(|e| format!("CSV parse error in {}: {}", path.display(), e))?;
 
@@ -86,7 +95,7 @@ pub fn load_delimited_columns<'a>(
                 bytes += record.get(spec.index).unwrap_or("").as_bytes().len();
             }
             if !limit.try_reserve(bytes) {
-                continue;
+                break;
             }
         }
 
@@ -99,6 +108,8 @@ pub fn load_delimited_columns<'a>(
                 data,
             });
         }
+
+        accepted_rows += 1;
     }
 
     let file_name = filename_from_path(path)?;

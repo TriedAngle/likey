@@ -7,7 +7,7 @@ use storage::{
 };
 
 mod bench_shared;
-use bench_shared::{run_like_benchmarks, BenchOptions};
+use bench_shared::{load_patterns_from_file, run_like_benchmarks, BenchOptions, PatternSpec};
 
 const DEFAULT_ARENA_GB: usize = 4;
 
@@ -27,6 +27,10 @@ fn main() {
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(DEFAULT_ARENA_GB);
     let max_bytes = arg_value("--max-bytes").and_then(|v| v.parse::<usize>().ok());
+    let max_rows_per_table =
+        arg_value("--max-rows-per-table").and_then(|v| v.parse::<usize>().ok());
+    let patterns_file = arg_value("--patterns-file");
+    let output_csv = arg_value("--output-csv");
 
     let mut arena_size = arena_gb * 1024 * 1024 * 1024;
     if let Some(max_bytes) = max_bytes {
@@ -40,14 +44,27 @@ fn main() {
     if let Some(max_bytes) = max_bytes {
         println!("> Max bytes cap: {}", max_bytes);
     }
+    if let Some(max_rows_per_table) = max_rows_per_table {
+        println!("> Max rows per table cap: {}", max_rows_per_table);
+    }
 
-    let dataset = load_tpcds_dataset(&arena, Path::new(&data_dir), max_bytes);
+    let dataset = load_tpcds_dataset(&arena, Path::new(&data_dir), max_bytes, max_rows_per_table);
+
+    let patterns = match patterns_file {
+        Some(path) => {
+            let path_ref = Path::new(&path);
+            println!("> Loading patterns from: {}", path_ref.display());
+            load_patterns_from_file(path_ref).expect("load patterns file")
+        }
+        None => default_patterns(),
+    };
 
     let options = BenchOptions {
         skip_naive_scalar: has_flag("--skip-naive-scalar"),
         skip_naive_vector: has_flag("--skip-naive-vector"),
         skip_kmp: has_flag("--skip-kmp"),
         skip_bm: has_flag("--skip-bm"),
+        skip_two_way: has_flag("--skip-two-way"),
         skip_std: has_flag("--skip-std"),
         skip_lut_short: has_flag("--skip-lut-short"),
         skip_fftstr0: has_flag("--skip-fftstr0"),
@@ -56,13 +73,30 @@ fn main() {
         skip_trigram: has_flag("--skip-trigram"),
     };
 
-    run_like_benchmarks(&dataset, PATTERNS, options);
+    run_like_benchmarks(
+        &dataset,
+        "tpcds",
+        &patterns,
+        options,
+        output_csv.as_deref().map(Path::new),
+    );
+}
+
+fn default_patterns() -> Vec<PatternSpec> {
+    PATTERNS
+        .iter()
+        .map(|(pattern, description)| PatternSpec {
+            pattern: (*pattern).to_string(),
+            description: (*description).to_string(),
+        })
+        .collect()
 }
 
 fn load_tpcds_dataset<'a>(
     arena: &'a BumpArena,
     data_dir: &Path,
     max_bytes: Option<usize>,
+    max_rows_per_table: Option<usize>,
 ) -> DataSet<'a> {
     let item = find_existing_file(data_dir, "item").expect("item file not found");
     let customer = find_existing_file(data_dir, "customer").expect("customer file not found");
@@ -97,6 +131,7 @@ fn load_tpcds_dataset<'a>(
                 },
             ],
             &mut limit,
+            max_rows_per_table,
         )
         .expect("load item columns"),
     );
@@ -110,6 +145,7 @@ fn load_tpcds_dataset<'a>(
                 index: 9,
             }],
             &mut limit,
+            max_rows_per_table,
         )
         .expect("load customer columns"),
     );
@@ -123,6 +159,7 @@ fn load_tpcds_dataset<'a>(
                 index: 3,
             }],
             &mut limit,
+            max_rows_per_table,
         )
         .expect("load customer_address columns"),
     );
@@ -136,6 +173,7 @@ fn load_tpcds_dataset<'a>(
                 index: 14,
             }],
             &mut limit,
+            max_rows_per_table,
         )
         .expect("load date_dim columns"),
     );
@@ -149,6 +187,7 @@ fn load_tpcds_dataset<'a>(
                 index: 7,
             }],
             &mut limit,
+            max_rows_per_table,
         )
         .expect("load call_center columns"),
     );

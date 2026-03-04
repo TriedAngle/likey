@@ -1,0 +1,6 @@
+# pattern	description
+%STEEL%	manual:contains steel
+%BOX%	manual:contains box
+%a_%_b%	manual:mixed wildcards
+GATTACA%	manual:prefix
+%Monday%	manual:suffix/contains style

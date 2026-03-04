@@ -1,12 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Write},
     path::Path,
     time::{Duration, Instant},
 };
 
 use algos::{
-    FMIndex, FftConfig, FftStr0, FftStr1, NaiveScalar, NaiveVectorized, StdSearch, StringSearch,
-    TrigramIndex, BM, KMP,
+    FMIndex, FftConfig, FftStr0, FftStr1, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StdSearch, StringSearch, TrigramIndex, TwoWay, BM, KMP,
 };
 use engine::execute;
 use like::{compile_pattern, compile_pattern_with_options, like_match, CompileOptions, Pattern};
@@ -18,8 +20,11 @@ const FM_SENTINEL: u8 = 0x00;
 const ALGORITHMS: &[&str] = &[
     "naive-scalar",
     "naive-vector",
+    "naive-vector-v2",
+    "naive-mixed",
     "kmp",
     "bm",
+    "two-way",
     "std",
     "lut-short",
     "fftstr0",
@@ -83,12 +88,26 @@ pub struct BenchOptions {
     pub skip_naive_vector: bool,
     pub skip_kmp: bool,
     pub skip_bm: bool,
+    pub skip_two_way: bool,
     pub skip_std: bool,
     pub skip_lut_short: bool,
     pub skip_fftstr0: bool,
     pub skip_fftstr1: bool,
     pub skip_fm: bool,
     pub skip_trigram: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct PatternSpec {
+    pub pattern: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TableStats {
+    rows: usize,
+    avg_len: f64,
+    max_len: usize,
 }
 
 impl<'a> FmIndexDatabase<'a> {
@@ -110,8 +129,10 @@ impl<'a> FmIndexDatabase<'a> {
 
 pub fn run_like_benchmarks(
     database: &DataSet<'_>,
-    patterns: &[(&str, &str)],
+    dataset_name: &str,
+    patterns: &[PatternSpec],
     options: BenchOptions,
+    output_csv: Option<&Path>,
 ) {
     let skip_lut_short = options.skip_lut_short || !lut_short_available();
     let skip_naive_vector = options.skip_naive_vector || !naive_vector_available();
@@ -140,11 +161,13 @@ pub fn run_like_benchmarks(
     };
 
     let mut fm_literal_cache: HashMap<String, HashSet<usize>> = HashMap::new();
+    let table_stats = compute_table_stats(database);
 
     let mut results = Vec::new();
 
     for algo_name in ALGORITHMS {
-        for (pattern_index, (pat_str, _pat_desc)) in patterns.iter().enumerate() {
+        for (pattern_index, pat_spec) in patterns.iter().enumerate() {
+            let pat_str = pat_spec.pattern.as_str();
             println!(
                 "> Benchmarking Algo: [{}] Pattern: [{}]",
                 algo_name, pat_str
@@ -190,11 +213,44 @@ pub fn run_like_benchmarks(
                         )
                     }
                 }
+                "naive-vector-v2" => {
+                    if skip_naive_vector {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
+                    } else {
+                        run_benchmark::<NaiveVectorizedV2, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            database,
+                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                        )
+                    }
+                }
+                "naive-mixed" => run_benchmark::<NaiveMixed, _>(
+                    algo_name,
+                    pat_str,
+                    pattern_index,
+                    database,
+                    |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                ),
                 "bm" => {
                     if options.skip_bm {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<BM, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            database,
+                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                        )
+                    }
+                }
+                "two-way" => {
+                    if options.skip_two_way {
+                        skipped_entries(algo_name, pat_str, pattern_index, database)
+                    } else {
+                        run_benchmark::<TwoWay, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
@@ -242,6 +298,7 @@ pub fn run_like_benchmarks(
                             CompileOptions {
                                 treat_underscore_as_literal: true,
                                 literal_underscore_is_wildcard: true,
+                                ascii_mode: true,
                             },
                         )
                     }
@@ -259,6 +316,7 @@ pub fn run_like_benchmarks(
                             CompileOptions {
                                 treat_underscore_as_literal: true,
                                 literal_underscore_is_wildcard: true,
+                                ascii_mode: true,
                             },
                         )
                     }
@@ -305,6 +363,12 @@ pub fn run_like_benchmarks(
     print_per_pattern_ranking(&results);
     print_per_file_ranking(&results);
     print_correctness_report(&results);
+
+    if let Some(path) = output_csv {
+        write_results_csv(path, dataset_name, patterns, &results, &table_stats)
+            .expect("write benchmark csv");
+        println!("> Wrote CSV results: {}", path.display());
+    }
 }
 
 fn lut_short_available() -> bool {
@@ -497,7 +561,7 @@ fn fm_like_search_table<'a>(
         SimpleLike::All => return count_all_rows(fm_database, table_name),
         SimpleLike::Exact(lit) => return count_exact_rows(fm_database, table_name, lit),
         SimpleLike::Contains(lit) => {
-            return count_rows_with_literal(fm_database, table_name, lit, fm_literal_cache)
+            return count_rows_with_literal(fm_database, table_name, lit, fm_literal_cache);
         }
         SimpleLike::Prefix(lit) => return count_rows_with_prefix(fm_database, table_name, lit),
         SimpleLike::Suffix(lit) => return count_rows_with_suffix(fm_database, table_name, lit),
@@ -954,6 +1018,156 @@ fn infer_file_type(file_name: &str) -> String {
     }
 }
 
+pub fn load_patterns_from_file(path: &Path) -> Result<Vec<PatternSpec>, String> {
+    let file = File::open(path)
+        .map_err(|err| format!("Failed to open pattern file {}: {err}", path.display()))?;
+    let reader = BufReader::new(file);
+
+    let mut patterns = Vec::new();
+    for (line_no, line_res) in reader.lines().enumerate() {
+        let line = line_res.map_err(|err| {
+            format!(
+                "Failed to read line {} from {}: {err}",
+                line_no + 1,
+                path.display()
+            )
+        })?;
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        let mut parts = trimmed.splitn(2, '\t');
+        let pattern = parts.next().unwrap_or("").trim().to_string();
+        if pattern.is_empty() {
+            continue;
+        }
+
+        let description = parts
+            .next()
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| format!("Pattern {}", patterns.len() + 1));
+
+        patterns.push(PatternSpec {
+            pattern,
+            description,
+        });
+    }
+
+    if patterns.is_empty() {
+        return Err(format!(
+            "Pattern file {} did not contain any usable patterns",
+            path.display()
+        ));
+    }
+
+    Ok(patterns)
+}
+
+fn compute_table_stats(database: &DataSet<'_>) -> HashMap<String, TableStats> {
+    let mut map = HashMap::new();
+    for table in database.tables.iter() {
+        let rows = table.rows.len();
+        if rows == 0 {
+            map.insert(
+                table.name.clone(),
+                TableStats {
+                    rows: 0,
+                    avg_len: 0.0,
+                    max_len: 0,
+                },
+            );
+            continue;
+        }
+
+        let mut sum = 0usize;
+        let mut max_len = 0usize;
+        for row in table.rows.iter() {
+            let len = row.data.len();
+            sum += len;
+            if len > max_len {
+                max_len = len;
+            }
+        }
+
+        map.insert(
+            table.name.clone(),
+            TableStats {
+                rows,
+                avg_len: (sum as f64) / (rows as f64),
+                max_len,
+            },
+        );
+    }
+    map
+}
+
+fn csv_escape(value: &str) -> String {
+    let needs_quotes = value.contains(',') || value.contains('"') || value.contains('\n');
+    if !needs_quotes {
+        return value.to_string();
+    }
+
+    let escaped = value.replace('"', "\"\"");
+    format!("\"{}\"", escaped)
+}
+
+fn write_results_csv(
+    path: &Path,
+    dataset_name: &str,
+    patterns: &[PatternSpec],
+    results: &[ResultEntry],
+    table_stats: &HashMap<String, TableStats>,
+) -> Result<(), String> {
+    let file = File::create(path)
+        .map_err(|err| format!("Failed to create CSV {}: {err}", path.display()))?;
+    let mut writer = BufWriter::new(file);
+
+    writeln!(
+        writer,
+        "dataset,algorithm,pattern_index,pattern,pattern_desc,table,file_type,duration_micros,found_count,skipped,table_rows,table_avg_len,table_max_len"
+    )
+    .map_err(|err| format!("Failed to write CSV header to {}: {err}", path.display()))?;
+
+    for entry in results {
+        let pattern_desc = patterns
+            .get(entry.pattern_index)
+            .map(|spec| spec.description.as_str())
+            .unwrap_or("");
+        let stats = table_stats.get(&entry.file).copied().unwrap_or(TableStats {
+            rows: 0,
+            avg_len: 0.0,
+            max_len: 0,
+        });
+
+        writeln!(
+            writer,
+            "{},{},{},{},{},{},{},{},{},{},{},{:.4},{}",
+            csv_escape(dataset_name),
+            csv_escape(&entry.algo),
+            entry.pattern_index,
+            csv_escape(&entry.pattern),
+            csv_escape(pattern_desc),
+            csv_escape(&entry.file),
+            csv_escape(&entry.file_type),
+            entry.duration.as_micros(),
+            entry.found_count,
+            entry.skipped,
+            stats.rows,
+            stats.avg_len,
+            stats.max_len,
+        )
+        .map_err(|err| format!("Failed to write CSV row to {}: {err}", path.display()))?;
+    }
+
+    writer
+        .flush()
+        .map_err(|err| format!("Failed to flush CSV {}: {err}", path.display()))?;
+    Ok(())
+}
+
 fn print_summary_table(results: &[ResultEntry]) {
     println!("\n\n{:=^95}", " RESULTS SUMMARY ");
     println!(
@@ -1147,3 +1361,6 @@ fn print_correctness_report(results: &[ResultEntry]) {
 
     println!("{:=^70}", " END ");
 }
+
+#[allow(dead_code)]
+fn main() {}

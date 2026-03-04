@@ -5,8 +5,8 @@ use std::{
 };
 
 use algos::{
-    FMIndex, FftConfig, FftStr0, FftStr1, NaiveScalar, NaiveVectorized, StdSearch, StringSearch,
-    TrigramIndex, BM, KMP,
+    FMIndex, FftConfig, FftStr0, FftStr1, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StdSearch, StringSearch, TrigramIndex, TwoWay, BM, KMP,
 };
 use engine::execute;
 use like::{compile_pattern, compile_pattern_with_options, like_match, CompileOptions, Pattern};
@@ -62,8 +62,11 @@ ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
 const ALGORITHMS: &[&str] = &[
     "naive-scalar",
     "naive-vector",
+    "naive-vector-v2",
+    "naive-mixed",
     "kmp",
     "bm",
+    "two-way",
     "std",
     "lut-short",
     "fftstr0",
@@ -148,6 +151,7 @@ fn main() {
     let skip_naive_scalar = has_flag("--skip-naive-scalar");
     let skip_kmp = has_flag("--skip-kmp");
     let skip_bm = has_flag("--skip-bm");
+    let skip_two_way = has_flag("--skip-two-way");
     let skip_std = has_flag("--skip-std");
 
     println!("--- Starting Like Benchmark ---");
@@ -227,11 +231,44 @@ fn main() {
                         )
                     }
                 }
+                "naive-vector-v2" => {
+                    if skip_naive_vector {
+                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    } else {
+                        run_benchmark::<NaiveVectorizedV2, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            &database,
+                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                        )
+                    }
+                }
+                "naive-mixed" => run_benchmark::<NaiveMixed, _>(
+                    algo_name,
+                    pat_str,
+                    pattern_index,
+                    &database,
+                    |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                ),
                 "bm" => {
                     if skip_bm {
                         skipped_entries(algo_name, pat_str, pattern_index, &database)
                     } else {
                         run_benchmark::<BM, _>(
+                            algo_name,
+                            pat_str,
+                            pattern_index,
+                            &database,
+                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
+                        )
+                    }
+                }
+                "two-way" => {
+                    if skip_two_way {
+                        skipped_entries(algo_name, pat_str, pattern_index, &database)
+                    } else {
+                        run_benchmark::<TwoWay, _>(
                             algo_name,
                             pat_str,
                             pattern_index,
@@ -279,6 +316,7 @@ fn main() {
                             CompileOptions {
                                 treat_underscore_as_literal: true,
                                 literal_underscore_is_wildcard: true,
+                                ascii_mode: true,
                             },
                         )
                     }
@@ -296,6 +334,7 @@ fn main() {
                             CompileOptions {
                                 treat_underscore_as_literal: true,
                                 literal_underscore_is_wildcard: true,
+                                ascii_mode: true,
                             },
                         )
                     }
@@ -527,7 +566,7 @@ fn fm_like_search_table<'a>(
         SimpleLike::All => return count_all_rows(fm_database, table_name),
         SimpleLike::Exact(lit) => return count_exact_rows(fm_database, table_name, lit),
         SimpleLike::Contains(lit) => {
-            return count_rows_with_literal(fm_database, table_name, lit, fm_literal_cache)
+            return count_rows_with_literal(fm_database, table_name, lit, fm_literal_cache);
         }
         SimpleLike::Prefix(lit) => return count_rows_with_prefix(fm_database, table_name, lit),
         SimpleLike::Suffix(lit) => return count_rows_with_suffix(fm_database, table_name, lit),

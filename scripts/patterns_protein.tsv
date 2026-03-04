@@ -1,0 +1,20 @@
+# pattern	description
+M%	Start methionine prefix
+%GG%	Gly-Gly motif
+%RGD%	Integrin-binding motif
+%N_ST%	N-x-[ST]-like motif
+%P__P%	Proline-rich spacer motif
+%KDEL	ER retention-like suffix
+%HIS%	Histidine-containing motif
+%C__C%	Cysteine spaced motif
+%WQ%	Aromatic short motif
+%AAAA%	Poly-Ala run
+%LLLL%	Hydrophobic run
+%KK__KK%	Lysine with spacer
+%NLS%	Nuclear localization-like motif
+%PEST%	Degron-like motif
+%C_H_C%	Histidine/cysteine-like wildcard spacing
+%D__E%	Acidic spaced motif
+%YGGF%	Peptide motif
+%QPQLPY%	Proline-rich peptide motif
+%GPGG%	Loop-like motif

@@ -6,6 +6,7 @@ mod kmp;
 mod lut_short;
 mod naive;
 mod trigram_index;
+mod two_way;
 
 pub mod compare;
 
@@ -63,8 +64,9 @@ pub type FftStr = FftStr0;
 pub use kmer::{KmerConfig, KmerIndex, KmerSearch};
 pub use kmp::KMP;
 pub use lut_short::LutShort;
-pub use naive::{Naive, NaiveScalar, NaiveVectorized};
+pub use naive::{Naive, NaiveMixed, NaiveScalar, NaiveVectorized, NaiveVectorizedV2};
 pub use trigram_index::TrigramIndex;
+pub use two_way::TwoWay;
 
 pub struct StdSearch<'a>(PhantomData<&'a ()>);
 

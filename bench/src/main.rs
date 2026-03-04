@@ -19,8 +19,11 @@ const ALGORITHMS: &[&str] = &[
     "naive",
     "naive-scalar",
     "naive-vectorized",
+    "naive-vectorized-v2",
+    "naive-mixed",
     "kmp",
     "bm",
+    "two-way",
     "kmer",
 ];
 

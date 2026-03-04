@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use algos::{
-    KmerConfig, KmerSearch, LutShort, Naive, NaiveScalar, NaiveVectorized, StringSearch, BM, KMP,
+    KmerConfig, KmerSearch, LutShort, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StringSearch, TwoWay, BM, KMP,
 };
 use clap::Parser;
 
@@ -13,9 +14,12 @@ enum Algorithm {
     Naive,
     NaiveScalar,
     NaiveVectorized,
+    NaiveVectorizedV2,
+    NaiveMixed,
     LutShort,
     Kmp,
     Bm,
+    TwoWay,
     Kmer,
 }
 
@@ -140,6 +144,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &mut out,
             )?;
         }
+        Algorithm::NaiveVectorizedV2 => {
+            let config = pat_bytes;
+            let state = NaiveVectorizedV2::build(&config);
+            run_over_texts::<NaiveVectorizedV2>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
+            )?;
+        }
+        Algorithm::NaiveMixed => {
+            let config = pat_bytes;
+            let state = NaiveMixed::build(&config);
+            run_over_texts::<NaiveMixed>(
+                &cli,
+                &per_text_and_pattern_alpha,
+                &config,
+                &state,
+                &mut out,
+            )?;
+        }
         Algorithm::LutShort => {
             let config = pat_bytes;
             let state = LutShort::build(&config);
@@ -160,6 +186,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let config = pat_bytes;
             let state = BM::build(&config);
             run_over_texts::<BM>(&cli, &per_text_and_pattern_alpha, &config, &state, &mut out)?;
+        }
+        Algorithm::TwoWay => {
+            let config = pat_bytes;
+            let state = TwoWay::build(&config);
+            run_over_texts::<TwoWay>(&cli, &per_text_and_pattern_alpha, &config, &state, &mut out)?;
         }
         Algorithm::Kmer => {
             let config = KmerConfig {
