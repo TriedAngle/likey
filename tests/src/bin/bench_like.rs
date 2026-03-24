@@ -113,6 +113,22 @@ struct FmIndexDatabase<'a> {
     max_range: usize,
 }
 
+#[derive(Debug, Clone)]
+enum FmLiteralLookup {
+    Rows(HashSet<usize>),
+    NoMatch,
+    TooBroad,
+}
+
+#[derive(Debug, Clone)]
+enum FmPositionLookup {
+    Positions(Vec<usize>),
+    NoMatch,
+    TooBroad,
+}
+
+type FmLiteralCache = HashMap<String, FmLiteralLookup>;
+
 struct TrigramDatabase<'a> {
     index: TrigramIndex<'a>,
     rows: Vec<TrigramRow<'a>>,
@@ -180,7 +196,7 @@ fn main() {
         Some(build_trigram_index(&database))
     };
 
-    let mut fm_literal_cache: HashMap<String, HashSet<usize>> = HashMap::new();
+    let mut fm_literal_cache: FmLiteralCache = HashMap::new();
 
     let mut results = Vec::new();
 
@@ -457,7 +473,7 @@ fn run_fm_benchmark<'a>(
     pattern_index: usize,
     database: &'a DataSet<'a>,
     fm_database: &FmIndexDatabase<'a>,
-    fm_literal_cache: &mut HashMap<String, HashSet<usize>>,
+    fm_literal_cache: &mut FmLiteralCache,
 ) -> Vec<ResultEntry> {
     let mut results = Vec::new();
     let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
@@ -560,7 +576,7 @@ fn fm_like_search_table<'a>(
     table_name: &str,
     pattern: &Pattern<'a, StdSearch>,
     pattern_str: &str,
-    fm_literal_cache: &mut HashMap<String, HashSet<usize>>,
+    fm_literal_cache: &mut FmLiteralCache,
 ) -> usize {
     match simple_like_kind(pattern_str) {
         SimpleLike::All => return count_all_rows(fm_database, table_name),
@@ -582,14 +598,20 @@ fn fm_like_search_table<'a>(
 
     let mut row_sets = Vec::new();
     for lit in literals.iter() {
-        if let Some(set) = rows_for_literal(fm_database, lit, fm_literal_cache) {
-            if set.is_empty() {
-                return 0;
+        match rows_for_literal(fm_database, lit, fm_literal_cache) {
+            FmLiteralLookup::Rows(set) => {
+                if set.is_empty() {
+                    return 0;
+                }
+                row_sets.push(set);
             }
-            row_sets.push(set);
-        } else {
-            return count_like_match_all(fm_database, table_name, pattern);
+            FmLiteralLookup::NoMatch => return 0,
+            FmLiteralLookup::TooBroad => {}
         }
+    }
+
+    if row_sets.is_empty() {
+        return count_like_match_all(fm_database, table_name, pattern);
     }
 
     let candidate_rows = intersect_row_sets(&mut row_sets);
@@ -726,13 +748,17 @@ fn count_rows_with_literal(
     fm_database: &FmIndexDatabase<'_>,
     table_name: &str,
     lit: &str,
-    fm_literal_cache: &mut HashMap<String, HashSet<usize>>,
+    fm_literal_cache: &mut FmLiteralCache,
 ) -> usize {
-    if let Some(rows) = rows_for_literal(fm_database, lit, fm_literal_cache) {
-        return rows
-            .into_iter()
-            .filter(|&row_idx| fm_database.rows[row_idx].table == table_name)
-            .count();
+    match rows_for_literal(fm_database, lit, fm_literal_cache) {
+        FmLiteralLookup::Rows(rows) => {
+            return rows
+                .into_iter()
+                .filter(|&row_idx| fm_database.rows[row_idx].table == table_name)
+                .count();
+        }
+        FmLiteralLookup::NoMatch => return 0,
+        FmLiteralLookup::TooBroad => {}
     }
 
     let mut s = String::with_capacity(lit.len() + 2);
@@ -749,8 +775,9 @@ fn count_rows_with_prefix(fm_database: &FmIndexDatabase<'_>, table_name: &str, l
     }
 
     let positions = match literal_positions(fm_database, lit) {
-        Some(positions) => positions,
-        None => {
+        FmPositionLookup::Positions(positions) => positions,
+        FmPositionLookup::NoMatch => return 0,
+        FmPositionLookup::TooBroad => {
             let mut s = String::with_capacity(lit.len() + 1);
             s.push_str(lit);
             s.push('%');
@@ -783,8 +810,9 @@ fn count_rows_with_suffix(fm_database: &FmIndexDatabase<'_>, table_name: &str, l
     }
 
     let positions = match literal_positions(fm_database, lit) {
-        Some(positions) => positions,
-        None => {
+        FmPositionLookup::Positions(positions) => positions,
+        FmPositionLookup::NoMatch => return 0,
+        FmPositionLookup::TooBroad => {
             let mut s = String::with_capacity(lit.len() + 1);
             s.push('%');
             s.push_str(lit);
@@ -826,16 +854,24 @@ fn count_like_match_all(
 fn rows_for_literal(
     fm_database: &FmIndexDatabase<'_>,
     lit: &str,
-    fm_literal_cache: &mut HashMap<String, HashSet<usize>>,
-) -> Option<HashSet<usize>> {
+    fm_literal_cache: &mut FmLiteralCache,
+) -> FmLiteralLookup {
     if let Some(cached) = fm_literal_cache.get(lit) {
-        return Some(cached.clone());
+        return cached.clone();
     }
 
-    let range = fm_database.fm.backward_search(lit.as_bytes())?;
+    let range = match fm_database.fm.backward_search(lit.as_bytes()) {
+        Some(range) => range,
+        None => {
+            fm_literal_cache.insert(lit.to_string(), FmLiteralLookup::NoMatch);
+            return FmLiteralLookup::NoMatch;
+        }
+    };
+
     let range_len = range.1 - range.0;
     if range_len > fm_database.max_range {
-        return None;
+        fm_literal_cache.insert(lit.to_string(), FmLiteralLookup::TooBroad);
+        return FmLiteralLookup::TooBroad;
     }
 
     let mut rows = HashSet::new();
@@ -849,18 +885,23 @@ fn rows_for_literal(
         }
     }
 
-    fm_literal_cache.insert(lit.to_string(), rows.clone());
-    Some(rows)
+    let result = FmLiteralLookup::Rows(rows);
+    fm_literal_cache.insert(lit.to_string(), result.clone());
+    result
 }
 
-fn literal_positions(fm_database: &FmIndexDatabase<'_>, lit: &str) -> Option<Vec<usize>> {
-    let range = fm_database.fm.backward_search(lit.as_bytes())?;
+fn literal_positions(fm_database: &FmIndexDatabase<'_>, lit: &str) -> FmPositionLookup {
+    let range = match fm_database.fm.backward_search(lit.as_bytes()) {
+        Some(range) => range,
+        None => return FmPositionLookup::NoMatch,
+    };
+
     let range_len = range.1 - range.0;
     if range_len > fm_database.max_range {
-        return None;
+        return FmPositionLookup::TooBroad;
     }
 
-    Some(fm_database.fm.search(lit.as_bytes()))
+    FmPositionLookup::Positions(fm_database.fm.search(lit.as_bytes()))
 }
 
 fn literal_rarity(lit: &str, byte_freq: &[usize; 256]) -> usize {

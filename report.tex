@@ -1,0 +1,575 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\setlength{\emergencystretch}{2em}
+
+\lstdefinelanguage{Rust}{
+  morekeywords={
+    as,break,const,continue,crate,else,enum,extern,false,fn,for,if,impl,in,let,loop,
+    match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,
+    unsafe,use,where,while,async,await,dyn
+  },
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+}
+
+\lstdefinestyle{ruststyle}{
+  language=Rust,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{gray!70!black},
+  stringstyle=\color{green!40!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  framerule=0.2pt,
+  columns=fullflexible
+}
+
+\title{Project Report: Efficient Implementation of Like Predicates with Applications to Biological Data}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Summary}
+The goal of this project is to develop an efficient implementation of SQL-\texttt{LIKE}-style predicates for both general-purpose workloads and biological data, such as DNA and protein sequences. In total, 13 algorithms and variants were implemented, covering scalar baselines, SIMD-accelerated search, classical string-matching algorithms, and index-based approaches. The final benchmark campaign was run on an AMD Ryzen 9 5950X processor; the \texttt{fftstr} variants were excluded from the final runs because they were too slow, and a limit of 6 million rows per run was enforced to keep memory usage manageable.
+
+The implementations were benchmarked on TPC-H, TPC-DS, JOB, and biological datasets containing DNA and protein sequences. In the final results, \texttt{naive-vector-v2} emerged as the strongest overall algorithm and the most robust default across datasets and pattern classes. \texttt{two-way} was the closest overall competitor and was the best-performing method on JOB. For exact patterns, the top group was very close, with \texttt{naive-vector}, \texttt{naive-vector-v2}, \texttt{two-way}, \texttt{bm}, and \texttt{std} performing similarly, while for contains and general wildcard-heavy patterns, \texttt{naive-vector-v2} was the clearest winner.
+
+The biological datasets showed a somewhat different profile. In the measured final runs, \texttt{naive-vector-v2} was clearly the fastest method on both DNA and protein. However, the current FM-index implementation could not be fully evaluated on these datasets because it still requires too much memory to load them completely. This means the present results do not fully capture how FM-indexing would behave on long biological sequences after memory-efficiency improvements.
+
+\section{Project Design and Setup}
+The whole project is written in Rust, with helper scripts like dataset download and benchmark execution in python.
+To keep it simple and isolate the behavior of the algorithms, the data is loaded once into arena-backed storage.
+To make this compatibile with column based data (like TCP and JOB) each column there is split into a table, these tables are loaded after each other into the arena. Because Proteins, DNA, and General Purpose data sets and search queries look very differnt, they use different patterns and datasets each, otherwise one would potentially benchmark "no match".
+Patterns are compiled once into a reusable literal state, that is then matched per row. 
+Every algorithm that uses SIMD is also implemented in NEON. For simplicity and parity between x86 SIMD and NEON, current x86 implementations target roughly the SSE/SSSE3/SSE4 level (not AVX2/AVX-512 yet).
+The workspace is split into \texttt{algos} (string search algorithm implementations), \texttt{like} (pattern compiler and matcher), \texttt{engine} (execution loop for the rows), \texttt{storage} (arena and data loaders), \texttt{tests/src/bin} (benchmark binaries), and \texttt{scripts} (dataset preparation and analysis).
+
+\newpage
+\section{Algorithms}
+All algorithm implementations follow the same protocol: \texttt{build(config) -> state} and \texttt{find\_bytes/find\_str(config, state, text)}. The LIKE compiler can build algorithm state once per literal and reuse it across many rows.
+\newline
+\subsection{naive-scalar} 
+This is the scalar baseline that checks every candidate offset and compares bytes directly. It has no precomputation and no extra memory state:
+\begin{lstlisting}[style=ruststyle]
+pub fn naive_find_scalar(text: &[u8], pattern: &[u8]) -> Option<usize> {
+    let n = text.len();
+    let m = pattern.len();
+    if m == 0 {
+        return Some(0);
+    }
+    if m > n {
+        return None;
+    }
+
+    for i in 0..=n - m {
+        let mut matched = true;
+        for j in 0..m {
+            if text[i + j] != pattern[j] { matched = false; break; }
+        }
+        if matched { return Some(i); }
+    }
+    None
+}
+\end{lstlisting}  
+
+\subsection{naive-vector}
+This variant accelerates the naive scan with SIMD prefiltering on the \emph{first} pattern byte. The text is processed in 16-byte chunks, and each lane is compared against the first byte of the needle. Only lanes that match are treated as candidate start positions, and those candidates are then verified with a full exact byte comparison of the complete pattern. This keeps the algorithm completely stateless at build time while avoiding many unnecessary full comparisons when the first byte is relatively selective.
+
+\subsection{naive-vector-v2}
+This is the strongest overall variant in the current implementation. It improves the previous SIMD filter by checking \emph{both} the first and the last byte of the pattern before attempting exact verification. Concretely, the search loop loads one SIMD chunk at the candidate start positions and another at an offset of (m-1), where (m) is the pattern length, and intersects the two comparison masks. A position becomes a candidate only if both boundary bytes match, after which the full pattern is checked exactly. This substantially lowers the false-candidate rate compared with filtering on the first byte alone, especially for longer patterns, because many near-misses are discarded before the expensive full comparison stage. 
+
+\subsection{naive-mixed}
+This policy variant chooses between scalar and SIMD search based on simple size thresholds. In the current implementation it routes to scalar search when the pattern length is at most three bytes or when the text is shorter than 64 bytes; otherwise it uses \textbf{naive-vector-v2}. The motivation is to avoid SIMD setup and dispatch overhead in cases where there is too little work to amortize it. In theory, this should improve short-input behavior while preserving the throughput of the vectorized path on larger inputs. However, in the benchmarks it performs worse than \textbf{naive-vector-v2}, which suggests that the extra dispatch logic does not pay for itself, and that the boundary-byte prefilter in v2 is already cheap enough even near the short-input regime, or the thresholds must be tweaked. 
+
+\subsection{Knuth-Morris-Pratt (KMP)}
+KMP preprocesses the pattern into an LPS (\emph{longest proper prefix that is also a suffix}) array and then performs a single left-to-right scan over the text. During matching, when a mismatch occurs after some prefix has already matched, the algorithm does not restart from the next text position. Instead, it uses the LPS value to determine how much of the matched prefix can still be reused, so the text index never moves backward. In this implementation, the build step computes the LPS table once, and the search maintains the usual pair of indices over text and pattern. 
+
+\subsection{Boyer-Moore (BM)}
+Boyer-Moore scans windows from left to right, but compares characters inside each window from \emph{right to left}. Its preprocessing builds two pieces of state: a 256-entry bad-character table storing the last occurrence of each byte in the pattern, and a good-suffix shift table that captures how far the pattern can move when a suffix of the current window has already matched. On a mismatch at pattern index (j), this implementation computes a bad-character shift from the mismatching text byte and a good-suffix shift from the table, then advances by the maximum of the two.
+
+\subsection{Two-Way}
+The Two-Way algorithm preprocesses the pattern into a compact structural summary rather than a large table. In this implementation, the build step computes maximal suffixes in both lexicographic directions, derives a critical position and a candidate period, and then classifies the pattern as periodic or non-periodic. The resulting state stores the critical split point, the period, a periodicity flag, and the fallback shift used in the non-periodic case. The search loop then uses two specialized branches: a periodic branch that retains a small amount of memory about previously matched prefix structure, and a non-periodic branch that uses bounded shifts derived from the critical factorization. 
+
+\subsection{Std}
+As used in this project, the standard-library baseline is a thin wrapper around Rust’s public \verb|str::find| API. The wrapper performs no explicit preprocessing and stores no reusable build state: \verb|build| returns \verb|()|, and the actual search is delegated directly to \verb|text.find(pattern)|. This is intended as a baseline against Rust's optimized substring-search implementation, but the API does not expose reusable build state (so the pattern cannot be cached).
+
+\subsection{lut-short}
+This specialization targets very short needles, specifically lengths up to 8 bytes. During preprocessing, it copies the pattern into a fixed 8-byte buffer, selects a \emph{signature byte} by choosing the rarest byte occurring in the pattern, records that byte’s position, and builds two 16-entry lookup tables for its low and high nibbles. The SIMD search then examines 16-byte chunks at a time using table-lookups (\verb|pshufb| on SSSE3 or the NEON table instruction) to identify lanes whose byte matches the signature. Each signature hit is translated back to a candidate pattern start via the stored signature offset, and only then is the full short pattern checked exactly. This makes \textbf{lut-short} a highly selective and lightweight short-needle filter rather than a generic matcher. 
+
+\subsection{fftstr0/fftstr1}
+These variants reformulate matching as a convolution-style correlation problem over modular arithmetic. The build step transforms pattern-dependent arrays once, and the search processes the text in blocks: it encodes block data into two transformed sequences, applies FFT/NTT-style transforms, performs pointwise multiplications with the precomputed pattern transforms, and then applies the inverse transform. Candidate matches are detected by testing an algebraic identity that is zero exactly when the pattern matches the text window, with support for wildcard bytes through masked pattern coefficients. \textbf{fftstr0} uses smaller numeric domains and stricter size limits, while \textbf{fftstr1} uses a larger modulus and supports larger instances. In the current implementation these perform too slow and were thus disabled in the benchmarks.
+
+\subsection{FM index}
+The FM-index builds a full-text search structure over a byte corpus augmented with a sentinel and row separators. In this implementation, construction creates a suffix array, derives the Burrows-Wheeler transform, maps bytes to compact alphabet ranks, computes the \(C\) array, and stores checkpointed occurrence counts for rank queries. Search is performed by backward search from right to left, shrinking the suffix-array interval of possible matches. The index implementation also includes a \texttt{search\_with\_underscore} routine for single-byte \texttt{\_} branching, but the benchmark integration primarily uses literal backward search as a candidate filter and verifies full LIKE semantics with \texttt{like\_match}. Construction has high build-time and memory cost, so it is most suitable for mostly static corpora.
+
+\subsection{Trigram index}
+The trigram index stores, for each distinct 3-byte substring, a postings list of document identifiers containing that trigram. During indexing, each document contributes each trigram at most once, since duplicates are removed with a per-document \verb|HashSet| before insertion. To search a literal, the query is decomposed into its trigrams, the corresponding postings lists are retrieved, the lists are sorted by increasing length, and then intersected to obtain a candidate set of documents. This makes the structure a classic filtering index: it can discard most non-matching documents very quickly when the query trigrams are selective, but its effectiveness depends heavily on the literal and the corpus distribution, so an exact recheck is still needed on the resulting candidates. 
+
+\newpage
+\section{LIKE Compiler}
+
+The LIKE compiler transforms an SQL-\texttt{LIKE}-style pattern into a compact executable representation before any row is scanned. This separates one-time pattern analysis from per-row matching and is the main reason the engine can evaluate many rows with low overhead. In this implementation, wildcard \texttt{\%} matches any sequence (including empty), and \texttt{\_} matches exactly one unit (byte in ASCII mode, Unicode scalar value in UTF-8 mode). The compiler converts those semantics into a small sequence of internal tokens and also precomputes search state for each literal fragment so matching can reuse efficient substring search routines instead of repeatedly reinterpreting the original pattern.
+
+\subsection{Compilation pipeline}
+
+Compilation proceeds in four stages. First, the pattern is tokenized into literal runs, \texttt{Any} tokens for \texttt{\%}, and \texttt{Skip(n)} tokens for one or more consecutive \texttt{\_} wildcards. Literal runs are kept intact rather than split character-by-character. Consecutive \texttt{\%} wildcards are collapsed into a single \texttt{Any}, since multiple adjacent \texttt{\%} have the same meaning as one. Consecutive \texttt{\_} wildcards are collapsed into \texttt{Skip(n)}, which records how many single-character wildcards occur in sequence.
+
+Second, for every literal fragment, the compiler builds algorithm-specific search state via \texttt{S::build}. This means the LIKE layer does not hard-code one string-matching algorithm: it can reuse any backend implementing the \texttt{StringSearch} interface. For example, an exact fragment may later be searched using a standard library routine, KMP, Boyer--Moore, Two-Way matching, or another backend, but that choice is made once at compile time.
+
+Third, the compiler computes a minimum-length bound, \texttt{min\_len}. Every literal contributes its full byte length, and every \texttt{\_} contributes one required matching unit. If an input string is shorter than \texttt{min\_len}, matching can fail immediately without scanning the string.
+
+Finally, the compiler derives a specialized strategy class for simple patterns. Exact, prefix, suffix, and contains patterns are only selected when the pattern has exactly one literal fragment and no \texttt{\_} wildcard (and no internal \texttt{\%} beyond a possible single leading/trailing \texttt{\%}). These cases are much cheaper than the fully general matcher and therefore receive dedicated fast paths.
+
+Representative compilation behavior:
+\begin{itemize}
+    \item Emit tokens as \texttt{Literal(..)}, \texttt{Any} (for \texttt{\%}), and \texttt{Skip(n)} (collapsed \texttt{\_} runs).
+    \item For each literal token, build backend state once through \texttt{S::build} and store it for reuse.
+    \item Accumulate \texttt{min\_len} as literal byte lengths plus required \texttt{Skip} units.
+    \item Derive a fast strategy class (exact/prefix/suffix/contains/general) from the normalized pattern shape.
+\end{itemize}
+
+\subsection{Strategy specialization}
+
+Many patterns do not need full backtracking, here the compiler can specialize. For example, \texttt{abc} is an exact match, \texttt{abc\%} is a prefix query, \texttt{\%abc} is a suffix query, and \texttt{\%abc\%} is a contains query. These do not need wildcard backtracking. The compiler recognizes them once and assigns a specialized strategy.
+
+\begin{lstlisting}[style=ruststyle]
+fn derive_strategy<'a>(pattern: &'a str, options: CompileOptions) -> MatchStrategy<'a> {
+    if !options.treat_underscore_as_literal && pattern.contains('_') {
+        return MatchStrategy::General;
+    }
+
+    let literals: Vec<&str> = pattern.split('%').filter(|s| !s.is_empty()).collect();
+    if literals.is_empty() {
+        return MatchStrategy::All;
+    }
+    if literals.len() > 1 {
+        return MatchStrategy::General;
+    }
+
+    let lit = literals[0];
+    let starts = pattern.starts_with('%');
+    let ends = pattern.ends_with('%');
+    match (starts, ends) {
+        (true, true) => MatchStrategy::Contains { state_idx: 0 },
+        (true, false) => MatchStrategy::Suffix { lit, state_idx: 0 },
+        (false, true) => MatchStrategy::Prefix { lit, state_idx: 0 },
+        (false, false) => MatchStrategy::Exact {
+            lit,
+            state_idx: Some(0),
+        },
+    }
+}
+\end{lstlisting}
+
+This strategy derivation turns common predicates into the cheapest possible test when the specialization preconditions hold. A contains query becomes one substring search, a prefix query becomes one anchored prefix check, and a suffix query becomes one anchored suffix check. Patterns with active \texttt{\_} wildcards or multiple non-empty literal fragments separated by \texttt{\%} fall through to the general matcher.
+
+\subsection{Semantics and limitations}
+
+The implemented semantics are intentionally narrower than full SQL engine behavior and should be interpreted as SQL-\texttt{LIKE}-style matching for standalone strings.
+
+\begin{itemize}
+    \item Supported wildcards: \texttt{\%} (any-length sequence) and \texttt{\_} (one unit).
+    \item Unit model: \texttt{\_} advances one byte in ASCII mode or one Unicode scalar value in UTF-8 mode.
+    \item Literal escaping: SQL \texttt{ESCAPE} clauses are not currently implemented.
+    \item Comparison model: matching is bytewise and case-sensitive by default; collation-aware and locale-aware comparisons are not implemented.
+    \item Database semantics outside plain string matching (for example NULL handling or fixed-width trailing-space rules) are out of scope for this matcher layer.
+\end{itemize}
+
+\subsection{How the matcher solves LIKE-style patterns}
+
+At execution time, \texttt{like\_match} first dispatches to the specialized fast path chosen by the compiler. This directly implements the common \texttt{\%}/\texttt{\_} pattern cases:
+
+\begin{itemize}
+    \item \texttt{abc} $\rightarrow$ exact equality with the same length,
+    \item \texttt{abc\%} $\rightarrow$ prefix check,
+    \item \texttt{\%abc} $\rightarrow$ suffix check,
+    \item \texttt{\%abc\%} $\rightarrow$ substring search,
+    \item \texttt{\%} $\rightarrow$ match-all.
+\end{itemize}
+
+\begin{lstlisting}[style=ruststyle]
+pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
+    match pattern.strategy {
+        MatchStrategy::All => return true,
+        MatchStrategy::Exact { lit, state_idx } => {
+            // exact match, right now it uses the algorithm, potentially just the std's equality check may be faster.
+        }
+        // separate: prefix match test, suffix match test, contains test
+        MatchStrategy::General => {
+            if let Some(matched) = try_match_percent_only(pattern, text) {
+                return matched;
+            }
+        }
+    }
+
+    if text.len() < pattern.min_len {
+        return false;
+    }
+
+    // general token walker continues here ...
+}
+\end{lstlisting}
+
+For genuinely general patterns such as \texttt{a\%b\_c\%d}, the matcher walks the token stream from left to right. \texttt{Literal(x)} means the next part of the text must start with literal \texttt{x}; \texttt{Skip(n)} means exactly \texttt{n} matching units must be consumed; and \texttt{Any} means any-length text may be consumed until the following tokens can match. The matcher therefore simulates the implemented LIKE-style \texttt{\%}/\texttt{\_} semantics directly, but it does so over a compiled representation rather than repeatedly inspecting raw pattern characters.
+
+\subsection{Optimizations in the general matcher}
+
+The general matcher contains several important optimizations.
+
+\paragraph{Minimum-length rejection.}
+Before doing any detailed work, the matcher checks whether the input is shorter than \texttt{min\_len}. This avoids scanning strings that cannot possibly satisfy the pattern.
+
+\paragraph{Anchored first and last literal checks.}
+If the pattern does not start with \texttt{\%}, then the first literal must occur at position~0. If the pattern does not end with \texttt{\%}, then the last literal must align with the end of the string. These checks are performed up front, which often eliminates a candidate before any wildcard logic is needed.
+
+\paragraph{Percent-only shortcut.}
+Patterns composed only of literals and \texttt{\%} do not need full wildcard backtracking. The implementation therefore has a dedicated routine that checks the anchored prefix and suffix once, then searches the middle literal fragments in order using the prebuilt substring-search states. This is much cheaper than general token-by-token backtracking and is especially effective for patterns such as \texttt{foo\%bar\%baz}.
+
+\paragraph{Smart jump after \texttt{\%}.}
+The most expensive part of wildcard matching is handling \texttt{\%}, because naively it may require trying many possible split points. This implementation avoids blind character-by-character scanning when the token after \texttt{\%} is a literal. Instead, it asks the substring-search backend to jump directly to the next occurrence of that literal. This converts a potentially long run of failed character tests into one literal search.
+
+\paragraph{Backtracking with search-state reuse.}
+If a later token fails after a previous \texttt{\%}, the matcher backtracks to the most recent wildcard. Again, if the token after that wildcard is a literal, it does not retry one position at a time from scratch. It searches for the next occurrence of that literal using the already-built state. This is effectively a targeted backtracking strategy: it preserves correctness, but it only revisits positions that could plausibly satisfy the next literal anchor.
+
+\paragraph{Collapsed wildcard runs.}
+Runs of adjacent \texttt{\%} are reduced to one token, and runs of adjacent \texttt{\_} are reduced to \texttt{Skip(n)}. This shrinks the internal program and reduces branch overhead inside the hot loop.
+
+\paragraph{ASCII and UTF-8 modes.}
+The implementation also distinguishes between ASCII-style unit advancement and UTF-8 character advancement. In ASCII mode, \texttt{\_} advances one byte. In UTF-8 mode, it advances one Unicode scalar value. This is a practical and deterministic character model, but it is not equivalent to grapheme-cluster or collation-aware character semantics.
+
+The central control flow is shown below.
+
+\begin{lstlisting}[style=ruststyle]
+while s_idx < text.len() {
+    if t_idx < tokens.len() {
+        match tokens[t_idx] {
+            Token::Literal(lit) => {
+                if literal_matches_at(pattern, lit, text, s_idx, state_idx) {
+                    s_idx += lit.len();
+                    t_idx += 1;
+                    state_idx += 1;
+                    continue;
+                }
+            }
+            Token::Skip(count) => {
+                if let Some(next) = advance_units(text, s_idx, count, pattern.ascii_mode) {
+                    s_idx = next;
+                    t_idx += 1;
+                    continue;
+                }
+            }
+            Token::Any => {
+                if t_idx + 1 >= tokens.len() {
+                    return true;
+                }
+
+                last_wildcard_t_idx = Some(t_idx);
+                last_wildcard_state_idx = state_idx;
+
+                // smart jump to next literal after %
+                if let Some(Token::Literal(_)) = tokens.get(t_idx + 1) {
+                    let next_config = &pattern.literal_configs[state_idx];
+                    let next_state = &pattern.literal_states[state_idx];
+
+                    if let Some(found_offset) =
+                        S::find_str(next_config, next_state, &text[s_idx..])
+                    {
+                        match_s_idx = s_idx + found_offset;
+                        s_idx = match_s_idx;
+                        t_idx += 1;
+                        continue;
+                    } else {
+                        return false;
+                    }
+                }
+
+                t_idx += 1;
+                match_s_idx = s_idx;
+                continue;
+            }
+        }
+    }
+
+    // backtracking
+    if let Some(wildcard_idx) = last_wildcard_t_idx {
+        t_idx = wildcard_idx + 1;
+        state_idx = last_wildcard_state_idx;
+
+        if let Some(Token::Literal(_)) = tokens.get(t_idx) {
+            let search_start = match_s_idx + 1;
+            if search_start >= text.len() {
+                return false;
+            }
+
+            let next_config = &pattern.literal_configs[state_idx];
+            let next_state = &pattern.literal_states[state_idx];
+
+            if let Some(found_offset) =
+                S::find_str(next_config, next_state, &text[search_start..])
+            {
+                match_s_idx = search_start + found_offset;
+                s_idx = match_s_idx;
+                continue;
+            } else {
+                return false;
+            }
+        } else {
+            if let Some(next) = advance_one_unit(text, match_s_idx, pattern.ascii_mode) {
+                match_s_idx = next;
+                s_idx = match_s_idx;
+                continue;
+            }
+        }
+    }
+
+    return false;
+}
+\end{lstlisting}
+
+\subsection{Example}
+
+Consider the SQL pattern \texttt{a\%\_bc\%d}. The compiler emits something conceptually equivalent to
+
+\[
+\texttt{Literal("a"), Any, Skip(1), Literal("bc"), Any, Literal("d")}.
+\]
+
+Matching then proceeds as follows. The text must begin with \texttt{a}. After that, the first \texttt{\%} may take any sequence. The \texttt{\_} requires one matching unit. Then \texttt{bc} must appear immediately after that one-unit gap. The second \texttt{\%} may take any sequence again, and the string must end with \texttt{d}. This is the matcher's implemented LIKE-style behavior, executed over compiled tokens with precomputed literal-search state and several early-pruning rules.
+
+\section{LIKE Engine and Storage}
+The execution engine in \texttt{engine/src/lib.rs} is intentionally simple. It performs a strict table-row scan and applies \texttt{like\_match} to each row. This design avoids confounding effects from SQL planning, join ordering, or secondary execution strategies, so the measured behavior reflects the performance of the LIKE implementation itself rather than a broader query optimizer. 
+
+\begin{lstlisting}[style=ruststyle]
+for table in dataset.tables.iter() {
+    for row in table.rows.iter() {
+        if like_match(pattern, row.data) {
+            matches.push(Match { table: table.name.as_str(), row });
+        }
+    }
+}
+\end{lstlisting}
+
+Storage is built around \texttt{BumpArena}, an append-only arena allocator backed by memory-mapped storage. Once loaded, dataset strings remain stable in memory and can be referenced directly by rows and tables without repeated heap allocations or deletions.
+
+\begin{lstlisting}[style=ruststyle]
+pub fn alloc_str(&self, src: &str) -> &mut str {
+    let buf = self.alloc_slice(src.as_bytes());
+    unsafe { std::str::from_utf8_unchecked_mut(buf) }
+}
+\end{lstlisting}
+
+Typed dataset loaders map several input formats into a uniform row-oriented representation. Plain text sources become one-row tables, FASTA sources become one row per biological sequence entry, and delimited sources such as CSV-like files extract configured columns into logical tables. This yields a common execution interface across benchmark families while keeping input parsing separate from pattern matching.
+
+\begin{lstlisting}[style=ruststyle]
+let value = record.get(spec.index).unwrap_or("");
+let data = arena.alloc_str(value);
+rows_by_column[idx].push(Row { id: "", desc: "", data });
+\end{lstlisting}
+
+\section{Benchmark Protocol}
+Dataset preparation is handled by \texttt{scripts/download\_benchmarks.py} (TPC-H, TPC-DS, JOB) and biological datasets (DNA/protein FASTA). Execution uses dataset-specific binaries (\texttt{bench\_tpch}, \texttt{bench\_tpcds}, \texttt{bench\_job}, \texttt{bench\_dna}, \texttt{bench\_protein}) through \texttt{scripts/run\_like\_pattern\_benchmarks.py}. Each scenario compiles pattern state, executes per table, records runtime and hit-count, and validates backend literal-search behavior against \texttt{std} for comparable literal cases. Full matcher behavior for \texttt{\%}/\texttt{\_} combinations is additionally covered by unit tests in \texttt{like/src/lib.rs}. FM/trigram structures are built once per dataset and reused during scenario evaluation. Representative benchmark-path snippets:
+\begin{lstlisting}[style=ruststyle]
+let pattern = compile_pattern::<S, _, _>(pat_str, (), factory);
+let matches = execute(&pattern, &table_dataset);
+// ...
+let fm = FMIndex::new(text, FM_SENTINEL, Some(FM_SEPARATOR));
+index.add(row.data); // trigram postings
+\end{lstlisting}
+
+Aggregation computes mean, P95, and win-rate summaries, then matrix-level analysis and UMAP clustering are generated by \texttt{scripts/analyze\_benchmark\_matrix.py}. In the overall table, each algorithm's mean is an unweighted mean over all recorded (dataset, table, pattern, run) scenarios available for that algorithm; this matters because algorithms skipped on some datasets (for example FM on DNA/protein) have smaller scenario counts. Representative aggregation logic:
+\begin{lstlisting}[style=ruststyle]
+algo_rows.append({
+    "algorithm": algo,
+    "mean_duration_micros": round(mean(durations), 4),
+    "p95_duration_micros": round(p95(durations), 4),
+})
+winner = min(rows, key=lambda r: to_float(r["duration_micros"]))
+\end{lstlisting}
+
+The current report focuses on measured query runtimes. For preprocessing-heavy methods (FM-index, trigram), a complete comparison should additionally report build time and memory overhead as separate metrics.
+
+\subsection{Index integration for LIKE}
+
+Index-based methods are integrated as candidate generators for general patterns, not as stand-alone full semantic evaluators.
+
+\begin{itemize}
+    \item In the trigram path, the engine extracts literal fragments from the pattern, chooses the longest fragment with length at least 3, queries postings via \texttt{search\_literal}, and then verifies candidates with \texttt{like\_match}. If no fragment has length at least 3, it falls back to full scan verification.
+    \item In the FM path, simple one-literal forms (all/exact/prefix/suffix/contains) get dedicated handling; more complex patterns are split into literals around both \texttt{\%} and \texttt{\_} and each literal is looked up by backward search.
+    \item FM literal hits are converted to row-id sets, intersected, and then verified with \texttt{like\_match}. If a literal is too frequent (range exceeds a threshold), the implementation falls back to scan-style verification for that pattern.
+\end{itemize}
+
+Table~\ref{tab:capability-matrix} summarizes matching capabilities and costs.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Algorithm & Exact eval & Filter only & Reusable state & Preprocess & Extra memory & Recheck needed \\
+\midrule
+\texttt{naive-*}, \texttt{kmp}, \texttt{bm}, \texttt{two-way}, \texttt{std}, \texttt{lut-short} & yes & no  & optional & low  & low  & no \\
+\texttt{trigram} & no  & yes & yes & high & medium/high & yes \\
+\texttt{fm}      & partial (literal) & yes & yes & high & high & yes (general LIKE) \\
+\bottomrule
+\end{tabular}
+\caption{Capability and cost summary of the evaluated methods in this implementation.}
+\label{tab:capability-matrix}
+\end{table}
+
+\section{Results and Interpretation}
+
+All reported benchmarks were run on an AMD Ryzen 9 5950X processor. To keep the final benchmark campaign tractable, the \texttt{fftstr} variants were disabled because they took too long to evaluate in practice. In addition, a limit of 6 million rows per run was enforced; otherwise, the arena-backed storage would grow too large to fit comfortably in memory on the test machine.
+
+Table~\ref{tab:overall-all} shows the combined results across all datasets. The strongest overall result is \texttt{naive-vector-v2}, with \texttt{two-way} as the closest competitor. A second tier is formed by \texttt{naive-mixed}, \texttt{naive-vector}, and \texttt{naive-scalar}, which remain competitive but do not overtake the best two methods overall. \texttt{kmp}, \texttt{std}, \texttt{bm}, \texttt{trigram}, and \texttt{fm} trail behind in this final run. The FM-index numbers should be read with some caution, since its count is lower in the aggregate results because it was skipped on DNA and protein.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Algorithm & Mean (\(\mu s\)) & P95 (\(\mu s\)) \\
+\midrule
+\texttt{naive-vector-v2} & \textbf{12723.8616} & \textbf{64933} \\
+\texttt{two-way}         & 13828.5861          & 66246 \\
+\texttt{naive-mixed}     & 15456.0275          & 74943 \\
+\texttt{naive-vector}    & 15463.2072          & 80022 \\
+\texttt{naive-scalar}    & 15727.0934          & 73618 \\
+\texttt{kmp}             & 16722.7960          & 85102 \\
+\texttt{std}             & 18964.9381          & 108832 \\
+\texttt{trigram}         & 20481.9796          & 109774 \\
+\texttt{bm}              & 20867.6825          & 93927 \\
+\texttt{fm}              & 24132.7265          & 108842 \\
+\bottomrule
+\end{tabular}
+\caption{Overall results across all datasets combined. FM has a lower sample count because it was skipped on DNA and protein in the final run.}
+\label{tab:overall-all}
+\end{table}
+
+The per-dataset picture in Table~\ref{tab:dataset-all} is consistent with that overall ranking. \texttt{naive-vector-v2} is the best measured method on TPC-H, TPC-DS, DNA, and protein, while \texttt{two-way} is the winner on JOB. On the general-purpose relational datasets, the strongest methods stay relatively close to each other, especially among \texttt{naive-vector-v2}, \texttt{two-way}, and the other naive variants. On the biological datasets, the picture is more polarized: \texttt{naive-vector-v2} clearly leads in the current measurements, while \texttt{trigram} is the strongest of the index-based methods that could still be evaluated there.
+
+Some DNA rows show \(P95 < \text{mean}\), which is statistically possible under heavy right-tail outliers; these entries should still be interpreted with caution and are a good target for an additional sanity pass over percentile computation and units in future runs.
+
+\small
+\begin{longtable}{@{}llrr@{}}
+\caption{Per-dataset results, sorted by mean runtime within each dataset.}\label{tab:dataset-all}\\
+\toprule
+Dataset & Algorithm & Mean (\(\mu s\)) & P95 (\(\mu s\)) \\
+\midrule
+\endfirsthead
+\toprule
+Dataset & Algorithm & Mean (\(\mu s\)) & P95 (\(\mu s\)) \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\emph{Continued on next page}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+TPC-H & \texttt{naive-vector-v2} & \textbf{12188.5439} & \textbf{67033} \\
+TPC-H & \texttt{naive-vector}    & 13265.7182          & 70726 \\
+TPC-H & \texttt{two-way}         & 13411.2030          & 68605 \\
+TPC-H & \texttt{naive-scalar}    & 14716.2985          & 75093 \\
+TPC-H & \texttt{naive-mixed}     & 15567.7356          & 81160 \\
+TPC-H & \texttt{kmp}             & 16211.8818          & 89097 \\
+TPC-H & \texttt{std}             & 17863.6015          & 103478 \\
+TPC-H & \texttt{bm}              & 18317.7485          & 95653 \\
+TPC-H & \texttt{trigram}         & 26823.0379          & 110460 \\
+TPC-H & \texttt{fm}              & 29751.2038          & 111808 \\
+\addlinespace
+
+TPC-DS & \texttt{naive-vector-v2} & \textbf{329.8689} & \textbf{937} \\
+TPC-DS & \texttt{two-way}         & 343.6530          & 1258 \\
+TPC-DS & \texttt{naive-scalar}    & 369.5788          & 1390 \\
+TPC-DS & \texttt{naive-mixed}     & 379.0629          & 1303 \\
+TPC-DS & \texttt{naive-vector}    & 384.1917          & 1534 \\
+TPC-DS & \texttt{kmp}             & 390.3311          & 1336 \\
+TPC-DS & \texttt{trigram}         & 462.3462          & 1820 \\
+TPC-DS & \texttt{bm}              & 478.9144          & 1840 \\
+TPC-DS & \texttt{std}             & 512.4098          & 1966 \\
+TPC-DS & \texttt{fm}              & 667.1674          & 2176 \\
+\addlinespace
+
+JOB & \texttt{two-way}         & \textbf{26029.6664} & \textbf{75871} \\
+JOB & \texttt{naive-vector-v2} & 26577.4127          & 80183 \\
+JOB & \texttt{naive-mixed}     & 29023.1918          & 89622 \\
+JOB & \texttt{naive-scalar}    & 29255.0409          & 93798 \\
+JOB & \texttt{kmp}             & 30995.1645          & 96951 \\
+JOB & \texttt{naive-vector}    & 33109.1827          & 126565 \\
+JOB & \texttt{bm}              & 34750.7582          & 138876 \\
+JOB & \texttt{trigram}         & 34782.1664          & 143691 \\
+JOB & \texttt{std}             & 38675.0127          & 126443 \\
+JOB & \texttt{fm}              & 45549.2245          & 153057 \\
+\addlinespace
+
+DNA & \texttt{naive-vector-v2} & \textbf{155.4000} & \textbf{65} \\
+DNA & \texttt{naive-mixed}     & 176.2500          & 245 \\
+DNA & \texttt{naive-vector}    & 280.0000          & 132 \\
+DNA & \texttt{trigram}         & 507.9000          & 194 \\
+DNA & \texttt{std}             & 509.1500          & 193 \\
+DNA & \texttt{bm}              & 598.7500          & 1163 \\
+DNA & \texttt{two-way}         & 634.9000          & 801 \\
+DNA & \texttt{naive-scalar}    & 763.1500          & 802 \\
+DNA & \texttt{kmp}             & 781.3000          & 789 \\
+DNA & \texttt{fm}              & N/A               & N/A \\
+\addlinespace
+
+Protein & \texttt{naive-vector-v2} & \textbf{122152.9474} & \textbf{408461} \\
+Protein & \texttt{trigram}         & 163902.7895          & 660077 \\
+Protein & \texttt{naive-vector}    & 210098.8421          & 445885 \\
+Protein & \texttt{std}             & 255761.5263          & 653375 \\
+Protein & \texttt{naive-mixed}     & 285764.1053          & 638016 \\
+Protein & \texttt{two-way}         & 287183.4737          & 513800 \\
+Protein & \texttt{kmp}             & 377379.8947          & 599927 \\
+Protein & \texttt{naive-scalar}    & 385448.4211          & 620421 \\
+Protein & \texttt{bm}              & 832082.5263          & 2032794 \\
+Protein & \texttt{fm}              & N/A                  & N/A \\
+\end{longtable}
+\normalsize
+
+The pattern-shape breakdown in Table~\ref{tab:pattern-kind} helps explain why \texttt{naive-vector-v2} is such a strong default. For exact patterns, the top group is very tight: \texttt{naive-vector}, \texttt{naive-vector-v2}, \texttt{bm}, \texttt{two-way}, and \texttt{std} all land in a narrow range. For contains patterns and more general wildcard-heavy patterns, however, \texttt{naive-vector-v2} becomes the clearest winner, with \texttt{two-way} as the strongest alternative. This same trend also appears in the separate high-complexity bucket, where \texttt{naive-vector-v2} again ranks first overall, followed by \texttt{naive-vector} and \texttt{two-way}.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Algorithm & Exact (\(\mu s\)) & Contains (\(\mu s\)) & Wildcard (\(\mu s\)) \\
+\midrule
+\texttt{naive-vector}    & \textbf{5170.1197} & 23971.8799 & 15281.0049 \\
+\texttt{naive-vector-v2} & 5229.1155          & \textbf{18101.0916} & \textbf{12785.1772} \\
+\texttt{bm}              & 5294.2878          & 33822.1769 & 20572.8288 \\
+\texttt{two-way}         & 5376.7101          & 23079.1485 & 13142.2517 \\
+\texttt{std}             & 5378.5525          & 42806.0821 & 15734.8539 \\
+\texttt{naive-scalar}    & 5404.6155          & 26901.9968 & 14918.0243 \\
+\texttt{naive-mixed}     & 5433.8235          & 23524.0237 & 15330.0079 \\
+\texttt{kmp}             & 5459.7710          & 30592.9953 & 15442.4079 \\
+\texttt{trigram}         & 10431.7080         & 34000.0316 & 19068.8719 \\
+\texttt{fm}              & 17926.9580         & 40248.0735 & 21527.6561 \\
+\bottomrule
+\end{tabular}
+\caption{Mean runtime by pattern kind, aggregated across datasets.}
+\label{tab:pattern-kind}
+\end{table}
+
+The indexed methods do not win in the reported final measurements, and FM-indexing is likely underrepresented here. The current FM implementation still lacks important memory optimizations, and because of that it could not fully load the DNA and protein datasets in the final run. That is especially relevant because those biological entries are much longer than the strings in the relational workloads. A more memory-efficient FM-index implementation may become more competitive on long biological sequences, but that could not be tested in the present study.
+
+Overall, the final benchmark set shows a stable ranking. \texttt{naive-vector-v2} is the best measured general-purpose choice and the most robust default across datasets and pattern classes, while \texttt{two-way} remains the strongest alternative and is the winner on JOB. The indexed methods, especially FM-indexing, remain promising, but their current implementation constraints prevent them from being evaluated at full strength on the largest biological inputs.
+
+\end{document}
