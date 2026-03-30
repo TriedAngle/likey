@@ -140,6 +140,14 @@ struct TrigramRow<'a> {
     data: &'a str,
 }
 
+#[derive(Debug, Clone)]
+enum TrigramLiteralLookup {
+    CandidateIds(Box<[u32]>),
+    NoMatch,
+}
+
+type TrigramLiteralCache = HashMap<String, TrigramLiteralLookup>;
+
 impl<'a> FmIndexDatabase<'a> {
     fn row_index_for_pos(&self, pos: usize) -> Option<usize> {
         let idx = match self.row_starts.binary_search(&pos) {
@@ -197,6 +205,7 @@ fn main() {
     };
 
     let mut fm_literal_cache: FmLiteralCache = HashMap::new();
+    let mut trigram_literal_cache: TrigramLiteralCache = HashMap::new();
 
     let mut results = Vec::new();
 
@@ -382,6 +391,7 @@ fn main() {
                             pattern_index,
                             &database,
                             trigram_database,
+                            &mut trigram_literal_cache,
                         )
                     }
                 }
@@ -506,6 +516,7 @@ fn run_trigram_benchmark<'a>(
     pattern_index: usize,
     database: &'a DataSet<'a>,
     trigram_database: &TrigramDatabase<'a>,
+    trigram_literal_cache: &mut TrigramLiteralCache,
 ) -> Vec<ResultEntry> {
     let mut results = Vec::new();
     let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
@@ -513,7 +524,13 @@ fn run_trigram_benchmark<'a>(
     for table in database.tables.iter() {
         let table_name = table.name.as_str();
         let start = Instant::now();
-        let found = trigram_like_search_table(trigram_database, table_name, &pattern, pat_str);
+        let found = trigram_like_search_table(
+            trigram_database,
+            table_name,
+            &pattern,
+            pat_str,
+            trigram_literal_cache,
+        );
         let duration = start.elapsed();
 
         results.push(ResultEntry {
@@ -638,6 +655,7 @@ fn trigram_like_search_table<'a>(
     table_name: &str,
     pattern: &Pattern<'a, StdSearch>,
     pattern_str: &str,
+    trigram_literal_cache: &mut TrigramLiteralCache,
 ) -> usize {
     let literals = split_literals(pattern_str);
     let literal = literals
@@ -646,19 +664,22 @@ fn trigram_like_search_table<'a>(
         .max_by_key(|lit| lit.len());
 
     if let Some(lit) = literal {
-        if let Some(candidate_ids) = trigram_database.index.search_literal(lit) {
-            let mut matched = 0usize;
-            for doc_id in candidate_ids {
-                let row_idx = doc_id as usize;
-                let row = &trigram_database.rows[row_idx];
-                if row.table != table_name {
-                    continue;
+        match trigram_candidates_for_literal(trigram_database, lit, trigram_literal_cache) {
+            TrigramLiteralLookup::CandidateIds(candidate_ids) => {
+                let mut matched = 0usize;
+                for &doc_id in candidate_ids.iter() {
+                    let row_idx = doc_id as usize;
+                    let row = &trigram_database.rows[row_idx];
+                    if row.table != table_name {
+                        continue;
+                    }
+                    if like_match(pattern, row.data) {
+                        matched += 1;
+                    }
                 }
-                if like_match(pattern, row.data) {
-                    matched += 1;
-                }
+                return matched;
             }
-            return matched;
+            TrigramLiteralLookup::NoMatch => return 0,
         }
     }
 
@@ -667,6 +688,26 @@ fn trigram_like_search_table<'a>(
         .iter()
         .filter(|row| row.table == table_name && like_match(pattern, row.data))
         .count()
+}
+
+fn trigram_candidates_for_literal<'a>(
+    trigram_database: &TrigramDatabase<'_>,
+    lit: &str,
+    trigram_literal_cache: &'a mut TrigramLiteralCache,
+) -> &'a TrigramLiteralLookup {
+    if !trigram_literal_cache.contains_key(lit) {
+        let lookup = match trigram_database.index.search_literal(lit) {
+            Some(candidate_ids) => {
+                TrigramLiteralLookup::CandidateIds(candidate_ids.into_boxed_slice())
+            }
+            None => TrigramLiteralLookup::NoMatch,
+        };
+        trigram_literal_cache.insert(lit.to_string(), lookup);
+    }
+
+    trigram_literal_cache
+        .get(lit)
+        .expect("trigram literal cache must contain lookup")
 }
 
 #[derive(Debug, Clone, Copy)]

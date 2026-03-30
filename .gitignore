@@ -1,9 +1,9 @@
 target
 data/fasta
 data/benchmarks
+data/benchmarks_*
 fftstr
 results/
 **/__pycache__
 .venv
 venv
-

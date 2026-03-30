@@ -28,13 +28,11 @@ fn main() {
     let max_bytes = arg_value("--max-bytes").and_then(|v| v.parse::<usize>().ok());
     let max_rows_per_table =
         arg_value("--max-rows-per-table").and_then(|v| v.parse::<usize>().ok());
+    let max_row_bytes = arg_value("--max-row-bytes").and_then(|v| v.parse::<usize>().ok());
     let patterns_file = arg_value("--patterns-file");
     let output_csv = arg_value("--output-csv");
 
-    let mut arena_size = arena_gb * 1024 * 1024 * 1024;
-    if let Some(max_bytes) = max_bytes {
-        arena_size = arena_size.min(max_bytes);
-    }
+    let arena_size = arena_gb * 1024 * 1024 * 1024;
     let arena = BumpArena::new(arena_size);
 
     println!("--- DNA Like Benchmark ---");
@@ -44,7 +42,17 @@ fn main() {
         println!("> Max rows per table cap: {}", max_rows_per_table);
     }
 
-    let dataset = load_fasta_dataset(&arena, Path::new(&data_dir), max_bytes, max_rows_per_table);
+    if let Some(max_row_bytes) = max_row_bytes {
+        println!("> Max bytes per row cap: {}", max_row_bytes);
+    }
+
+    let dataset = load_fasta_dataset(
+        &arena,
+        Path::new(&data_dir),
+        max_bytes,
+        max_rows_per_table,
+        max_row_bytes,
+    );
 
     let patterns = match patterns_file {
         Some(path) => {
@@ -58,6 +66,7 @@ fn main() {
     let options = BenchOptions {
         skip_naive_scalar: has_flag("--skip-naive-scalar"),
         skip_naive_vector: has_flag("--skip-naive-vector"),
+        skip_naive_mixed: has_flag("--skip-naive-mixed"),
         skip_kmp: has_flag("--skip-kmp"),
         skip_bm: has_flag("--skip-bm"),
         skip_two_way: has_flag("--skip-two-way"),
@@ -93,6 +102,7 @@ fn load_fasta_dataset<'a>(
     data_dir: &Path,
     max_bytes: Option<usize>,
     max_rows_per_table: Option<usize>,
+    max_row_bytes: Option<usize>,
 ) -> DataSet<'a> {
     let files = collect_fasta_files(data_dir);
     assert!(
@@ -113,15 +123,35 @@ fn load_fasta_dataset<'a>(
             }
         }
 
-        if remaining_bytes != usize::MAX {
+        if max_row_bytes.is_some() || remaining_bytes != usize::MAX {
+            let row_byte_cap = max_row_bytes.unwrap_or(usize::MAX);
             let mut kept: Vec<Row<'a>> = Vec::new();
             for row in table.rows.iter().cloned() {
-                let len = row.data.len();
+                let mut data = row.data;
+                if row_byte_cap != usize::MAX && data.len() > row_byte_cap {
+                    let clipped = &data.as_bytes()[..row_byte_cap];
+                    data = std::str::from_utf8(clipped).expect("dna utf8");
+                }
+
+                if remaining_bytes == usize::MAX {
+                    kept.push(Row {
+                        id: row.id,
+                        desc: row.desc,
+                        data,
+                    });
+                    continue;
+                }
+
+                let len = data.len();
                 if len <= remaining_bytes {
-                    kept.push(row);
+                    kept.push(Row {
+                        id: row.id,
+                        desc: row.desc,
+                        data,
+                    });
                     remaining_bytes -= len;
                 } else if remaining_bytes > 0 && kept.is_empty() {
-                    let partial = &row.data.as_bytes()[..remaining_bytes];
+                    let partial = &data.as_bytes()[..remaining_bytes];
                     let partial = std::str::from_utf8(partial).expect("dna utf8");
                     kept.push(Row {
                         id: row.id,

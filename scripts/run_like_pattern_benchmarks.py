@@ -476,6 +476,16 @@ def main() -> None:
         type=int,
         help="Optional row cap per JOB table (applies only to bench_job)",
     )
+    parser.add_argument(
+        "--dna-max-row-bytes",
+        type=int,
+        help="Optional per-row byte cap for DNA FASTA rows",
+    )
+    parser.add_argument(
+        "--protein-max-row-bytes",
+        type=int,
+        help="Optional per-row byte cap for protein FASTA rows",
+    )
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--skip-fftstr0", action="store_true")
     parser.add_argument("--skip-fftstr1", action="store_true")
@@ -557,6 +567,16 @@ def main() -> None:
                 per_dataset_row_cap = args.job_max_rows_per_table
             if per_dataset_row_cap is not None:
                 cmd.extend(["--max-rows-per-table", str(per_dataset_row_cap)])
+
+            per_dataset_row_byte_cap = None
+            if dataset == "dna":
+                per_dataset_row_byte_cap = args.dna_max_row_bytes
+            elif dataset == "protein":
+                per_dataset_row_byte_cap = args.protein_max_row_bytes
+
+            if per_dataset_row_byte_cap is not None:
+                cmd.extend(["--max-row-bytes", str(per_dataset_row_byte_cap)])
+
             if args.skip_fftstr0:
                 cmd.append("--skip-fftstr0")
             if args.skip_fftstr1:

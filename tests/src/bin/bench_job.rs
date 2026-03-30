@@ -60,6 +60,7 @@ fn main() {
     let options = BenchOptions {
         skip_naive_scalar: has_flag("--skip-naive-scalar"),
         skip_naive_vector: has_flag("--skip-naive-vector"),
+        skip_naive_mixed: has_flag("--skip-naive-mixed"),
         skip_kmp: has_flag("--skip-kmp"),
         skip_bm: has_flag("--skip-bm"),
         skip_two_way: has_flag("--skip-two-way"),

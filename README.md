@@ -39,6 +39,7 @@ pattern -> like::compile_pattern ----------> engine::execute
 
 ## Benchmark datasets (TPC-H / TPC-DS / JOB)
 - Download/generate data: `python3 scripts/download_benchmarks.py`
+- Benchmark data is local-only. Paths under `data/benchmarks*` are generated/downloaded artifacts and should not be committed.
 - Python setup (DuckDB required):
   - `python3 -m venv .venv`
   - `source .venv/bin/activate`
