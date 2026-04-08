@@ -7,13 +7,35 @@ from collections import defaultdict
 from pathlib import Path
 
 
-BIN_BY_DATASET = {
-    "tpch": "bench_tpch",
-    "tpcds": "bench_tpcds",
-    "job": "bench_job",
-    "dna": "bench_dna",
-    "protein": "bench_protein",
+TSV_COLUMN_INDICES_BY_DATASET = {
+    "tpch": {
+        "part.csv": [1, 4, 6],
+        "orders.csv": [8],
+        "lineitem.csv": [13],
+        "customer.csv": [6],
+    },
+    "tpcds": {
+        "item.csv": [4, 17],
+        "customer.csv": [9],
+        "customer_address.csv": [3],
+        "date_dim.csv": [14],
+        "call_center.csv": [7],
+    },
+    "job": {
+        "title.csv": [1],
+        "name.csv": [1],
+        "movie_info.csv": [3],
+        "keyword.csv": [1],
+        "cast_info.csv": [4],
+    },
 }
+
+FASTA_FILES_BY_DATASET = {
+    "dna": ["dna_benchmark.fna"],
+    "protein": ["protein_benchmark.faa"],
+}
+
+DEFAULT_TSV_DELIMITER = "|"
 
 
 def run_command(command: list[str]) -> None:
@@ -24,6 +46,38 @@ def run_command(command: list[str]) -> None:
 def load_rows(path: Path) -> list[dict[str, str]]:
     with open(path, "r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def resolve_dataset_file(dataset_dir: Path, filename: str) -> Path:
+    direct = dataset_dir / filename
+    if direct.exists():
+        return direct
+
+    nested = dataset_dir / "imdb" / filename
+    if nested.exists():
+        return nested
+
+    raise FileNotFoundError(f"Missing expected dataset file: {dataset_dir / filename}")
+
+
+def build_input_args(dataset: str, dataset_dir: Path) -> list[str]:
+    args: list[str] = []
+
+    tsv_columns = TSV_COLUMN_INDICES_BY_DATASET.get(dataset, {})
+    if tsv_columns:
+        for filename, indices in tsv_columns.items():
+            file_path = resolve_dataset_file(dataset_dir, filename)
+            args.extend(["--tsv", str(file_path)])
+            for idx in indices:
+                args.extend(["--column", f"{filename}:{idx}"])
+        args.extend(["--tsv-delimiter", DEFAULT_TSV_DELIMITER])
+
+    fasta_files = FASTA_FILES_BY_DATASET.get(dataset, [])
+    for filename in fasta_files:
+        file_path = resolve_dataset_file(dataset_dir, filename)
+        args.extend(["--fasta", str(file_path)])
+
+    return args
 
 
 def pattern_complexity(pattern: str, w_pct: float, w_us: float, w_len: float) -> float:
@@ -474,7 +528,7 @@ def main() -> None:
     parser.add_argument(
         "--job-max-rows-per-table",
         type=int,
-        help="Optional row cap per JOB table (applies only to bench_job)",
+        help="Optional row cap per JOB table",
     )
     parser.add_argument(
         "--dna-max-row-bytes",
@@ -524,14 +578,18 @@ def main() -> None:
 
     all_rows: list[dict[str, str]] = []
     for dataset in datasets:
-        bin_name = BIN_BY_DATASET.get(dataset)
-        if not bin_name:
-            print(f"Skipping unknown dataset '{dataset}'")
-            continue
-
         ds_dir = data_root / dataset
         if not ds_dir.exists():
             print(f"Skipping missing dataset directory: {ds_dir}")
+            continue
+
+        try:
+            input_args = build_input_args(dataset, ds_dir)
+        except FileNotFoundError as exc:
+            raise SystemExit(str(exc))
+
+        if not input_args:
+            print(f"Skipping dataset '{dataset}' (no configured inputs)")
             continue
 
         for run_idx in range(args.repeat):
@@ -544,20 +602,21 @@ def main() -> None:
             elif dataset == "protein":
                 dataset_patterns_file = protein_patterns_file
 
-            cmd = ["cargo", "run", "-p", "tests", "--bin", bin_name]
+            cmd = ["cargo", "run", "-p", "tests", "--bin", "bench_like"]
             if args.cargo_profile == "release":
                 cmd.append("--release")
             cmd.extend(
                 [
                     "--",
-                    "--data-dir",
-                    str(ds_dir),
-                    "--patterns-file",
+                    "--dataset-name",
+                    dataset,
+                    "--pattern",
                     str(dataset_patterns_file),
                     "--output-csv",
                     str(per_run_csv),
                 ]
             )
+            cmd.extend(input_args)
             if args.arena_gb is not None:
                 cmd.extend(["--arena-gb", str(args.arena_gb)])
             if args.max_bytes is not None:
@@ -577,14 +636,18 @@ def main() -> None:
             if per_dataset_row_byte_cap is not None:
                 cmd.extend(["--max-row-bytes", str(per_dataset_row_byte_cap)])
 
+            skip_algorithms: list[str] = []
             if args.skip_fftstr0:
-                cmd.append("--skip-fftstr0")
+                skip_algorithms.append("fftstr0")
             if args.skip_fftstr1:
-                cmd.append("--skip-fftstr1")
+                skip_algorithms.append("fftstr1")
             if args.skip_fm:
-                cmd.append("--skip-fm")
+                skip_algorithms.append("fm")
             if args.skip_trigram:
-                cmd.append("--skip-trigram")
+                skip_algorithms.append("trigram")
+
+            for algo in sorted(set(skip_algorithms)):
+                cmd.extend(["--skip", algo])
 
             run_command(cmd)
 

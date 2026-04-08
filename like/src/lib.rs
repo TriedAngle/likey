@@ -193,11 +193,7 @@ where
 fn advance_units(text: &str, idx: usize, count: usize, ascii_mode: bool) -> Option<usize> {
     if ascii_mode {
         let next = idx + count;
-        if next <= text.len() {
-            Some(next)
-        } else {
-            None
-        }
+        if next <= text.len() { Some(next) } else { None }
     } else {
         let mut chars = slice_from(text, idx).chars();
         let mut advanced = 0usize;
@@ -533,7 +529,7 @@ pub fn like_match<S: StringSearch>(pattern: &Pattern<S>, text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algos::{FftConfig, FftStr1, Naive, StdSearch, TwoWay, BM, KMP};
+    use algos::{BM, FftConfig, FftStr1, KMP, Naive, StdSearch, TwoWay};
 
     fn run_test_suite<S, F>(factory: F)
     where

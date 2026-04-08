@@ -3,8 +3,8 @@ use std::{fs::File, path::Path};
 use csv::{ReaderBuilder, Trim};
 
 use crate::{
-    dataset::{Row, Table},
     BumpArena,
+    dataset::{Row, Table},
 };
 
 #[derive(Debug, Clone)]

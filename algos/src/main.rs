@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use algos::{
-    KmerConfig, KmerSearch, LutShort, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, StringSearch, TwoWay, BM, KMP,
+    BM, KMP, KmerConfig, KmerSearch, LutShort, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StringSearch, TwoWay,
 };
 use clap::Parser;
 

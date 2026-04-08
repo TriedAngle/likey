@@ -7,11 +7,11 @@ use std::{
 };
 
 use algos::{
-    FMIndex, FftConfig, FftStr0, FftStr1, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, StdSearch, StringSearch, TrigramIndex, TwoWay, BM, KMP,
+    BM, FMIndex, FftConfig, FftStr0, FftStr1, KMP, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StdSearch, StringSearch, TrigramIndex, TwoWay,
 };
 use engine::execute;
-use like::{compile_pattern, compile_pattern_with_options, like_match, CompileOptions, Pattern};
+use like::{CompileOptions, Pattern, compile_pattern, compile_pattern_with_options, like_match};
 use storage::dataset::DataSet;
 
 const FM_SEPARATOR: u8 = 0x1F;
@@ -106,20 +106,43 @@ enum TrigramLiteralLookup {
 
 type TrigramLiteralCache = HashMap<String, TrigramLiteralLookup>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Default)]
 pub struct BenchOptions {
-    pub skip_naive_scalar: bool,
-    pub skip_naive_vector: bool,
-    pub skip_naive_mixed: bool,
-    pub skip_kmp: bool,
-    pub skip_bm: bool,
-    pub skip_two_way: bool,
-    pub skip_std: bool,
-    pub skip_lut_short: bool,
-    pub skip_fftstr0: bool,
-    pub skip_fftstr1: bool,
-    pub skip_fm: bool,
-    pub skip_trigram: bool,
+    skip_algorithms: HashSet<String>,
+}
+
+impl BenchOptions {
+    pub fn new(skip_algorithms: HashSet<String>) -> Result<Self, String> {
+        let mut unknown = Vec::new();
+        for name in skip_algorithms.iter() {
+            if !ALGORITHMS.iter().any(|candidate| candidate == name) {
+                unknown.push(name.clone());
+            }
+        }
+
+        if !unknown.is_empty() {
+            unknown.sort();
+            return Err(format!(
+                "Unknown algorithm(s): {}. Known values: {}",
+                unknown.join(", "),
+                ALGORITHMS.join(", ")
+            ));
+        }
+
+        Ok(Self { skip_algorithms })
+    }
+
+    pub fn should_skip(&self, algo_name: &str) -> bool {
+        self.skip_algorithms.contains(algo_name)
+    }
+
+    pub fn skip_algorithms(&self) -> &HashSet<String> {
+        &self.skip_algorithms
+    }
+}
+
+pub fn available_algorithms() -> &'static [&'static str] {
+    ALGORITHMS
 }
 
 #[derive(Debug, Clone)]
@@ -144,11 +167,7 @@ impl<'a> FmIndexDatabase<'a> {
         };
 
         let row = &self.rows[idx];
-        if pos < row.end {
-            Some(idx)
-        } else {
-            None
-        }
+        if pos < row.end { Some(idx) } else { None }
     }
 }
 
@@ -159,13 +178,13 @@ pub fn run_like_benchmarks(
     options: BenchOptions,
     output_csv: Option<&Path>,
 ) {
-    let skip_lut_short = options.skip_lut_short || !lut_short_available();
-    let skip_naive_vector = options.skip_naive_vector || !naive_vector_available();
+    let skip_lut_short = options.should_skip("lut-short") || !lut_short_available();
+    let naive_vector_unavailable = !naive_vector_available();
 
     println!("--- Starting Like Benchmark ---");
     println!("> Database loaded. Total tables: {}", database.tables.len());
 
-    let fm_database = if options.skip_fm {
+    let fm_database = if options.should_skip("fm") {
         None
     } else {
         println!("> Building FM-index...");
@@ -174,7 +193,7 @@ pub fn run_like_benchmarks(
         Some(fm_database)
     };
 
-    let trigram_database = if options.skip_trigram {
+    let trigram_database = if options.should_skip("trigram") {
         None
     } else {
         println!("> Building trigram index...");
@@ -204,7 +223,7 @@ pub fn run_like_benchmarks(
 
             let entries = match *algo_name {
                 "naive-scalar" => {
-                    if options.skip_naive_scalar {
+                    if options.should_skip("naive-scalar") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveScalar, _>(
@@ -217,7 +236,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "naive-vector" => {
-                    if skip_naive_vector {
+                    if options.should_skip("naive-vector") || naive_vector_unavailable {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveVectorized, _>(
@@ -230,7 +249,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "kmp" => {
-                    if options.skip_kmp {
+                    if options.should_skip("kmp") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<KMP, _>(
@@ -243,7 +262,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "naive-vector-v2" => {
-                    if skip_naive_vector {
+                    if options.should_skip("naive-vector-v2") || naive_vector_unavailable {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveVectorizedV2, _>(
@@ -256,7 +275,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "naive-mixed" => {
-                    if options.skip_naive_mixed {
+                    if options.should_skip("naive-mixed") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<NaiveMixed, _>(
@@ -269,7 +288,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "bm" => {
-                    if options.skip_bm {
+                    if options.should_skip("bm") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<BM, _>(
@@ -282,7 +301,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "two-way" => {
-                    if options.skip_two_way {
+                    if options.should_skip("two-way") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<TwoWay, _>(
@@ -295,7 +314,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "std" => {
-                    if options.skip_std {
+                    if options.should_skip("std") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<StdSearch, _>(
@@ -308,7 +327,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "lut-short" => {
-                    if options.skip_lut_short || skip_lut_short {
+                    if options.should_skip("lut-short") || skip_lut_short {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark::<algos::LutShort, _>(
@@ -321,7 +340,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "fftstr0" => {
-                    if options.skip_fftstr0 || should_skip_fftstr0(pat_str) {
+                    if options.should_skip("fftstr0") || should_skip_fftstr0(pat_str) {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark_with_options::<FftStr0, _>(
@@ -339,7 +358,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "fftstr1" => {
-                    if options.skip_fftstr1 || should_skip_fftstr1(pat_str) {
+                    if options.should_skip("fftstr1") || should_skip_fftstr1(pat_str) {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         run_benchmark_with_options::<FftStr1, _>(
@@ -357,7 +376,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "fm" => {
-                    if options.skip_fm {
+                    if options.should_skip("fm") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         let fm_database = fm_database.as_ref().expect("fm index not built");
@@ -372,7 +391,7 @@ pub fn run_like_benchmarks(
                     }
                 }
                 "trigram" => {
-                    if options.skip_trigram {
+                    if options.should_skip("trigram") {
                         skipped_entries(algo_name, pat_str, pattern_index, database)
                     } else {
                         let trigram_database =
@@ -1493,6 +1512,3 @@ fn print_correctness_report(results: &[ResultEntry]) {
 
     println!("{:=^70}", " END ");
 }
-
-#[allow(dead_code)]
-fn main() {}

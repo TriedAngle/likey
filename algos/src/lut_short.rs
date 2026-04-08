@@ -107,7 +107,7 @@ fn matches_at(state: &LutShortState, text: &[u8], pos: usize) -> bool {
 
 #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
 mod x86 {
-    use super::{matches_at, LutShortState};
+    use super::{LutShortState, matches_at};
     use core::arch::x86_64::*;
 
     #[target_feature(enable = "ssse3,sse2")]
@@ -274,7 +274,7 @@ mod x86 {
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon {
-    use super::{matches_at, LutShortState};
+    use super::{LutShortState, matches_at};
     use core::arch::aarch64::*;
 
     #[target_feature(enable = "neon")]

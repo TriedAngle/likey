@@ -35,7 +35,7 @@ pattern -> like::compile_pattern ----------> engine::execute
 
 ## Testing
 - Unit tests: `cargo test -p storage` and `cargo test -p engine`
-- Benchmark + correctness report: `cargo run -p tests --bin bench_like --release`
+- Benchmark + correctness report (single binary): `cargo run -p tests --bin bench_like --release -- --pattern scripts/patterns_default_sample.tsv --tsv data/benchmarks/tpch/part.csv --tsv-delimiter '|' --column part.csv:1 --column part.csv:4 --column part.csv:6`
 
 ## Benchmark datasets (TPC-H / TPC-DS / JOB)
 - Download/generate data: `python3 scripts/download_benchmarks.py`
@@ -45,9 +45,7 @@ pattern -> like::compile_pattern ----------> engine::execute
   - `source .venv/bin/activate`
   - `python -m pip install --upgrade pip`
   - `python -m pip install duckdb`
-- TPC-H: `cargo run -p tests --bin bench_tpch --release -- --data-dir data/benchmarks/tpch`
-- TPC-DS: `cargo run -p tests --bin bench_tpcds --release -- --data-dir data/benchmarks/tpcds`
-- JOB (IMDB): `cargo run -p tests --bin bench_job --release -- --data-dir data/benchmarks/job`
+- Run TPC-H/TPC-DS/JOB matrix via the unified runner: `python3 scripts/run_like_pattern_benchmarks.py --datasets tpch,tpcds,job --results-dir results`
 
 ## Bio benchmark datasets (DNA / Protein FASTA)
 - Prepare datasets (~0.5GB-1GB each target):
@@ -57,13 +55,12 @@ pattern -> like::compile_pattern ----------> engine::execute
     --dna-target-bytes 700000000 \
     --protein-target-bytes 700000000
   ```
-- DNA benchmark: `cargo run -p tests --bin bench_dna --release -- --data-dir data/benchmarks/dna`
-- Protein benchmark: `cargo run -p tests --bin bench_protein --release -- --data-dir data/benchmarks/protein`
-- For very large FASTA inputs, `bench_dna` / `bench_protein` auto-disable FM-index to avoid OOM.
+- Run DNA/Protein matrix via the unified runner: `python3 scripts/run_like_pattern_benchmarks.py --datasets dna,protein --results-dir results`
+- Direct FASTA example: `cargo run -p tests --bin bench_like --release -- --pattern scripts/patterns_dna.tsv --fasta data/benchmarks/dna/dna_benchmark.fna --max-row-bytes 66262271`
 
 ### Vectorization flags
-- x86_64 (SSSE3 + SSE2): `RUSTFLAGS="-C target-feature=+ssse3" cargo run -p tests --bin bench_tpch --release -- --data-dir data/benchmarks/tpch`
-- aarch64 (NEON): `RUSTFLAGS="-C target-feature=+neon" cargo run -p tests --bin bench_tpch --release -- --data-dir data/benchmarks/tpch`
+- x86_64 (SSSE3 + SSE2): `RUSTFLAGS="-C target-feature=+ssse3" cargo run -p tests --bin bench_like --release -- --pattern scripts/patterns_default_sample.tsv --tsv data/benchmarks/tpch/part.csv --tsv-delimiter '|' --column part.csv:1 --column part.csv:4 --column part.csv:6`
+- aarch64 (NEON): `RUSTFLAGS="-C target-feature=+neon" cargo run -p tests --bin bench_like --release -- --pattern scripts/patterns_default_sample.tsv --tsv data/benchmarks/tpch/part.csv --tsv-delimiter '|' --column part.csv:1 --column part.csv:4 --column part.csv:6`
 
 ### SIMD build notes
 - LUT-short requires SSSE3 (x86_64) or NEON (aarch64).
@@ -73,16 +70,15 @@ pattern -> like::compile_pattern ----------> engine::execute
   ```
 
 ### Benchmark flags
-- Skip FM: `--skip-fm`
-- Skip trigram: `--skip-trigram`
-- Skip fftstr0: `--skip-fftstr0`
-- Skip fftstr1: `--skip-fftstr1`
-- Skip two-way: `--skip-two-way`
+- Skip algorithms by name: `--skip fm,trigram` (repeatable)
 - Cap rows per table: `--max-rows-per-table <N>`
+- Cap row bytes (useful for FASTA): `--max-row-bytes <N>`
+- Exclude FASTA entries: `--exclude-fasta-id <TEXT>` / `--exclude-fasta-desc <TEXT>`
+- Exclude delimited columns: `--exclude-column <FILE:COL>`
 
 ### Pattern-file driven benchmarking
-- Bench binaries now accept:
-  - `--patterns-file <path>`: load patterns from a TSV file (`pattern<TAB>description`)
+- Bench binary accepts:
+  - `--pattern <path>`: load patterns from a TSV file (`pattern<TAB>description`)
   - `--output-csv <path>`: write machine-readable benchmark rows
 - This enables easy manual vs auto-generated pattern runs.
 

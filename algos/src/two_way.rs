@@ -97,7 +97,8 @@ fn build_state(pattern: &[u8]) -> TwoWayState {
 
     // C: if (memcmp(x, x + per, ell + 1) == 0) ...
     // => compare length = crit, starting at `period`
-    let is_periodic = period < m && crit <= (m - period) && pattern[..crit] == pattern[period..period + crit];
+    let is_periodic =
+        period < m && crit <= (m - period) && pattern[..crit] == pattern[period..period + crit];
 
     // C non-periodic: per = MAX(ell + 1, m - ell - 1) + 1
     // with crit = ell + 1, and m - ell - 1 = m - crit

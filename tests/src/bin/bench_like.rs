@@ -1,1300 +1,716 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     path::{Path, PathBuf},
-    time::{Duration, Instant},
 };
 
-use algos::{
-    FMIndex, FftConfig, FftStr0, FftStr1, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, StdSearch, StringSearch, TrigramIndex, TwoWay, BM, KMP,
-};
-use engine::execute;
-use like::{compile_pattern, compile_pattern_with_options, like_match, CompileOptions, Pattern};
+use clap::{ArgAction, Parser};
+use csv::{ReaderBuilder, StringRecord, Trim};
 use storage::{
-    dataset::{load_dataset_from_paths, DataSet},
+    dataset::{load_fasta_table, DataSet, Row, Table},
     BumpArena,
 };
+use tests::bench_shared::{
+    available_algorithms, load_patterns_from_file, run_like_benchmarks, BenchOptions, PatternSpec,
+};
 
-const ARENA_SIZE: usize = 1024 * 1024 * 1024; // 1 GB
-const FM_SEPARATOR: u8 = 0x1F;
-const FM_SENTINEL: u8 = 0x00;
+const BYTES_PER_GB: usize = 1024 * 1024 * 1024;
+const DEFAULT_ARENA_GB: usize = 4;
+const DEFAULT_DATASET_NAME: &str = "custom";
 
-const PLAIN_TEXT_FILES: &[&str] = &["data/ipsum.txt"];
+#[derive(Debug, Parser)]
+#[command(about = "Unified LIKE benchmark runner")]
+struct Cli {
+    #[arg(long = "fasta", value_name = "FILE", action = ArgAction::Append)]
+    fasta_files: Vec<PathBuf>,
 
-const FASTA_FILES: &[&str] = &[
-    "data/fasta/covid19_genome.fasta",
-    "data/fasta/ecoli_genome.fasta",
-    "data/fasta/human_p53_protein.fasta",
-    "data/fasta/human_proteome.fasta",
-];
+    #[arg(long = "csv", value_name = "FILE", action = ArgAction::Append)]
+    csv_files: Vec<PathBuf>,
 
-const PATTERNS: &[(&str, &str)] = &[
-    ("%TCGC%", "Short DNA"),
-    ("%GATTACA%", "Medium DNA"),
-    ("%Lorem%", "Common Word"),
-    ("h%o", "Wildcard Simple"),
-    ("%a_%_b%", "Wildcard Complex"),
-    ("%a_%_b%", "Wildcard Complex2"),
-    ("%GA_T%____T%%ACA%", "Complex DNA Pattern"),
-    ("%TGCGAGATTTGGACGGAC%", "DNA Simple (original complex)"),
-    ("%TGCG%A___GGACGGAC%", "Complex DNA Pattern2"),
-    (
-        "%GTTGCGAGATTTGGACGGACGTTGACGGGGTCTATACCTGCGACCCGCGT
-%CAGGTGCCCGATGCGAGGTTGTTGAAGTCGATGTCCTACCAGGAAGCGATGGAGCTTTCCTACTTCGGCG
-CTAAAGTTCTTCACCCCCGCACCATTACCCCCATCGCCCAGTTCCAGATCCCTTGCCTGATTAAAAATAC
-CGGAAATCCTCAAGCACCAGGTACGCTCATTGGTGCCAGCCGTGATGAAGACGAATTACCGGTCAAGGGC
-ATTTCCAATCTGAATAACATGGCAATGTTCAGCGTTTCTGGTCCGGGGATGAAAGGGATGGTCGGCATGG
-CGGCGCGCGTCTTTGCAGCGATGTCACGCGCCCGTATTTCCGTGGTGCTGATTACGCAATCATCTTCCGA
-ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
-        "Long DNA Patern split",
-    ),
-    (
-        "%CAGGTGCCCGATGCGAGGTTGTTGAAGTCGATGTCCTACCAGGAAGCGATGGAGCTTTCCTACTTCGGCG
-CTAAAGTTCTTCACCCCCGCACCATTACCCCCATCGCCCAGTTCCAGATCCCTTGCCTGATTAAAAATAC
-CGGAAATCCTCAAGCACCAGGTACGCTCATTGGTGCCAGCCGTGATGAAGACGAATTACCGGTCAAGGGC
-ATTTCCAATCTGAATAACATGGCAATGTTCAGCGTTTCTGGTCCGGGGATGAAAGGGATGGTCGGCATGG
-CGGCGCGCGTCTTTGCAGCGATGTCACGCGCCCGTATTTCCGTGGTGCTGATTACGCAATCATCTTCCGA
-ATACAGCATCAGTTTCTGCGTTCCACAAAGCGACTGTGT%",
-        "Long DNA Patern",
-    ),
-];
+    #[arg(long = "tsv", value_name = "FILE", action = ArgAction::Append)]
+    tsv_files: Vec<PathBuf>,
 
-const ALGORITHMS: &[&str] = &[
-    "naive-scalar",
-    "naive-vector",
-    "naive-vector-v2",
-    "naive-mixed",
-    "kmp",
-    "bm",
-    "two-way",
-    "std",
-    "lut-short",
-    "fftstr0",
-    "fftstr1",
-    "fm",
-    "trigram",
-];
+    #[arg(long = "csv-delimiter", default_value = ",")]
+    csv_delimiter: String,
 
-#[derive(Debug)]
-struct ResultEntry {
-    algo: String,
-    pattern_index: usize,
-    pattern: String,
-    file: String,
-    file_type: String,
-    duration: Duration,
-    found_count: usize,
-    skipped: bool,
-}
+    #[arg(long = "tsv-delimiter", default_value = "\\t")]
+    tsv_delimiter: String,
 
-#[derive(Debug)]
-struct Mismatch {
-    algo: String,
-    pattern_index: usize,
-    pattern: String,
-    file: String,
-    expected: usize,
-    actual: usize,
-}
+    #[arg(long = "csv-has-headers", action = ArgAction::SetTrue)]
+    csv_has_headers: bool,
 
-#[derive(Debug, Clone, Copy)]
-struct FmRow<'a> {
-    table: &'a str,
-    data: &'a str,
-    start: usize,
-    end: usize,
-}
+    #[arg(long = "tsv-has-headers", action = ArgAction::SetTrue)]
+    tsv_has_headers: bool,
 
-struct FmIndexDatabase<'a> {
-    fm: FMIndex,
-    rows: Vec<FmRow<'a>>,
-    row_starts: Vec<usize>,
-    byte_freq: [usize; 256],
-    max_range: usize,
+    #[arg(long = "column", value_name = "FILE:COL", action = ArgAction::Append)]
+    columns: Vec<String>,
+
+    #[arg(
+        long = "exclude-column",
+        value_name = "FILE:COL",
+        action = ArgAction::Append
+    )]
+    exclude_columns: Vec<String>,
+
+    #[arg(
+        long = "exclude-fasta-id",
+        value_name = "TEXT",
+        action = ArgAction::Append
+    )]
+    exclude_fasta_id: Vec<String>,
+
+    #[arg(
+        long = "exclude-fasta-desc",
+        value_name = "TEXT",
+        action = ArgAction::Append
+    )]
+    exclude_fasta_desc: Vec<String>,
+
+    #[arg(
+        long = "pattern",
+        alias = "patterns-file",
+        value_name = "FILE",
+        action = ArgAction::Append
+    )]
+    pattern_files: Vec<PathBuf>,
+
+    #[arg(
+        long = "skip",
+        value_name = "ALGO[,ALGO...]",
+        action = ArgAction::Append
+    )]
+    skip_algorithms: Vec<String>,
+
+    #[arg(long = "arena-gb", default_value_t = DEFAULT_ARENA_GB)]
+    arena_gb: usize,
+
+    #[arg(long = "max-bytes")]
+    max_bytes: Option<usize>,
+
+    #[arg(long = "max-rows-per-table")]
+    max_rows_per_table: Option<usize>,
+
+    #[arg(long = "max-row-bytes")]
+    max_row_bytes: Option<usize>,
+
+    #[arg(long = "output-csv", value_name = "FILE")]
+    output_csv: Option<PathBuf>,
+
+    #[arg(long = "dataset-name", default_value = DEFAULT_DATASET_NAME)]
+    dataset_name: String,
 }
 
 #[derive(Debug, Clone)]
-enum FmLiteralLookup {
-    Rows(HashSet<usize>),
-    NoMatch,
-    TooBroad,
+struct DelimitedInput {
+    path: PathBuf,
+    delimiter: u8,
+    has_headers: bool,
 }
 
-#[derive(Debug, Clone)]
-enum FmPositionLookup {
-    Positions(Vec<usize>),
-    NoMatch,
-    TooBroad,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum ColumnSelector {
+    Index(usize),
+    Name(String),
 }
 
-type FmLiteralCache = HashMap<String, FmLiteralLookup>;
-
-struct TrigramDatabase<'a> {
-    index: TrigramIndex<'a>,
-    rows: Vec<TrigramRow<'a>>,
+#[derive(Debug, Default)]
+struct ColumnRules {
+    includes: Vec<(String, ColumnSelector)>,
+    excludes: Vec<(String, ColumnSelector)>,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct TrigramRow<'a> {
-    table: &'a str,
-    data: &'a str,
-}
-
-#[derive(Debug, Clone)]
-enum TrigramLiteralLookup {
-    CandidateIds(Box<[u32]>),
-    NoMatch,
-}
-
-type TrigramLiteralCache = HashMap<String, TrigramLiteralLookup>;
-
-impl<'a> FmIndexDatabase<'a> {
-    fn row_index_for_pos(&self, pos: usize) -> Option<usize> {
-        let idx = match self.row_starts.binary_search(&pos) {
-            Ok(i) => i,
-            Err(0) => return None,
-            Err(i) => i - 1,
-        };
-
-        let row = &self.rows[idx];
-        if pos < row.end {
-            Some(idx)
-        } else {
-            None
-        }
-    }
+#[derive(Debug, Default)]
+struct FastaExclusions {
+    id_contains: Vec<String>,
+    desc_contains: Vec<String>,
 }
 
 fn main() {
-    let skip_fftstr0 = has_flag("--skip-fftstr0");
-    let skip_fftstr1 = has_flag("--skip-fftstr1");
-    let skip_fm = has_flag("--skip-fm");
-    let skip_trigram = has_flag("--skip-trigram");
-    let skip_lut_short = !lut_short_available() || has_flag("--skip-lut-short");
-    let skip_naive_vector = !naive_vector_available() || has_flag("--skip-naive-vector");
-    let skip_naive_scalar = has_flag("--skip-naive-scalar");
-    let skip_kmp = has_flag("--skip-kmp");
-    let skip_bm = has_flag("--skip-bm");
-    let skip_two_way = has_flag("--skip-two-way");
-    let skip_std = has_flag("--skip-std");
+    let cli = Cli::parse();
 
-    println!("--- Starting Like Benchmark ---");
+    if cli.fasta_files.is_empty() && cli.csv_files.is_empty() && cli.tsv_files.is_empty() {
+        fatal("provide at least one --fasta, --csv, or --tsv input file");
+    }
 
-    println!("> Allocating {} bytes for Arena...", ARENA_SIZE);
-    let arena = BumpArena::new(ARENA_SIZE);
+    if cli.pattern_files.is_empty() {
+        fatal("provide at least one --pattern <FILE>");
+    }
 
-    println!("> Loading Database into memory...");
-    let database = load_database(&arena);
-    println!("> Database loaded. Total files: {}", database.tables.len());
+    let csv_delimiter = match parse_delimiter(&cli.csv_delimiter, "--csv-delimiter") {
+        Ok(delimiter) => delimiter,
+        Err(err) => fatal(&err),
+    };
+    let tsv_delimiter = match parse_delimiter(&cli.tsv_delimiter, "--tsv-delimiter") {
+        Ok(delimiter) => delimiter,
+        Err(err) => fatal(&err),
+    };
+
+    let column_rules = match parse_column_rules(&cli.columns, &cli.exclude_columns) {
+        Ok(rules) => rules,
+        Err(err) => fatal(&err),
+    };
+    let fasta_exclusions = FastaExclusions {
+        id_contains: cli.exclude_fasta_id,
+        desc_contains: cli.exclude_fasta_desc,
+    };
+
+    let patterns = match load_patterns(&cli.pattern_files) {
+        Ok(patterns) => patterns,
+        Err(err) => fatal(&err),
+    };
+
+    let options = match BenchOptions::new(parse_skip_algorithms(&cli.skip_algorithms)) {
+        Ok(options) => options,
+        Err(err) => fatal(&err),
+    };
+
+    let mut delimited_inputs = Vec::with_capacity(cli.csv_files.len() + cli.tsv_files.len());
+    delimited_inputs.extend(cli.csv_files.into_iter().map(|path| DelimitedInput {
+        path,
+        delimiter: csv_delimiter,
+        has_headers: cli.csv_has_headers,
+    }));
+    delimited_inputs.extend(cli.tsv_files.into_iter().map(|path| DelimitedInput {
+        path,
+        delimiter: tsv_delimiter,
+        has_headers: cli.tsv_has_headers,
+    }));
+
+    let mut remaining_bytes = cli.max_bytes.unwrap_or(usize::MAX);
+
+    let arena_bytes = match cli.arena_gb.checked_mul(BYTES_PER_GB) {
+        Some(bytes) => bytes,
+        None => fatal("arena size overflow from --arena-gb"),
+    };
+    let arena_bytes = match cli.max_bytes {
+        Some(cap) => arena_bytes.min(cap),
+        None => arena_bytes,
+    };
+
+    println!("--- Unified Like Benchmark ---");
+    println!(
+        "> Available algorithms: {}",
+        available_algorithms().join(", ")
+    );
+    println!("> Allocating {} bytes for Arena...", arena_bytes);
+    let arena = BumpArena::new(arena_bytes);
+
+    let database = match load_dataset(
+        &arena,
+        &cli.fasta_files,
+        &delimited_inputs,
+        &column_rules,
+        &fasta_exclusions,
+        cli.max_rows_per_table,
+        cli.max_row_bytes,
+        &mut remaining_bytes,
+    ) {
+        Ok(dataset) => dataset,
+        Err(err) => fatal(&err),
+    };
+
+    if database.tables.is_empty() {
+        fatal("no tables were loaded from the provided inputs");
+    }
+
+    let mut skipped: Vec<String> = options.skip_algorithms().iter().cloned().collect();
+    skipped.sort();
+    if !skipped.is_empty() {
+        println!("> Skipping algorithms: {}", skipped.join(", "));
+    }
+
+    println!("> Loaded {} table(s)", database.tables.len());
     println!("> Arena used: {} bytes", arena.used());
 
-    let fm_database = if skip_fm {
-        None
-    } else {
-        println!("> Building FM-index...");
-        let (fm_database, fm_build_time) = build_fm_index(&database);
-        println!("> FM-index built in {} ms", fm_build_time.as_millis());
-        Some(fm_database)
-    };
-
-    let trigram_database = if skip_trigram {
-        None
-    } else {
-        println!("> Building trigram index...");
-        Some(build_trigram_index(&database))
-    };
-
-    let mut fm_literal_cache: FmLiteralCache = HashMap::new();
-    let mut trigram_literal_cache: TrigramLiteralCache = HashMap::new();
-
-    let mut results = Vec::new();
-
-    for algo_name in ALGORITHMS {
-        for (pattern_index, (pat_str, _pat_desc)) in PATTERNS.iter().enumerate() {
-            println!(
-                "> Benchmarking Algo: [{}] Pattern: [{}]",
-                algo_name, pat_str
-            );
-
-            let entries = match *algo_name {
-                "naive-scalar" => {
-                    if skip_naive_scalar {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<NaiveScalar, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "naive-vector" => {
-                    if skip_naive_vector {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<NaiveVectorized, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "kmp" => {
-                    if skip_kmp {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<KMP, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "naive-vector-v2" => {
-                    if skip_naive_vector {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<NaiveVectorizedV2, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "naive-mixed" => run_benchmark::<NaiveMixed, _>(
-                    algo_name,
-                    pat_str,
-                    pattern_index,
-                    &database,
-                    |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                ),
-                "bm" => {
-                    if skip_bm {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<BM, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "two-way" => {
-                    if skip_two_way {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<TwoWay, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "std" => {
-                    if skip_std {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<StdSearch, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&str, &str>(pat) },
-                        )
-                    }
-                }
-                "lut-short" => {
-                    if skip_lut_short {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark::<algos::LutShort, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| unsafe { std::mem::transmute::<&[u8], &[u8]>(pat.as_bytes()) },
-                        )
-                    }
-                }
-                "fftstr0" => {
-                    if skip_fftstr0 || should_skip_fftstr0(pat_str) {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark_with_options::<FftStr0, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| FftConfig::from_str(pat),
-                            CompileOptions {
-                                treat_underscore_as_literal: true,
-                                literal_underscore_is_wildcard: true,
-                                ascii_mode: true,
-                            },
-                        )
-                    }
-                }
-                "fftstr1" => {
-                    if skip_fftstr1 || should_skip_fftstr1(pat_str) {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        run_benchmark_with_options::<FftStr1, _>(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            |_, pat| FftConfig::from_str(pat),
-                            CompileOptions {
-                                treat_underscore_as_literal: true,
-                                literal_underscore_is_wildcard: true,
-                                ascii_mode: true,
-                            },
-                        )
-                    }
-                }
-                "fm" => {
-                    if skip_fm {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        let fm_database = fm_database.as_ref().expect("fm index not built");
-                        run_fm_benchmark(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            fm_database,
-                            &mut fm_literal_cache,
-                        )
-                    }
-                }
-                "trigram" => {
-                    if skip_trigram {
-                        skipped_entries(algo_name, pat_str, pattern_index, &database)
-                    } else {
-                        let trigram_database =
-                            trigram_database.as_ref().expect("trigram index not built");
-                        run_trigram_benchmark(
-                            algo_name,
-                            pat_str,
-                            pattern_index,
-                            &database,
-                            trigram_database,
-                            &mut trigram_literal_cache,
-                        )
-                    }
-                }
-                _ => panic!("Unknown algorithm: {}", algo_name),
-            };
-
-            results.extend(entries);
-        }
-    }
-
-    print_summary_table(&results);
-    print_algo_ranking(&results);
-    print_per_pattern_ranking(&results);
-    print_per_file_ranking(&results);
-    print_correctness_report(&results);
+    run_like_benchmarks(
+        &database,
+        &cli.dataset_name,
+        &patterns,
+        options,
+        cli.output_csv.as_deref(),
+    );
 }
 
-fn has_flag(flag: &str) -> bool {
-    std::env::args().any(|arg| arg == flag)
+fn load_dataset<'a>(
+    arena: &'a BumpArena,
+    fasta_files: &[PathBuf],
+    delimited_inputs: &[DelimitedInput],
+    column_rules: &ColumnRules,
+    fasta_exclusions: &FastaExclusions,
+    max_rows_per_table: Option<usize>,
+    max_row_bytes: Option<usize>,
+    remaining_bytes: &mut usize,
+) -> Result<DataSet<'a>, String> {
+    let mut tables = Vec::new();
+
+    tables.extend(load_fasta_tables(
+        arena,
+        fasta_files,
+        fasta_exclusions,
+        max_rows_per_table,
+        max_row_bytes,
+        remaining_bytes,
+    )?);
+
+    if *remaining_bytes != 0 {
+        tables.extend(load_delimited_tables(
+            arena,
+            delimited_inputs,
+            column_rules,
+            max_rows_per_table,
+            max_row_bytes,
+            remaining_bytes,
+        )?);
+    }
+
+    Ok(DataSet {
+        tables: tables.into_boxed_slice(),
+    })
 }
 
-fn lut_short_available() -> bool {
-    cfg!(all(target_arch = "x86_64", target_feature = "ssse3"))
-        || cfg!(all(target_arch = "aarch64", target_feature = "neon"))
-}
+fn load_fasta_tables<'a>(
+    arena: &'a BumpArena,
+    files: &[PathBuf],
+    exclusions: &FastaExclusions,
+    max_rows_per_table: Option<usize>,
+    max_row_bytes: Option<usize>,
+    remaining_bytes: &mut usize,
+) -> Result<Vec<Table<'a>>, String> {
+    let mut tables = Vec::with_capacity(files.len());
 
-fn naive_vector_available() -> bool {
-    cfg!(all(target_arch = "x86_64", target_feature = "sse2"))
-        || cfg!(all(target_arch = "aarch64", target_feature = "neon"))
-}
+    for path in files {
+        ensure_file(path)?;
+        let mut table = load_fasta_table(arena, path)
+            .map_err(|err| format!("Failed to load FASTA {}: {err}", path.display()))?;
 
-fn load_database<'a>(arena: &'a BumpArena) -> DataSet<'a> {
-    let mut paths: Vec<PathBuf> = Vec::new();
-
-    for file_path in PLAIN_TEXT_FILES.iter().chain(FASTA_FILES.iter()) {
-        if !Path::new(file_path).exists() {
-            eprintln!("  ! Skipping missing file: {}", file_path);
-            continue;
-        }
-
-        paths.push(PathBuf::from(file_path));
-    }
-
-    load_dataset_from_paths(arena, &paths).expect("load dataset")
-}
-
-fn run_benchmark<'a, S, F>(
-    algo_name: &str,
-    pat_str: &str,
-    pattern_index: usize,
-    database: &'a DataSet<'a>,
-    factory: F,
-) -> Vec<ResultEntry>
-where
-    S: StringSearch,
-    F: FnMut(&mut (), &str) -> S::Config + Clone,
-{
-    let mut results = Vec::new();
-
-    let pattern = compile_pattern::<S, _, _>(pat_str, (), factory);
-
-    for table in database.tables.iter() {
-        let table_dataset = DataSet {
-            tables: vec![table.clone()].into_boxed_slice(),
-        };
-
-        let start = Instant::now();
-        let matches = execute(&pattern, &table_dataset);
-        let duration = start.elapsed();
-
-        results.push(ResultEntry {
-            algo: algo_name.to_string(),
-            pattern_index,
-            pattern: pat_str.to_string(),
-            file: table.name.clone(),
-            file_type: infer_file_type(&table.name),
-            duration,
-            found_count: matches.len(),
-            skipped: false,
-        });
-    }
-
-    results
-}
-
-fn run_fm_benchmark<'a>(
-    algo_name: &str,
-    pat_str: &str,
-    pattern_index: usize,
-    database: &'a DataSet<'a>,
-    fm_database: &FmIndexDatabase<'a>,
-    fm_literal_cache: &mut FmLiteralCache,
-) -> Vec<ResultEntry> {
-    let mut results = Vec::new();
-    let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
-
-    for table in database.tables.iter() {
-        let table_name = table.name.as_str();
-        let start = Instant::now();
-        let found =
-            fm_like_search_table(fm_database, table_name, &pattern, pat_str, fm_literal_cache);
-        let duration = start.elapsed();
-
-        results.push(ResultEntry {
-            algo: algo_name.to_string(),
-            pattern_index,
-            pattern: pat_str.to_string(),
-            file: table.name.clone(),
-            file_type: infer_file_type(&table.name),
-            duration,
-            found_count: found,
-            skipped: false,
-        });
-    }
-
-    results
-}
-
-fn run_trigram_benchmark<'a>(
-    algo_name: &str,
-    pat_str: &str,
-    pattern_index: usize,
-    database: &'a DataSet<'a>,
-    trigram_database: &TrigramDatabase<'a>,
-    trigram_literal_cache: &mut TrigramLiteralCache,
-) -> Vec<ResultEntry> {
-    let mut results = Vec::new();
-    let pattern = compile_pattern::<StdSearch, _, _>(pat_str, (), |_, pat| pat);
-
-    for table in database.tables.iter() {
-        let table_name = table.name.as_str();
-        let start = Instant::now();
-        let found = trigram_like_search_table(
-            trigram_database,
-            table_name,
-            &pattern,
-            pat_str,
-            trigram_literal_cache,
-        );
-        let duration = start.elapsed();
-
-        results.push(ResultEntry {
-            algo: algo_name.to_string(),
-            pattern_index,
-            pattern: pat_str.to_string(),
-            file: table.name.clone(),
-            file_type: infer_file_type(&table.name),
-            duration,
-            found_count: found,
-            skipped: false,
-        });
-    }
-
-    results
-}
-
-fn run_benchmark_with_options<'a, S, F>(
-    algo_name: &str,
-    pat_str: &str,
-    pattern_index: usize,
-    database: &'a DataSet<'a>,
-    factory: F,
-    options: CompileOptions,
-) -> Vec<ResultEntry>
-where
-    S: StringSearch,
-    F: FnMut(&mut (), &str) -> S::Config + Clone,
-{
-    let mut results = Vec::new();
-
-    let pattern = compile_pattern_with_options::<S, _, _>(pat_str, (), factory, options);
-
-    for table in database.tables.iter() {
-        let table_dataset = DataSet {
-            tables: vec![table.clone()].into_boxed_slice(),
-        };
-
-        let start = Instant::now();
-        let matches = execute(&pattern, &table_dataset);
-        let duration = start.elapsed();
-
-        results.push(ResultEntry {
-            algo: algo_name.to_string(),
-            pattern_index,
-            pattern: pat_str.to_string(),
-            file: table.name.clone(),
-            file_type: infer_file_type(&table.name),
-            duration,
-            found_count: matches.len(),
-            skipped: false,
-        });
-    }
-
-    results
-}
-
-fn fm_like_search_table<'a>(
-    fm_database: &FmIndexDatabase<'a>,
-    table_name: &str,
-    pattern: &Pattern<'a, StdSearch>,
-    pattern_str: &str,
-    fm_literal_cache: &mut FmLiteralCache,
-) -> usize {
-    match simple_like_kind(pattern_str) {
-        SimpleLike::All => return count_all_rows(fm_database, table_name),
-        SimpleLike::Exact(lit) => return count_exact_rows(fm_database, table_name, lit),
-        SimpleLike::Contains(lit) => {
-            return count_rows_with_literal(fm_database, table_name, lit, fm_literal_cache);
-        }
-        SimpleLike::Prefix(lit) => return count_rows_with_prefix(fm_database, table_name, lit),
-        SimpleLike::Suffix(lit) => return count_rows_with_suffix(fm_database, table_name, lit),
-        SimpleLike::Complex => {}
-    }
-
-    let mut literals = split_literals(pattern_str);
-    if literals.is_empty() {
-        return count_like_match_all(fm_database, table_name, pattern);
-    }
-
-    literals.sort_by_key(|lit| literal_rarity(lit, &fm_database.byte_freq));
-
-    let mut row_sets = Vec::new();
-    for lit in literals.iter() {
-        match rows_for_literal(fm_database, lit, fm_literal_cache) {
-            FmLiteralLookup::Rows(set) => {
-                if set.is_empty() {
-                    return 0;
-                }
-                row_sets.push(set);
-            }
-            FmLiteralLookup::NoMatch => return 0,
-            FmLiteralLookup::TooBroad => {}
-        }
-    }
-
-    if row_sets.is_empty() {
-        return count_like_match_all(fm_database, table_name, pattern);
-    }
-
-    let candidate_rows = intersect_row_sets(&mut row_sets);
-    if candidate_rows.is_empty() {
-        return 0;
-    }
-
-    let mut matched = 0usize;
-    for row_idx in candidate_rows {
-        let row = &fm_database.rows[row_idx];
-        if row.table != table_name {
-            continue;
-        }
-        if like_match(pattern, row.data) {
-            matched += 1;
-        }
-    }
-
-    matched
-}
-
-fn trigram_like_search_table<'a>(
-    trigram_database: &TrigramDatabase<'a>,
-    table_name: &str,
-    pattern: &Pattern<'a, StdSearch>,
-    pattern_str: &str,
-    trigram_literal_cache: &mut TrigramLiteralCache,
-) -> usize {
-    let literals = split_literals(pattern_str);
-    let literal = literals
-        .into_iter()
-        .filter(|lit| lit.len() >= 3)
-        .max_by_key(|lit| lit.len());
-
-    if let Some(lit) = literal {
-        match trigram_candidates_for_literal(trigram_database, lit, trigram_literal_cache) {
-            TrigramLiteralLookup::CandidateIds(candidate_ids) => {
-                let mut matched = 0usize;
-                for &doc_id in candidate_ids.iter() {
-                    let row_idx = doc_id as usize;
-                    let row = &trigram_database.rows[row_idx];
-                    if row.table != table_name {
-                        continue;
-                    }
-                    if like_match(pattern, row.data) {
-                        matched += 1;
-                    }
-                }
-                return matched;
-            }
-            TrigramLiteralLookup::NoMatch => return 0,
-        }
-    }
-
-    trigram_database
-        .rows
-        .iter()
-        .filter(|row| row.table == table_name && like_match(pattern, row.data))
-        .count()
-}
-
-fn trigram_candidates_for_literal<'a>(
-    trigram_database: &TrigramDatabase<'_>,
-    lit: &str,
-    trigram_literal_cache: &'a mut TrigramLiteralCache,
-) -> &'a TrigramLiteralLookup {
-    if !trigram_literal_cache.contains_key(lit) {
-        let lookup = match trigram_database.index.search_literal(lit) {
-            Some(candidate_ids) => {
-                TrigramLiteralLookup::CandidateIds(candidate_ids.into_boxed_slice())
-            }
-            None => TrigramLiteralLookup::NoMatch,
-        };
-        trigram_literal_cache.insert(lit.to_string(), lookup);
-    }
-
-    trigram_literal_cache
-        .get(lit)
-        .expect("trigram literal cache must contain lookup")
-}
-
-#[derive(Debug, Clone, Copy)]
-enum SimpleLike<'a> {
-    All,
-    Exact(&'a str),
-    Contains(&'a str),
-    Prefix(&'a str),
-    Suffix(&'a str),
-    Complex,
-}
-
-fn simple_like_kind(pattern: &str) -> SimpleLike<'_> {
-    if pattern.contains('_') {
-        return SimpleLike::Complex;
-    }
-
-    let literals: Vec<&str> = pattern.split('%').filter(|s| !s.is_empty()).collect();
-    if literals.is_empty() {
-        return SimpleLike::All;
-    }
-    if literals.len() > 1 {
-        return SimpleLike::Complex;
-    }
-
-    let lit = literals[0];
-    let starts = pattern.starts_with('%');
-    let ends = pattern.ends_with('%');
-    match (starts, ends) {
-        (true, true) => SimpleLike::Contains(lit),
-        (true, false) => SimpleLike::Suffix(lit),
-        (false, true) => SimpleLike::Prefix(lit),
-        (false, false) => SimpleLike::Exact(lit),
-    }
-}
-
-fn split_literals(pattern: &str) -> Vec<&str> {
-    let mut literals = Vec::new();
-    let mut start = None;
-
-    for (idx, ch) in pattern.char_indices() {
-        if ch == '%' || ch == '_' {
-            if let Some(s) = start.take() {
-                if s < idx {
-                    literals.push(&pattern[s..idx]);
-                }
-            }
-        } else if start.is_none() {
-            start = Some(idx);
-        }
-    }
-
-    if let Some(s) = start {
-        if s < pattern.len() {
-            literals.push(&pattern[s..]);
-        }
-    }
-
-    literals
-}
-
-fn count_all_rows(fm_database: &FmIndexDatabase<'_>, table_name: &str) -> usize {
-    fm_database
-        .rows
-        .iter()
-        .filter(|row| row.table == table_name)
-        .count()
-}
-
-fn count_exact_rows(fm_database: &FmIndexDatabase<'_>, table_name: &str, lit: &str) -> usize {
-    fm_database
-        .rows
-        .iter()
-        .filter(|row| row.table == table_name && row.data == lit)
-        .count()
-}
-
-fn count_rows_with_literal(
-    fm_database: &FmIndexDatabase<'_>,
-    table_name: &str,
-    lit: &str,
-    fm_literal_cache: &mut FmLiteralCache,
-) -> usize {
-    match rows_for_literal(fm_database, lit, fm_literal_cache) {
-        FmLiteralLookup::Rows(rows) => {
-            return rows
-                .into_iter()
-                .filter(|&row_idx| fm_database.rows[row_idx].table == table_name)
-                .count();
-        }
-        FmLiteralLookup::NoMatch => return 0,
-        FmLiteralLookup::TooBroad => {}
-    }
-
-    let mut s = String::with_capacity(lit.len() + 2);
-    s.push('%');
-    s.push_str(lit);
-    s.push('%');
-    let pattern = compile_pattern::<StdSearch, _, _>(&s, (), |_, pat| pat);
-    count_like_match_all(fm_database, table_name, &pattern)
-}
-
-fn count_rows_with_prefix(fm_database: &FmIndexDatabase<'_>, table_name: &str, lit: &str) -> usize {
-    if lit.is_empty() {
-        return count_all_rows(fm_database, table_name);
-    }
-
-    let positions = match literal_positions(fm_database, lit) {
-        FmPositionLookup::Positions(positions) => positions,
-        FmPositionLookup::NoMatch => return 0,
-        FmPositionLookup::TooBroad => {
-            let mut s = String::with_capacity(lit.len() + 1);
-            s.push_str(lit);
-            s.push('%');
-            let pattern = compile_pattern::<StdSearch, _, _>(&s, (), |_, pat| pat);
-            return count_like_match_all(fm_database, table_name, &pattern);
-        }
-    };
-
-    let mut matched = vec![false; fm_database.rows.len()];
-    let mut count = 0usize;
-    for pos in positions {
-        if let Some(row_idx) = fm_database.row_index_for_pos(pos) {
-            let row = &fm_database.rows[row_idx];
-            if row.table != table_name || matched[row_idx] {
+        let mut filtered_rows = Vec::new();
+        for row in table.rows.iter().cloned() {
+            if should_exclude_fasta_row(&row, exclusions) {
                 continue;
             }
-            if pos == row.start && row.data.starts_with(lit) {
-                matched[row_idx] = true;
-                count += 1;
+
+            let mut data = row.data;
+            if let Some(cap) = max_row_bytes {
+                data = clip_utf8(data, cap);
+            }
+
+            if *remaining_bytes != usize::MAX {
+                let len = data.len();
+                if len > *remaining_bytes {
+                    if *remaining_bytes == 0 || !filtered_rows.is_empty() {
+                        break;
+                    }
+
+                    data = clip_utf8(data, *remaining_bytes);
+                    *remaining_bytes = 0;
+                } else {
+                    *remaining_bytes -= len;
+                }
+            }
+
+            filtered_rows.push(Row {
+                id: row.id,
+                desc: row.desc,
+                data,
+            });
+
+            if let Some(cap) = max_rows_per_table {
+                if filtered_rows.len() >= cap {
+                    break;
+                }
+            }
+
+            if *remaining_bytes == 0 {
+                break;
             }
         }
-    }
 
-    count
-}
+        table.rows = filtered_rows.into_boxed_slice();
+        tables.push(table);
 
-fn count_rows_with_suffix(fm_database: &FmIndexDatabase<'_>, table_name: &str, lit: &str) -> usize {
-    if lit.is_empty() {
-        return count_all_rows(fm_database, table_name);
-    }
-
-    let positions = match literal_positions(fm_database, lit) {
-        FmPositionLookup::Positions(positions) => positions,
-        FmPositionLookup::NoMatch => return 0,
-        FmPositionLookup::TooBroad => {
-            let mut s = String::with_capacity(lit.len() + 1);
-            s.push('%');
-            s.push_str(lit);
-            let pattern = compile_pattern::<StdSearch, _, _>(&s, (), |_, pat| pat);
-            return count_like_match_all(fm_database, table_name, &pattern);
-        }
-    };
-
-    let mut matched = vec![false; fm_database.rows.len()];
-    let mut count = 0usize;
-    for pos in positions {
-        if let Some(row_idx) = fm_database.row_index_for_pos(pos) {
-            let row = &fm_database.rows[row_idx];
-            if row.table != table_name || matched[row_idx] {
-                continue;
-            }
-            if pos + lit.len() == row.end && row.data.ends_with(lit) {
-                matched[row_idx] = true;
-                count += 1;
-            }
-        }
-    }
-
-    count
-}
-
-fn count_like_match_all(
-    fm_database: &FmIndexDatabase<'_>,
-    table_name: &str,
-    pattern: &Pattern<'_, StdSearch>,
-) -> usize {
-    fm_database
-        .rows
-        .iter()
-        .filter(|row| row.table == table_name && like_match(pattern, row.data))
-        .count()
-}
-
-fn rows_for_literal(
-    fm_database: &FmIndexDatabase<'_>,
-    lit: &str,
-    fm_literal_cache: &mut FmLiteralCache,
-) -> FmLiteralLookup {
-    if let Some(cached) = fm_literal_cache.get(lit) {
-        return cached.clone();
-    }
-
-    let range = match fm_database.fm.backward_search(lit.as_bytes()) {
-        Some(range) => range,
-        None => {
-            fm_literal_cache.insert(lit.to_string(), FmLiteralLookup::NoMatch);
-            return FmLiteralLookup::NoMatch;
-        }
-    };
-
-    let range_len = range.1 - range.0;
-    if range_len > fm_database.max_range {
-        fm_literal_cache.insert(lit.to_string(), FmLiteralLookup::TooBroad);
-        return FmLiteralLookup::TooBroad;
-    }
-
-    let mut rows = HashSet::new();
-    let positions = fm_database.fm.search(lit.as_bytes());
-    for pos in positions {
-        if let Some(row_idx) = fm_database.row_index_for_pos(pos) {
-            let row = &fm_database.rows[row_idx];
-            if pos + lit.len() <= row.end {
-                rows.insert(row_idx);
-            }
-        }
-    }
-
-    let result = FmLiteralLookup::Rows(rows);
-    fm_literal_cache.insert(lit.to_string(), result.clone());
-    result
-}
-
-fn literal_positions(fm_database: &FmIndexDatabase<'_>, lit: &str) -> FmPositionLookup {
-    let range = match fm_database.fm.backward_search(lit.as_bytes()) {
-        Some(range) => range,
-        None => return FmPositionLookup::NoMatch,
-    };
-
-    let range_len = range.1 - range.0;
-    if range_len > fm_database.max_range {
-        return FmPositionLookup::TooBroad;
-    }
-
-    FmPositionLookup::Positions(fm_database.fm.search(lit.as_bytes()))
-}
-
-fn literal_rarity(lit: &str, byte_freq: &[usize; 256]) -> usize {
-    lit.as_bytes()
-        .iter()
-        .map(|&b| byte_freq[b as usize])
-        .min()
-        .unwrap_or(usize::MAX)
-}
-
-fn intersect_row_sets(sets: &mut Vec<HashSet<usize>>) -> Vec<usize> {
-    if sets.is_empty() {
-        return Vec::new();
-    }
-
-    sets.sort_by_key(|s| s.len());
-    let mut iter = sets.iter();
-    let mut acc = iter.next().cloned().unwrap_or_default();
-    for set in iter {
-        acc.retain(|idx| set.contains(idx));
-        if acc.is_empty() {
+        if *remaining_bytes == 0 {
             break;
         }
     }
 
-    acc.into_iter().collect()
+    Ok(tables)
 }
 
-fn skipped_entries<'a>(
-    algo_name: &str,
-    pat_str: &str,
-    pattern_index: usize,
-    database: &'a DataSet<'a>,
-) -> Vec<ResultEntry> {
-    database
-        .tables
+fn load_delimited_tables<'a>(
+    arena: &'a BumpArena,
+    inputs: &[DelimitedInput],
+    column_rules: &ColumnRules,
+    max_rows_per_table: Option<usize>,
+    max_row_bytes: Option<usize>,
+    remaining_bytes: &mut usize,
+) -> Result<Vec<Table<'a>>, String> {
+    let mut tables = Vec::new();
+
+    for input in inputs {
+        ensure_file(&input.path)?;
+
+        let mut reader = ReaderBuilder::new()
+            .delimiter(input.delimiter)
+            .has_headers(input.has_headers)
+            .flexible(true)
+            .trim(Trim::All)
+            .from_path(&input.path)
+            .map_err(|err| {
+                format!(
+                    "Failed to open delimited file {}: {err}",
+                    input.path.display()
+                )
+            })?;
+
+        let mut first_record = None;
+        let headers = if input.has_headers {
+            Some(
+                reader
+                    .headers()
+                    .map_err(|err| {
+                        format!(
+                            "Failed to read header row from {}: {err}",
+                            input.path.display()
+                        )
+                    })?
+                    .clone(),
+            )
+        } else {
+            None
+        };
+
+        let column_count = if let Some(headers) = headers.as_ref() {
+            headers.len()
+        } else {
+            let mut record = StringRecord::new();
+            let has_row = reader.read_record(&mut record).map_err(|err| {
+                format!(
+                    "Failed to read first row from {}: {err}",
+                    input.path.display()
+                )
+            })?;
+
+            if has_row {
+                first_record = Some(record);
+                first_record.as_ref().map(StringRecord::len).unwrap_or(0)
+            } else {
+                0
+            }
+        };
+
+        if column_count == 0 {
+            continue;
+        }
+
+        let include_selectors = selectors_for_file(&column_rules.includes, &input.path);
+        let exclude_selectors = selectors_for_file(&column_rules.excludes, &input.path);
+
+        let mut selected_columns = Vec::new();
+        for idx in 0..column_count {
+            let header_name = headers.as_ref().and_then(|row| row.get(idx));
+            let included = include_selectors.is_empty()
+                || include_selectors
+                    .iter()
+                    .any(|selector| selector_matches(selector, idx, header_name));
+            if !included {
+                continue;
+            }
+
+            let excluded = exclude_selectors
+                .iter()
+                .any(|selector| selector_matches(selector, idx, header_name));
+            if excluded {
+                continue;
+            }
+
+            selected_columns.push((idx, column_label(header_name, idx)));
+        }
+
+        if selected_columns.is_empty() {
+            continue;
+        }
+
+        let mut rows_by_column: Vec<Vec<Row<'a>>> = vec![Vec::new(); selected_columns.len()];
+        let mut accepted_rows = 0usize;
+
+        if let Some(record) = first_record.as_ref() {
+            let should_continue = append_record(
+                arena,
+                record,
+                &selected_columns,
+                &mut rows_by_column,
+                &mut accepted_rows,
+                max_rows_per_table,
+                max_row_bytes,
+                remaining_bytes,
+            );
+
+            if !should_continue {
+                let file_name = filename_from_path(&input.path)?;
+                for ((_, label), rows) in
+                    selected_columns.into_iter().zip(rows_by_column.into_iter())
+                {
+                    tables.push(Table {
+                        name: format!("{}.{}", file_name, label),
+                        rows: rows.into_boxed_slice(),
+                    });
+                }
+
+                if *remaining_bytes == 0 {
+                    break;
+                }
+                continue;
+            }
+        }
+
+        for record in reader.records() {
+            let record = record
+                .map_err(|err| format!("CSV parse error in {}: {err}", input.path.display()))?;
+
+            let should_continue = append_record(
+                arena,
+                &record,
+                &selected_columns,
+                &mut rows_by_column,
+                &mut accepted_rows,
+                max_rows_per_table,
+                max_row_bytes,
+                remaining_bytes,
+            );
+
+            if !should_continue {
+                break;
+            }
+        }
+
+        let file_name = filename_from_path(&input.path)?;
+        for ((_, label), rows) in selected_columns.into_iter().zip(rows_by_column.into_iter()) {
+            tables.push(Table {
+                name: format!("{}.{}", file_name, label),
+                rows: rows.into_boxed_slice(),
+            });
+        }
+
+        if *remaining_bytes == 0 {
+            break;
+        }
+    }
+
+    Ok(tables)
+}
+
+fn append_record<'a>(
+    arena: &'a BumpArena,
+    record: &StringRecord,
+    selected_columns: &[(usize, String)],
+    rows_by_column: &mut [Vec<Row<'a>>],
+    accepted_rows: &mut usize,
+    max_rows_per_table: Option<usize>,
+    max_row_bytes: Option<usize>,
+    remaining_bytes: &mut usize,
+) -> bool {
+    if let Some(cap) = max_rows_per_table {
+        if *accepted_rows >= cap {
+            return false;
+        }
+    }
+
+    let mut values = Vec::with_capacity(selected_columns.len());
+    let mut row_bytes = 0usize;
+    for (idx, _) in selected_columns {
+        let value = record.get(*idx).unwrap_or("");
+        let clipped = if let Some(cap) = max_row_bytes {
+            clip_utf8(value, cap)
+        } else {
+            value
+        };
+
+        row_bytes += clipped.len();
+        values.push(clipped);
+    }
+
+    if *remaining_bytes != usize::MAX {
+        if row_bytes > *remaining_bytes {
+            return false;
+        }
+        *remaining_bytes -= row_bytes;
+    }
+
+    for (rows, value) in rows_by_column.iter_mut().zip(values.into_iter()) {
+        rows.push(Row {
+            id: "",
+            desc: "",
+            data: arena.alloc_str(value),
+        });
+    }
+
+    *accepted_rows += 1;
+    *remaining_bytes != 0
+}
+
+fn parse_delimiter(raw: &str, flag: &str) -> Result<u8, String> {
+    match raw {
+        "\\t" => Ok(b'\t'),
+        "\\n" => Ok(b'\n'),
+        "\\r" => Ok(b'\r'),
+        _ => {
+            let bytes = raw.as_bytes();
+            if bytes.len() == 1 {
+                Ok(bytes[0])
+            } else {
+                Err(format!(
+                    "{flag} expects a single byte delimiter or one of \\t, \\n, \\r"
+                ))
+            }
+        }
+    }
+}
+
+fn parse_skip_algorithms(values: &[String]) -> HashSet<String> {
+    let mut skip = HashSet::new();
+    for value in values {
+        for token in value.split(',') {
+            let name = token.trim();
+            if !name.is_empty() {
+                skip.insert(name.to_string());
+            }
+        }
+    }
+    skip
+}
+
+fn parse_column_rules(includes: &[String], excludes: &[String]) -> Result<ColumnRules, String> {
+    let mut rules = ColumnRules::default();
+
+    for spec in includes {
+        rules.includes.push(parse_column_spec(spec)?);
+    }
+    for spec in excludes {
+        rules.excludes.push(parse_column_spec(spec)?);
+    }
+
+    Ok(rules)
+}
+
+fn parse_column_spec(spec: &str) -> Result<(String, ColumnSelector), String> {
+    let (file_match, selector_raw) = spec.rsplit_once(':').ok_or_else(|| {
+        format!(
+            "Invalid column selector '{spec}'. Expected format FILE:COL (e.g. part.csv:4 or item.csv:i_color)"
+        )
+    })?;
+
+    let file_match = file_match.trim();
+    let selector_raw = selector_raw.trim();
+
+    if file_match.is_empty() || selector_raw.is_empty() {
+        return Err(format!(
+            "Invalid column selector '{spec}'. FILE and COL must be non-empty"
+        ));
+    }
+
+    let selector = match selector_raw.parse::<usize>() {
+        Ok(idx) => ColumnSelector::Index(idx),
+        Err(_) => ColumnSelector::Name(selector_raw.to_string()),
+    };
+
+    Ok((file_match.to_string(), selector))
+}
+
+fn selectors_for_file(rules: &[(String, ColumnSelector)], path: &Path) -> HashSet<ColumnSelector> {
+    let mut set = HashSet::new();
+    for (file_match, selector) in rules {
+        if path_matches(file_match, path) {
+            set.insert(selector.clone());
+        }
+    }
+    set
+}
+
+fn path_matches(file_match: &str, path: &Path) -> bool {
+    if file_match == "*" {
+        return true;
+    }
+
+    let path_str = path.to_string_lossy();
+    if path_str == file_match || path_str.ends_with(file_match) {
+        return true;
+    }
+
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name == file_match)
+        .unwrap_or(false)
+}
+
+fn selector_matches(selector: &ColumnSelector, idx: usize, header_name: Option<&str>) -> bool {
+    match selector {
+        ColumnSelector::Index(target) => *target == idx,
+        ColumnSelector::Name(target) => header_name.map(|name| name == target).unwrap_or(false),
+    }
+}
+
+fn column_label(header_name: Option<&str>, idx: usize) -> String {
+    let name = header_name.unwrap_or("").trim();
+    if name.is_empty() {
+        format!("col{idx}")
+    } else {
+        name.to_string()
+    }
+}
+
+fn should_exclude_fasta_row(row: &Row<'_>, exclusions: &FastaExclusions) -> bool {
+    exclusions
+        .id_contains
         .iter()
-        .map(|table| ResultEntry {
-            algo: algo_name.to_string(),
-            pattern_index,
-            pattern: pat_str.to_string(),
-            file: table.name.clone(),
-            file_type: infer_file_type(&table.name),
-            duration: Duration::from_micros(0),
-            found_count: 0,
-            skipped: true,
-        })
-        .collect()
+        .any(|needle| !needle.is_empty() && row.id.contains(needle))
+        || exclusions
+            .desc_contains
+            .iter()
+            .any(|needle| !needle.is_empty() && row.desc.contains(needle))
 }
 
-fn build_fm_index<'a>(database: &'a DataSet<'a>) -> (FmIndexDatabase<'a>, Duration) {
-    let start = Instant::now();
-    let mut text = Vec::new();
-    let mut rows = Vec::new();
-    let mut row_starts = Vec::new();
-    let mut byte_freq = [0usize; 256];
-
-    for table in database.tables.iter() {
-        let table_name = table.name.as_str();
-        for row in table.rows.iter() {
-            let bytes = row.data.as_bytes();
-            if bytes.iter().any(|&b| b == FM_SENTINEL || b == FM_SEPARATOR) {
-                panic!("row contains reserved FM-index byte");
-            }
-
-            let start_offset = text.len();
-            text.extend_from_slice(bytes);
-            let end_offset = text.len();
-
-            for &b in bytes {
-                byte_freq[b as usize] += 1;
-            }
-
-            rows.push(FmRow {
-                table: table_name,
-                data: row.data,
-                start: start_offset,
-                end: end_offset,
-            });
-            row_starts.push(start_offset);
-
-            text.push(FM_SEPARATOR);
-        }
+fn clip_utf8(input: &str, max_bytes: usize) -> &str {
+    if input.len() <= max_bytes {
+        return input;
     }
 
-    let corpus_len = text.len();
-    let max_range = std::cmp::max(100_000usize, corpus_len / 100);
-
-    let fm = FMIndex::new(text, FM_SENTINEL, Some(FM_SEPARATOR));
-    let duration = start.elapsed();
-
-    (
-        FmIndexDatabase {
-            fm,
-            rows,
-            row_starts,
-            byte_freq,
-            max_range,
-        },
-        duration,
-    )
+    let mut end = max_bytes;
+    while end > 0 && !input.is_char_boundary(end) {
+        end -= 1;
+    }
+    &input[..end]
 }
 
-fn build_trigram_index<'a>(database: &'a DataSet<'a>) -> TrigramDatabase<'a> {
-    let mut index = TrigramIndex::new();
-    let mut rows = Vec::new();
-
-    for table in database.tables.iter() {
-        let table_name = table.name.as_str();
-        for row in table.rows.iter() {
-            rows.push(TrigramRow {
-                table: table_name,
-                data: row.data,
-            });
-            index.add(row.data);
-        }
+fn load_patterns(paths: &[PathBuf]) -> Result<Vec<PatternSpec>, String> {
+    let mut patterns = Vec::new();
+    for path in paths {
+        let loaded = load_patterns_from_file(path)?;
+        patterns.extend(loaded);
     }
 
-    TrigramDatabase { index, rows }
+    if patterns.is_empty() {
+        return Err("No patterns were loaded from --pattern files".to_string());
+    }
+
+    Ok(patterns)
 }
 
-fn fftstr_max_literal_len(pattern: &str) -> usize {
-    pattern.split('%').map(str::len).max().unwrap_or(0)
+fn ensure_file(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Err(format!("Input file does not exist: {}", path.display()));
+    }
+    if !path.is_file() {
+        return Err(format!("Input path is not a file: {}", path.display()));
+    }
+    Ok(())
 }
 
-fn log2ceil(value: u64) -> u32 {
-    assert!(value > 1);
-    let v = value - 1;
-    64 - v.leading_zeros()
+fn filename_from_path(path: &Path) -> Result<String, String> {
+    path.file_name()
+        .ok_or_else(|| format!("Missing filename for path {}", path.display()))
+        .map(|name| name.to_string_lossy().to_string())
 }
 
-fn fftstr_log2n(pattern: &str) -> u32 {
-    let max_literal_len = fftstr_max_literal_len(pattern) as u64;
-    let required = max_literal_len.saturating_mul(3);
-    if required <= 1 {
-        return 0;
-    }
-    log2ceil(required)
-}
-
-fn should_skip_fftstr0(pattern: &str) -> bool {
-    let log2n = fftstr_log2n(pattern);
-    log2n == 0 || log2n >= 8
-}
-
-fn should_skip_fftstr1(pattern: &str) -> bool {
-    let log2n = fftstr_log2n(pattern);
-    log2n == 0 || log2n > 27
-}
-
-fn infer_file_type(file_name: &str) -> String {
-    match Path::new(file_name)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("fasta") | Some("fa") | Some("fna") | Some("faa") | Some("fsa") => "FASTA".to_string(),
-        _ => "TEXT".to_string(),
-    }
-}
-
-fn print_summary_table(results: &[ResultEntry]) {
-    println!("\n\n{:=^95}", " RESULTS SUMMARY ");
-    println!(
-        "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15}",
-        "Algorithm", "Pattern", "File", "Type", "Hits", "Time (µs)"
-    );
-    println!("{:-^95}", "");
-
-    for entry in results.iter().filter(|entry| !entry.skipped) {
-        let micros = entry.duration.as_micros() as f64;
-
-        let pat_display = if entry.pattern.len() > 20 {
-            format!("{}...", &entry.pattern[..17])
-        } else {
-            entry.pattern.clone()
-        };
-
-        let file_display = if entry.file.len() > 20 {
-            format!("{}...", &entry.file[..17])
-        } else {
-            entry.file.clone()
-        };
-
-        let hits_display = entry.found_count.to_string();
-        let time_display = format!("{:.2}", micros);
-
-        println!(
-            "{:<15} | {:<20} | {:<20} | {:<6} | {:>10} | {:>15}",
-            entry.algo, pat_display, file_display, entry.file_type, hits_display, time_display
-        );
-    }
-    println!("{:=^95}", " END ");
-}
-
-fn print_algo_ranking(results: &[ResultEntry]) {
-    println!("\n\n{:=^50}", " SPEED RANKING ");
-    println!(
-        "{:<5} | {:<15} | {:>20}",
-        "Rank", "Algorithm", "Total Time (ms)"
-    );
-    println!("{:-^50}", "");
-
-    let mut sums: HashMap<String, Duration> = HashMap::new();
-
-    for entry in results.iter().filter(|entry| !entry.skipped) {
-        *sums.entry(entry.algo.clone()).or_default() += entry.duration;
-    }
-
-    let mut ranked: Vec<(String, Duration)> = sums.into_iter().collect();
-
-    ranked.sort_by_key(|(_, duration)| *duration);
-
-    for (i, (algo, duration)) in ranked.iter().enumerate() {
-        let millis = duration.as_millis();
-        println!("{:<5} | {:<15} | {:>20}", i + 1, algo, millis);
-    }
-
-    println!("{:=^50}", " END ");
-}
-
-fn print_per_pattern_ranking(results: &[ResultEntry]) {
-    println!("\n\n{:=^60}", " PER PATTERN RANKING ");
-
-    let mut unique_patterns: Vec<&String> = results.iter().map(|r| &r.pattern).collect();
-    unique_patterns.sort();
-    unique_patterns.dedup();
-
-    for pat in unique_patterns {
-        println!("\n>> Pattern: [{}]", pat);
-        println!(
-            "{:<5} | {:<15} | {:>20}",
-            "Rank", "Algorithm", "Total Time (µs)"
-        );
-        println!("{:-^46}", "");
-
-        let mut sums: HashMap<&String, Duration> = HashMap::new();
-        for entry in results.iter().filter(|r| &r.pattern == pat && !r.skipped) {
-            *sums.entry(&entry.algo).or_default() += entry.duration;
-        }
-
-        let mut ranked: Vec<(&String, Duration)> = sums.into_iter().collect();
-        ranked.sort_by_key(|(_, d)| *d);
-
-        for (i, (algo, duration)) in ranked.iter().enumerate() {
-            println!("{:<5} | {:<15} | {:>20}", i + 1, algo, duration.as_micros());
-        }
-    }
-    println!("\n{:=^60}", " END PATTERN RANKING ");
-}
-
-fn print_per_file_ranking(results: &[ResultEntry]) {
-    println!("\n\n{:=^60}", " PER FILE RANKING ");
-
-    let mut unique_files: Vec<&String> = results.iter().map(|r| &r.file).collect();
-    unique_files.sort();
-    unique_files.dedup();
-
-    for file in unique_files {
-        println!("\n>> File: [{}]", file);
-        println!(
-            "{:<5} | {:<15} | {:>20}",
-            "Rank", "Algorithm", "Total Time (µs)"
-        );
-        println!("{:-^46}", "");
-
-        let mut sums: HashMap<&String, Duration> = HashMap::new();
-        for entry in results.iter().filter(|r| &r.file == file && !r.skipped) {
-            *sums.entry(&entry.algo).or_default() += entry.duration;
-        }
-
-        let mut ranked: Vec<(&String, Duration)> = sums.into_iter().collect();
-        ranked.sort_by_key(|(_, d)| *d);
-
-        for (i, (algo, duration)) in ranked.iter().enumerate() {
-            println!("{:<5} | {:<15} | {:>20}", i + 1, algo, duration.as_micros());
-        }
-    }
-    println!("\n{:=^60}", " END FILE RANKING ");
-}
-
-fn print_correctness_report(results: &[ResultEntry]) {
-    let mut baseline = HashMap::<(usize, String), usize>::new();
-    let mut mismatches = Vec::<Mismatch>::new();
-    let mut total_checks = 0usize;
-
-    for entry in results.iter().filter(|r| r.algo == "std" && !r.skipped) {
-        baseline.insert((entry.pattern_index, entry.file.clone()), entry.found_count);
-    }
-
-    for entry in results.iter().filter(|r| r.algo != "std" && !r.skipped) {
-        total_checks += 1;
-        match baseline.get(&(entry.pattern_index, entry.file.clone())) {
-            Some(expected) if *expected == entry.found_count => {}
-            Some(expected) => mismatches.push(Mismatch {
-                algo: entry.algo.clone(),
-                pattern_index: entry.pattern_index,
-                pattern: entry.pattern.clone(),
-                file: entry.file.clone(),
-                expected: *expected,
-                actual: entry.found_count,
-            }),
-            None => mismatches.push(Mismatch {
-                algo: entry.algo.clone(),
-                pattern_index: entry.pattern_index,
-                pattern: entry.pattern.clone(),
-                file: entry.file.clone(),
-                expected: 0,
-                actual: entry.found_count,
-            }),
-        }
-    }
-
-    println!("\n\n{:=^70}", " CORRECTNESS REPORT ");
-    println!("Checks: {}, Mismatches: {}", total_checks, mismatches.len());
-
-    if mismatches.is_empty() {
-        println!("All algorithms match StdSearch baseline.");
-        println!("{:=^70}", " END ");
-        return;
-    }
-
-    println!(
-        "{:<12} | {:<5} | {:<18} | {:<20} | {:>8} | {:>8}",
-        "Algorithm", "Idx", "Pattern", "File", "Expected", "Actual"
-    );
-    println!("{:-^70}", "");
-
-    for mismatch in mismatches {
-        let pat_display = if mismatch.pattern.len() > 18 {
-            format!("{}...", &mismatch.pattern[..15])
-        } else {
-            mismatch.pattern.clone()
-        };
-
-        let file_display = if mismatch.file.len() > 20 {
-            format!("{}...", &mismatch.file[..17])
-        } else {
-            mismatch.file.clone()
-        };
-
-        println!(
-            "{:<12} | {:<5} | {:<18} | {:<20} | {:>8} | {:>8}",
-            mismatch.algo,
-            mismatch.pattern_index,
-            pat_display,
-            file_display,
-            mismatch.expected,
-            mismatch.actual
-        );
-    }
-
-    println!("{:=^70}", " END ");
+fn fatal(message: &str) -> ! {
+    eprintln!("error: {message}");
+    std::process::exit(2);
 }

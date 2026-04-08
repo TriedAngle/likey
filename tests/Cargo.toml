@@ -8,3 +8,5 @@ storage = { path = "../storage" }
 algos = { path = "../algos" }
 like = { path = "../like" }
 engine = { path = "../engine" }
+clap = { version = "4.5.53", features = ["derive"] }
+csv = "1.3"

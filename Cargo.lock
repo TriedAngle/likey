@@ -361,6 +361,8 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "algos",
+ "clap",
+ "csv",
  "engine",
  "like",
  "storage",

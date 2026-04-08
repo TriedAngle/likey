@@ -44,11 +44,7 @@ impl FMIndex {
             .expect("sentinel rank must exist");
         let separator_rank = separator.and_then(|sep| {
             let rank = byte_to_rank[sep as usize];
-            if rank < 0 {
-                None
-            } else {
-                Some(rank as usize)
-            }
+            if rank < 0 { None } else { Some(rank as usize) }
         });
         let c = build_c(&counts);
         let bwt = remap_bwt(&bwt, &byte_to_rank);
@@ -210,11 +206,7 @@ impl FMIndex {
 
     fn rank_for_byte(&self, ch: u8) -> Option<usize> {
         let rank = self.byte_to_rank[ch as usize];
-        if rank < 0 {
-            None
-        } else {
-            Some(rank as usize)
-        }
+        if rank < 0 { None } else { Some(rank as usize) }
     }
 }
 
