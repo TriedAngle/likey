@@ -107,7 +107,7 @@ fn matches_at(state: &LutShortState, text: &[u8], pos: usize) -> bool {
 
 #[cfg(all(target_arch = "x86_64", target_feature = "ssse3"))]
 mod x86 {
-    use super::{LutShortState, matches_at};
+    use super::{matches_at, LutShortState};
     use core::arch::x86_64::*;
 
     #[target_feature(enable = "ssse3,sse2")]
@@ -274,7 +274,7 @@ mod x86 {
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 mod neon {
-    use super::{LutShortState, matches_at};
+    use super::{matches_at, LutShortState};
     use core::arch::aarch64::*;
 
     #[target_feature(enable = "neon")]
@@ -302,7 +302,7 @@ mod neon {
 
         let lut_lo = unsafe { vld1q_u8(state.lut_lo.as_ptr()) };
         let lut_hi = unsafe { vld1q_u8(state.lut_hi.as_ptr()) };
-        let mask_0f = unsafe { vdupq_n_u8(0x0f) };
+        let mask_0f = vdupq_n_u8(0x0f);
         let sig_index = state.sig_index;
 
         let mut i = 0usize;
@@ -371,11 +371,11 @@ mod neon {
         let n = text.len();
         let sig_index = state.sig_index;
 
-        let lo = unsafe { vandq_u8(chunk, mask_0f) };
-        let hi = unsafe { vandq_u8(vshrq_n_u8(chunk, 4), mask_0f) };
-        let lo_mask = unsafe { vqtbl1q_u8(lut_lo, lo) };
-        let hi_mask = unsafe { vqtbl1q_u8(lut_hi, hi) };
-        let eq = unsafe { vandq_u8(lo_mask, hi_mask) };
+        let lo = vandq_u8(chunk, mask_0f);
+        let hi = vandq_u8(vshrq_n_u8(chunk, 4), mask_0f);
+        let lo_mask = vqtbl1q_u8(lut_lo, lo);
+        let hi_mask = vqtbl1q_u8(lut_hi, hi);
+        let eq = vandq_u8(lo_mask, hi_mask);
 
         let mut lanes = [0u8; 16];
         unsafe { vst1q_u8(lanes.as_mut_ptr(), eq) };
