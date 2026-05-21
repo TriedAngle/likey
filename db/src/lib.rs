@@ -1,0 +1,108 @@
+//! Tiny dense string database base implementation for LIKE/search experiments.
+//!
+//! This crate implements storage, typed table/database views, candidate
+//! iteration, result sinks, a small LIKE verifier module, and baseline FM/trigram
+//! indexes that plug into the candidate API.
+
+pub mod algos;
+mod arena;
+mod db;
+mod index;
+mod like;
+mod query;
+mod storage;
+
+pub use crate::algos::{
+    bm_find, bytes_eq_same_len, eq_at_bytes, matches_at_bytes, memmem_find, naive_find,
+    naive_find_mixed, naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2,
+    two_way2_find, two_way_find, BMState, ByteNeedle, Dna2NaiveWildcard, Dna2Needle,
+    Utf8Kmp, LibcMemmem, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StdSearch, TwoWay, TwoWay2, TwoWay2State, TwoWayState,
+    BM,
+};
+pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
+pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
+pub use crate::index::{
+    BuildIndex, FmIndex, FmIndexError, FmProbe, IndexProbe, intersect_sorted_rowids,
+};
+pub use crate::like::{
+    LikeCompileError, LikeCompileOptions, LikePattern, LikeToken,
+    LiteralAlgorithm, MatchStrategy, RowLiteralSearch,
+};
+pub use crate::query::{
+    AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CandidateScratch, CountSink,
+    FullScan, QueryScratch, QueryStats, ResultSink, RowVerifier, SortedRowsProbe, VerifyScratch,
+    execute_like,
+};
+pub use crate::storage::Column;
+pub use crate::storage::dna2::{
+    Dna2Column, Dna2ColumnBuilder, Dna2ColumnDesc, Dna2Iter, Dna2Row, Dna2RowEntry, Dna2Table,
+    Dna2TableBuilder, Dna2TableDesc, DnaBase, DnaError,
+};
+pub use crate::storage::utf8::{
+    Utf8Column, Utf8ColumnBuilder, Utf8ColumnDesc, Utf8Row, Utf8RowEntry, Utf8Table,
+    Utf8TableBuilder, Utf8TableDesc,
+};
+
+/// Physical dense row ordinal.
+///
+/// `RowId` is the internal primary key for a table. All columns in a table use
+/// the same physical row ordering, and indexes should return these IDs.
+pub type RowId = u64;
+
+/// Stable table identifier within one [`Db`](crate::Db).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TableId(pub u32);
+
+/// Stable column identifier within one table.
+///
+/// The current UTF-8 and DNA2 table types each have one searchable column, but
+/// keeping a column ID in the public vocabulary makes it easier to add proper
+/// multi-column tables later.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ColumnId(pub u32);
+
+/// Logical-length constraint computed by a future LIKE compiler.
+///
+/// For `Utf8Column` with byte LIKE semantics this is bytes. For `Dna2Column`,
+/// this is bases.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LenConstraint {
+    pub min: u32,
+    pub max: Option<u32>,
+}
+
+impl LenConstraint {
+    pub const fn any() -> Self {
+        Self { min: 0, max: None }
+    }
+
+    pub const fn exact(n: u32) -> Self {
+        Self {
+            min: n,
+            max: Some(n),
+        }
+    }
+
+    pub const fn at_least(n: u32) -> Self {
+        Self { min: n, max: None }
+    }
+
+    pub const fn between(min: u32, max: u32) -> Self {
+        Self {
+            min,
+            max: Some(max),
+        }
+    }
+
+    #[inline]
+    pub fn matches(self, len: u32) -> bool {
+        len >= self.min && self.max.map_or(true, |max| len <= max)
+    }
+}
+
+impl Default for LenConstraint {
+    fn default() -> Self {
+        Self::any()
+    }
+}
