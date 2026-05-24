@@ -1,7 +1,3 @@
-mod cli;
-mod fasta;
-mod specs;
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -11,33 +7,39 @@ use serde::Serialize;
 use db::{
     execute_like, BM, CountSink, Column, Dna2Column, Dna2NaiveWildcard, FmIndex, FullScan,
     LibcMemmem, LikePattern, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, QueryScratch, QueryStats, RowLiteralSearch, StdSearch, /* TrigramBitmapIndex,  */
-    TwoWay, TwoWay2, Utf8Column, Utf8Kmp,
+    NaiveVectorizedV2, QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier,
+    StdSearch, /* TrigramBitmapIndex, */ TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch,
 };
 
-pub use crate::cli::*;
-pub use crate::fasta::*;
-pub use crate::specs::*;
+use crate::cli::{AlgorithmKind, IndexKind, StorageKind};
+use crate::loaders::LoadStats;
+use crate::specs::PatternSpec;
 
 #[derive(Debug, Clone)]
-pub struct BenchConfig {
+pub struct BenchConfig<'a> {
     pub dataset: String,
+    pub column: String,
     pub data_path: PathBuf,
     pub data_type: String,
     pub storage: StorageKind,
-    pub algorithms: Vec<AlgorithmKind>,
     pub indexes: Vec<IndexKind>,
     pub patterns: Vec<PatternSpec>,
     pub warmups: usize,
     pub iterations: usize,
     pub batch_rows: usize,
     pub load_ns: u128,
-    pub fasta_stats: FastaStats,
+    pub load_stats: LoadStats,
+    pub row_labels: &'a [String],
+    pub row_profile_enabled: bool,
+    pub row_profile_repeats: usize,
+    pub row_profile_max_rows: Option<u64>,
+    pub row_profile_sample_bytes: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BenchRow {
     pub dataset: String,
+    pub column: String,
     pub data_path: String,
     pub data_type: String,
     pub storage: String,
@@ -71,8 +73,29 @@ pub struct BenchRow {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct RowProfileRow {
+    pub dataset: String,
+    pub column: String,
+    pub data_path: String,
+    pub data_type: String,
+    pub storage: String,
+    pub algorithm: String,
+    pub pattern_name: String,
+    pub pattern: String,
+    pub row_id: u64,
+    pub row_label: String,
+    pub row_len: u32,
+    pub matched: bool,
+    pub repeats: usize,
+    pub verify_ns_total: u128,
+    pub verify_ns_per_repeat: f64,
+    pub row_sample: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SummaryRow {
     pub dataset: String,
+    pub column: String,
     pub storage: String,
     pub algorithm: String,
     pub requested_index: String,
@@ -82,14 +105,17 @@ pub struct SummaryRow {
     pub runs: usize,
     pub row_count: u64,
     pub rows_matched: u64,
+    pub sum_query_total_ns: u128,
     pub min_query_total_ns: u128,
     pub median_query_total_ns: f64,
     pub mean_query_total_ns: f64,
+    pub geomean_query_total_ns: f64,
     pub p90_query_total_ns: u128,
     pub max_query_total_ns: u128,
     pub median_execute_ns: f64,
     pub median_candidate_prepare_ns: f64,
     pub median_ns_per_table_row: f64,
+    pub geomean_ns_per_table_row: f64,
     pub median_ns_per_candidate_row: f64,
 }
 
@@ -136,21 +162,22 @@ pub fn run_utf8_algorithm<'db>(
     column: &Utf8Column<'db>,
     algorithm: AlgorithmKind,
     indexes: &BuiltIndexes,
-    config: &BenchConfig,
+    config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
+    profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Std => run_algorithm::<Utf8Column<'db>, StdSearch>(column, algorithm, indexes, config, out),
-        AlgorithmKind::Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp>(column, algorithm, indexes, config, out),
-        AlgorithmKind::Naive => run_algorithm::<Utf8Column<'db>, Naive>(column, algorithm, indexes, config, out),
-        AlgorithmKind::NaiveScalar => run_algorithm::<Utf8Column<'db>, NaiveScalar>(column, algorithm, indexes, config, out),
-        AlgorithmKind::NaiveVectorized => run_algorithm::<Utf8Column<'db>, NaiveVectorized>(column, algorithm, indexes, config, out),
-        AlgorithmKind::NaiveVectorizedV2 => run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2>(column, algorithm, indexes, config, out),
-        AlgorithmKind::NaiveMixed => run_algorithm::<Utf8Column<'db>, NaiveMixed>(column, algorithm, indexes, config, out),
-        AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM>(column, algorithm, indexes, config, out),
-        AlgorithmKind::TwoWay => run_algorithm::<Utf8Column<'db>, TwoWay>(column, algorithm, indexes, config, out),
-        AlgorithmKind::TwoWay2 => run_algorithm::<Utf8Column<'db>, TwoWay2>(column, algorithm, indexes, config, out),
-        AlgorithmKind::LibcMemmem => run_algorithm::<Utf8Column<'db>, LibcMemmem>(column, algorithm, indexes, config, out),
+        AlgorithmKind::Std => run_algorithm::<Utf8Column<'db>, StdSearch, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::Naive => run_algorithm::<Utf8Column<'db>, Naive, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::NaiveScalar => run_algorithm::<Utf8Column<'db>, NaiveScalar, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::NaiveVectorized => run_algorithm::<Utf8Column<'db>, NaiveVectorized, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::NaiveVectorizedV2 => run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::NaiveMixed => run_algorithm::<Utf8Column<'db>, NaiveMixed, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::TwoWay => run_algorithm::<Utf8Column<'db>, TwoWay, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::TwoWay2 => run_algorithm::<Utf8Column<'db>, TwoWay2, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::LibcMemmem => run_algorithm::<Utf8Column<'db>, LibcMemmem, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
         AlgorithmKind::Dna2Naive => bail!("algorithm dna2-naive cannot run on UTF-8 storage"),
     }
 }
@@ -159,31 +186,41 @@ pub fn run_dna2_algorithm<'db>(
     column: &Dna2Column<'db>,
     algorithm: AlgorithmKind,
     indexes: &BuiltIndexes,
-    config: &BenchConfig,
+    config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
+    profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Dna2Naive => run_algorithm::<Dna2Column<'db>, Dna2NaiveWildcard>(column, algorithm, indexes, config, out),
+        AlgorithmKind::Dna2Naive => run_algorithm::<Dna2Column<'db>, Dna2NaiveWildcard, _>(column, algorithm, indexes, config, out, profile_out, sample_dna2_row),
         other => bail!("algorithm {} cannot run on DNA2 storage", other.as_str()),
     }
 }
 
-fn run_algorithm<C, A>(
+fn run_algorithm<C, A, F>(
     column: &C,
     algorithm: AlgorithmKind,
     indexes: &BuiltIndexes,
-    config: &BenchConfig,
+    config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
+    mut profile_out: Option<&mut Vec<RowProfileRow>>,
+    sample_row: F,
 ) -> Result<()>
 where
     C: Column<Symbol = u8>,
     A: RowLiteralSearch<C>,
+    F: Fn(&C, RowId, usize) -> String + Copy,
 {
     for pattern_spec in &config.patterns {
         let compile_start = Instant::now();
         let pattern = LikePattern::<A>::compile(&pattern_spec.pattern)
             .with_context(|| format!("compile LIKE pattern {:?}", pattern_spec.pattern))?;
         let compile_ns = compile_start.elapsed().as_nanos();
+
+        if config.row_profile_enabled {
+            if let Some(rows) = profile_out.as_mut() {
+                profile_algorithm_rows::<C, A, F>(column, algorithm, &pattern, pattern_spec, config, &mut **rows, sample_row);
+            }
+        }
 
         for &requested_index in &config.indexes {
             let index_build_ns = index_build_ns(indexes, requested_index);
@@ -208,6 +245,7 @@ where
 
                 out.push(BenchRow {
                     dataset: config.dataset.clone(),
+                    column: config.column.clone(),
                     data_path: config.data_path.display().to_string(),
                     data_type: config.data_type.clone(),
                     storage: config.storage.as_str().to_owned(),
@@ -218,13 +256,13 @@ where
                     pattern: pattern_spec.pattern.clone(),
                     iteration,
                     row_count: column.row_count(),
-                    total_input_sequence_bytes: config.fasta_stats.total_input_sequence_bytes,
-                    total_loaded_symbols: config.fasta_stats.total_loaded_symbols,
-                    records_seen: config.fasta_stats.records_seen,
-                    records_loaded: config.fasta_stats.records_loaded,
-                    records_skipped: config.fasta_stats.records_skipped,
-                    records_truncated: config.fasta_stats.records_truncated,
-                    records_invalid_dna: config.fasta_stats.records_invalid_dna,
+                    total_input_sequence_bytes: config.load_stats.total_input_sequence_bytes,
+                    total_loaded_symbols: config.load_stats.total_loaded_symbols,
+                    records_seen: config.load_stats.records_seen,
+                    records_loaded: config.load_stats.records_loaded,
+                    records_skipped: config.load_stats.records_skipped,
+                    records_truncated: config.load_stats.records_truncated,
+                    records_invalid_dna: config.load_stats.records_invalid_dna,
                     load_ns: config.load_ns,
                     index_build_ns,
                     compile_ns,
@@ -236,7 +274,7 @@ where
                     rows_matched: exec.stats.rows_matched,
                     ns_per_table_row: ns_per(exec.candidate_prepare_ns + exec.execute_ns, column.row_count()),
                     ns_per_candidate_row: ns_per(exec.execute_ns, exec.stats.candidate_rows_seen),
-                    ns_per_loaded_symbol: ns_per(exec.candidate_prepare_ns + exec.execute_ns, config.fasta_stats.total_loaded_symbols),
+                    ns_per_loaded_symbol: ns_per(exec.candidate_prepare_ns + exec.execute_ns, config.load_stats.total_loaded_symbols),
                     fallback_reason: exec.fallback_reason.to_owned(),
                 });
             }
@@ -244,6 +282,64 @@ where
     }
 
     Ok(())
+}
+
+fn profile_algorithm_rows<C, A, F>(
+    column: &C,
+    algorithm: AlgorithmKind,
+    pattern: &LikePattern<A>,
+    pattern_spec: &PatternSpec,
+    config: &BenchConfig<'_>,
+    out: &mut Vec<RowProfileRow>,
+    sample_row: F,
+) where
+    C: Column<Symbol = u8>,
+    A: RowLiteralSearch<C>,
+    F: Fn(&C, RowId, usize) -> String + Copy,
+{
+    let rows_to_profile = config
+        .row_profile_max_rows
+        .unwrap_or_else(|| column.row_count())
+        .min(column.row_count());
+    let repeats = config.row_profile_repeats.max(1);
+    let len_constraint = pattern.len_constraint();
+    let mut scratch = VerifyScratch::default();
+
+    for row in 0..rows_to_profile {
+        let row_len = column.logical_len(row);
+        let len_ok = len_constraint.matches(row_len);
+        let mut matched = false;
+        let start = Instant::now();
+        for _ in 0..repeats {
+            scratch.clear();
+            matched = len_ok && pattern.verify(column, row, &mut scratch);
+            std::hint::black_box(matched);
+        }
+        let ns_total = start.elapsed().as_nanos();
+        let row_label = config
+            .row_labels
+            .get(row as usize)
+            .cloned()
+            .unwrap_or_else(|| row.to_string());
+        out.push(RowProfileRow {
+            dataset: config.dataset.clone(),
+            column: config.column.clone(),
+            data_path: config.data_path.display().to_string(),
+            data_type: config.data_type.clone(),
+            storage: config.storage.as_str().to_owned(),
+            algorithm: algorithm.as_str().to_owned(),
+            pattern_name: pattern_spec.name.clone(),
+            pattern: pattern_spec.pattern.clone(),
+            row_id: row,
+            row_label,
+            row_len,
+            matched,
+            repeats,
+            verify_ns_total: ns_total,
+            verify_ns_per_repeat: ns_total as f64 / repeats as f64,
+            row_sample: sample_row(column, row, config.row_profile_sample_bytes),
+        });
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -387,7 +483,7 @@ fn index_build_ns(indexes: &BuiltIndexes, requested: IndexKind) -> u128 {
         IndexKind::FullScan => 0,
         IndexKind::Fm => indexes.fm.as_ref().map_or(0, |idx| idx.build_ns),
         // IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.build_ns),
-        IndexKind::Trigram => 0,
+        IndexKind::Trigram => unimplemented!(),
     }
 }
 
@@ -399,7 +495,34 @@ fn ns_per(ns: u128, denom: u64) -> f64 {
     }
 }
 
+fn sample_utf8_row(column: &Utf8Column<'_>, row: RowId, max_bytes: usize) -> String {
+    let bytes = column.row_bytes(row);
+    let end = bytes.len().min(max_bytes);
+    String::from_utf8_lossy(&bytes[..end]).into_owned()
+}
+
+fn sample_dna2_row(column: &Dna2Column<'_>, row: RowId, max_bytes: usize) -> String {
+    let row = column.row_view(row);
+    let mut bytes = Vec::with_capacity((row.logical_len() as usize).min(max_bytes));
+    for code in row.iter().take(max_bytes) {
+        let ascii = db::DnaBase::from_code(code)
+            .expect("stored DNA2 code must be valid")
+            .ascii();
+        bytes.push(ascii);
+    }
+    String::from_utf8(bytes).expect("DNA ASCII is valid UTF-8")
+}
+
 pub fn write_rows(path: &Path, rows: &[BenchRow]) -> Result<()> {
+    let mut writer = csv::Writer::from_path(path)?;
+    for row in rows {
+        writer.serialize(row)?;
+    }
+    writer.flush()?;
+    Ok(())
+}
+
+pub fn write_row_profiles(path: &Path, rows: &[RowProfileRow]) -> Result<()> {
     let mut writer = csv::Writer::from_path(path)?;
     for row in rows {
         writer.serialize(row)?;
@@ -436,6 +559,7 @@ pub fn write_summary(path: &Path, rows: &[BenchRow]) -> Result<()> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct SummaryKey {
     dataset: String,
+    column: String,
     storage: String,
     algorithm: String,
     requested_index: String,
@@ -448,6 +572,7 @@ impl From<&BenchRow> for SummaryKey {
     fn from(row: &BenchRow) -> Self {
         Self {
             dataset: row.dataset.clone(),
+            column: row.column.clone(),
             storage: row.storage.clone(),
             algorithm: row.algorithm.clone(),
             requested_index: row.requested_index.clone(),
@@ -472,9 +597,11 @@ fn summarize_group(key: SummaryKey, rows: Vec<&BenchRow>) -> SummaryRow {
     let mean = sum as f64 / runs as f64;
     let p90_idx = ((runs as f64 * 0.90).ceil() as usize).saturating_sub(1).min(runs - 1);
     let first = rows[0];
+    let median_total = median_u128(&total);
 
     SummaryRow {
         dataset: key.dataset,
+        column: key.column,
         storage: key.storage,
         algorithm: key.algorithm,
         requested_index: key.requested_index,
@@ -484,14 +611,17 @@ fn summarize_group(key: SummaryKey, rows: Vec<&BenchRow>) -> SummaryRow {
         runs,
         row_count: first.row_count,
         rows_matched: first.rows_matched,
+        sum_query_total_ns: sum,
         min_query_total_ns: total[0],
-        median_query_total_ns: median_u128(&total),
+        median_query_total_ns: median_total,
         mean_query_total_ns: mean,
+        geomean_query_total_ns: geomean_u128(&total),
         p90_query_total_ns: total[p90_idx],
         max_query_total_ns: *total.last().expect("non-empty"),
         median_execute_ns: median_u128(&exec),
         median_candidate_prepare_ns: median_u128(&prep),
-        median_ns_per_table_row: ns_per(median_u128(&total) as u128, first.row_count),
+        median_ns_per_table_row: ns_per(median_total as u128, first.row_count),
+        geomean_ns_per_table_row: ns_per(geomean_u128(&total) as u128, first.row_count),
         median_ns_per_candidate_row: ns_per(median_u128(&exec) as u128, first.candidate_rows_seen),
     }
 }
@@ -506,4 +636,19 @@ fn median_u128(values: &[u128]) -> f64 {
     } else {
         (values[n / 2 - 1] as f64 + values[n / 2] as f64) / 2.0
     }
+}
+
+fn geomean_u128(values: &[u128]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    if values.iter().any(|&v| v == 0) {
+        return 0.0;
+    }
+    let mean_log = values
+        .iter()
+        .map(|&v| (v as f64).ln())
+        .sum::<f64>()
+        / values.len() as f64;
+    mean_log.exp()
 }

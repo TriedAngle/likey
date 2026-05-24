@@ -4,14 +4,12 @@ use std::str::FromStr;
 use anyhow::{bail, Result};
 use clap::{Parser, ValueEnum};
 
-const DEFAULT_MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
-const DEFAULT_MAX_ROW_BYTES: u64 = 50 * 1024 * 1024;
-
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
 pub struct Args {
-    /// CSV file describing data inputs. Columns: name,path,type,storage.
-    /// type currently supports fasta. storage is utf8, dna2, or both.
+    /// CSV file describing data inputs. Columns:
+    /// name,path,type,storage,column[,key_column,value_column,enabled].
+    /// type supports dna-fasta, protein-fasta, and job-csv.
     #[arg(long)]
     pub data_csv: PathBuf,
 
@@ -19,7 +17,7 @@ pub struct Args {
     #[arg(long)]
     pub algorithms_csv: PathBuf,
 
-    /// CSV file listing LIKE patterns. Columns: name,pattern or just pattern.
+    /// CSV file listing LIKE patterns. Columns: name,pattern[,enabled].
     #[arg(long)]
     pub patterns_csv: PathBuf,
 
@@ -28,13 +26,31 @@ pub struct Args {
     #[arg(long)]
     pub indexes_csv: Option<PathBuf>,
 
-    /// Output CSV containing one row per measured iteration.
+    /// Output CSV containing one row per measured query iteration.
     #[arg(long, default_value = "bench-raw.csv")]
     pub output_csv: PathBuf,
 
-    /// Optional summary CSV grouped by dataset/storage/algorithm/index/pattern.
+    /// Optional summary CSV grouped by dataset/column/storage/algorithm/index/pattern.
     #[arg(long)]
     pub summary_csv: Option<PathBuf>,
+
+    /// Optional row-level profile CSV. This runs a separate profiling pass and
+    /// intentionally does not affect normal query timings.
+    #[arg(long)]
+    pub row_profile_csv: Option<PathBuf>,
+
+    /// Repetitions per row during row profiling. Higher values reduce timer noise
+    /// but make row profiling much more expensive.
+    #[arg(long, default_value_t = 1)]
+    pub row_profile_repeats: usize,
+
+    /// Maximum rows to profile per dataset column. Omit to profile every row.
+    #[arg(long)]
+    pub row_profile_max_rows: Option<u64>,
+
+    /// Store at most this many bytes/chars of the row value in row_profile_csv.
+    #[arg(long, default_value_t = 120)]
+    pub row_profile_sample_bytes: usize,
 
     /// Number of untimed warmup executions per combination.
     #[arg(long, default_value_t = 1)]
@@ -52,17 +68,17 @@ pub struct Args {
     #[arg(long)]
     pub max_rows: Option<u64>,
 
-    /// Maximum loaded sequence bytes/symbols across all rows per dataset/storage.
+    /// Maximum loaded sequence/value bytes across all rows per dataset column.
     /// Accepts plain bytes or units like 1GB, 512MiB, 100mb.
     #[arg(long, value_parser = parse_bytes, default_value = "1GiB")]
     pub max_total_bytes: u64,
 
-    /// Maximum loaded sequence bytes/symbols per row.
+    /// Maximum loaded sequence/value bytes per row.
     /// Accepts plain bytes or units like 50MB, 16MiB.
     #[arg(long, value_parser = parse_bytes, default_value = "50MiB")]
     pub max_row_bytes: u64,
 
-    /// What to do if an input FASTA record exceeds --max-row-bytes.
+    /// What to do if one input row exceeds --max-row-bytes.
     #[arg(long, value_enum, default_value_t = RowOverflowPolicy::Truncate)]
     pub row_overflow_policy: RowOverflowPolicy,
 
@@ -70,21 +86,36 @@ pub struct Args {
     #[arg(long, value_enum, default_value_t = InvalidDnaPolicy::SkipRecord)]
     pub invalid_dna: InvalidDnaPolicy,
 
-    /// Uppercase sequence lines while loading.
+    /// Uppercase FASTA sequence lines while loading. CSV values are left unchanged.
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub uppercase_sequences: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DataType {
-    Fasta,
+    DnaFasta,
+    ProteinFasta,
+    JobCsv,
 }
 
 impl DataType {
     pub const fn as_str(self) -> &'static str {
         match self {
-            DataType::Fasta => "fasta",
+            DataType::DnaFasta => "dna-fasta",
+            DataType::ProteinFasta => "protein-fasta",
+            DataType::JobCsv => "job-csv",
         }
+    }
+
+    pub const fn default_storage_raw(self) -> &'static str {
+        match self {
+            DataType::DnaFasta => "both",
+            DataType::ProteinFasta | DataType::JobCsv => "utf8",
+        }
+    }
+
+    pub const fn allows_dna2(self) -> bool {
+        matches!(self, DataType::DnaFasta)
     }
 }
 
@@ -93,8 +124,10 @@ impl FromStr for DataType {
 
     fn from_str(s: &str) -> Result<Self> {
         match normalize_name(s).as_str() {
-            "fasta" | "fa" | "fna" => Ok(Self::Fasta),
-            other => bail!("unknown data type {other:?}; supported: fasta"),
+            "dna-fasta" | "dna" | "fasta" | "fa" | "fna" => Ok(Self::DnaFasta),
+            "protein-fasta" | "protein" | "aa-fasta" | "faa" | "pep" => Ok(Self::ProteinFasta),
+            "job-csv" | "job" | "csv" | "key-value" | "keyvalue" | "kv-csv" => Ok(Self::JobCsv),
+            other => bail!("unknown data type {other:?}; supported: dna-fasta, protein-fasta, job-csv"),
         }
     }
 }
@@ -208,9 +241,7 @@ impl FromStr for AlgorithmKind {
             "naive" => Ok(Self::Naive),
             "naive-scalar" | "naive_scalar" => Ok(Self::NaiveScalar),
             "naive-vectorized" | "naive_vectorized" => Ok(Self::NaiveVectorized),
-            "naive-vectorized-v2" | "naive_vectorized_v2" | "naive-v2" | "naive_v2" => {
-                Ok(Self::NaiveVectorizedV2)
-            }
+            "naive-vectorized-v2" | "naive_vectorized_v2" | "naive-v2" | "naive_v2" => Ok(Self::NaiveVectorizedV2),
             "naive-mixed" | "naive_mixed" => Ok(Self::NaiveMixed),
             "bm" | "boyer-moore" | "boyer_moore" => Ok(Self::Bm),
             "two-way" | "two_way" | "twoway" => Ok(Self::TwoWay),
@@ -237,7 +268,7 @@ pub enum RowOverflowPolicy {
 }
 
 fn normalize_name(s: &str) -> String {
-    s.trim().to_ascii_lowercase().replace(' ', "-")
+    s.trim().to_ascii_lowercase().replace([' ', '_'], "-")
 }
 
 pub fn parse_boolish(s: &str) -> bool {
@@ -285,12 +316,4 @@ pub fn parse_bytes(s: &str) -> Result<u64> {
     };
 
     Ok((value * multiplier).floor() as u64)
-}
-
-pub const fn default_max_total_bytes() -> u64 {
-    DEFAULT_MAX_TOTAL_BYTES
-}
-
-pub const fn default_max_row_bytes() -> u64 {
-    DEFAULT_MAX_ROW_BYTES
 }

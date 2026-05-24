@@ -12,6 +12,9 @@ pub struct DataSpec {
     pub path: PathBuf,
     pub data_type: DataType,
     pub storages: Vec<StorageKind>,
+    pub column: String,
+    pub key_column: Option<String>,
+    pub value_column: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +30,9 @@ struct DataRow {
     #[serde(rename = "type")]
     data_type: Option<String>,
     storage: Option<String>,
+    column: Option<String>,
+    key_column: Option<String>,
+    value_column: Option<String>,
     enabled: Option<String>,
 }
 
@@ -63,22 +69,36 @@ pub fn load_data_specs(path: &std::path::Path) -> Result<Vec<DataSpec>> {
         let data_type = row
             .data_type
             .as_deref()
-            .unwrap_or("fasta")
+            .unwrap_or("dna-fasta")
             .parse::<DataType>()?;
-        let storages = parse_storage_list(row.storage.as_deref().unwrap_or("both"))?;
+        let storage_raw = row.storage.as_deref().unwrap_or(data_type.default_storage_raw());
+        let storages = parse_storage_list(storage_raw)?;
+        if !data_type.allows_dna2() && storages.iter().any(|s| *s == StorageKind::Dna2) {
+            bail!(
+                "data CSV row {} requested dna2 storage for {}; only dna-fasta supports bitpacked DNA2 storage",
+                idx + 2,
+                data_type.as_str()
+            );
+        }
+
         let path_buf = PathBuf::from(&row.path);
-        let name = row.name.unwrap_or_else(|| {
-            path_buf
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("dataset")
-                .to_owned()
+        let file_stem = path_buf
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("dataset");
+        let name = row.name.unwrap_or_else(|| file_stem.to_owned());
+        let column = row.column.unwrap_or_else(|| match data_type {
+            DataType::DnaFasta | DataType::ProteinFasta => "sequence".to_owned(),
+            DataType::JobCsv => file_stem.to_owned(),
         });
         out.push(DataSpec {
             name,
             path: path_buf,
             data_type,
             storages,
+            column,
+            key_column: row.key_column,
+            value_column: row.value_column,
         });
     }
     if out.is_empty() {
