@@ -4,10 +4,14 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use db::{
-    BM, Column, CountSink, Dna2Column, Dna2NaiveWildcard, FftStr0, FftStr1, FmIndex, FullScan,
-    HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch,
-    TrigramIndex, TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch, execute_like,
+    BM, Column, CountSink, Dna2Column, Dna2NaiveWildcard, Dna2PackedScalar, Dna2PackedVectorized,
+    FftStr0, FftStr1, FmIndex, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive,
+    NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard,
+    NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed,
+    NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats,
+    RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column,
+    Utf8Kmp, VerifyScratch, execute_like,
 };
 use serde::Serialize;
 
@@ -235,6 +239,51 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
+        AlgorithmKind::NaiveAvx2 => run_algorithm::<Utf8Column<'db>, NaiveAvx2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveAvx2V2 => run_algorithm::<Utf8Column<'db>, NaiveAvx2V2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveAvx512 => run_algorithm::<Utf8Column<'db>, NaiveAvx512, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveAvx512V2 => run_algorithm::<Utf8Column<'db>, NaiveAvx512V2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveAuto => run_algorithm::<Utf8Column<'db>, NaiveAuto, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
         AlgorithmKind::NaiveMixed => run_algorithm::<Utf8Column<'db>, NaiveMixed, _>(
             column,
             algorithm,
@@ -244,6 +293,110 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
+        AlgorithmKind::NaiveWildcard => run_algorithm::<Utf8Column<'db>, NaiveWildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveScalarWildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveScalarWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveVectorizedWildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveVectorizedWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveVectorizedV2Wildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx2Wildcard => run_algorithm::<Utf8Column<'db>, NaiveAvx2Wildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveAvx2V2Wildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveAvx2V2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx512Wildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveAvx512Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx512V2Wildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveAvx512V2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
+        AlgorithmKind::NaiveAutoWildcard => run_algorithm::<Utf8Column<'db>, NaiveAutoWildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveMixedWildcard => {
+            run_algorithm::<Utf8Column<'db>, NaiveMixedWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
         AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM, _>(
             column,
             algorithm,
@@ -298,7 +451,14 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
-        AlgorithmKind::Dna2Naive => bail!("algorithm dna2-naive cannot run on UTF-8 storage"),
+        AlgorithmKind::Dna2Naive
+        | AlgorithmKind::Dna2PackedScalar
+        | AlgorithmKind::Dna2PackedVectorized => {
+            bail!(
+                "algorithm {} cannot run on UTF-8 storage",
+                algorithm.as_str()
+            )
+        }
     }
 }
 
@@ -320,6 +480,26 @@ pub fn run_dna2_algorithm<'db>(
             profile_out,
             sample_dna2_row,
         ),
+        AlgorithmKind::Dna2PackedScalar => run_algorithm::<Dna2Column<'db>, Dna2PackedScalar, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
+        AlgorithmKind::Dna2PackedVectorized => {
+            run_algorithm::<Dna2Column<'db>, Dna2PackedVectorized, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_dna2_row,
+            )
+        }
         other => bail!("algorithm {} cannot run on DNA2 storage", other.as_str()),
     }
 }

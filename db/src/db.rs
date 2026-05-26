@@ -7,18 +7,21 @@ use std::fmt;
 
 use crate::arena::{ArenaBuilder, FrozenArena};
 use crate::storage::dna2::{Dna2Table, Dna2TableBuilder, Dna2TableDesc};
+use crate::storage::fsst::{FsstTable, FsstTableBuilder, FsstTableDesc};
 use crate::storage::utf8::{Utf8Table, Utf8TableBuilder, Utf8TableDesc};
 use crate::{RowId, TableId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TableKind {
     Utf8,
+    Fsst,
     Dna2,
 }
 
 #[derive(Debug, Clone)]
 pub enum TableDesc {
     Utf8(Utf8TableDesc),
+    Fsst(FsstTableDesc),
     Dna2(Dna2TableDesc),
 }
 
@@ -26,6 +29,7 @@ impl TableDesc {
     pub fn kind(&self) -> TableKind {
         match self {
             TableDesc::Utf8(_) => TableKind::Utf8,
+            TableDesc::Fsst(_) => TableKind::Fsst,
             TableDesc::Dna2(_) => TableKind::Dna2,
         }
     }
@@ -33,6 +37,7 @@ impl TableDesc {
     pub fn name(&self) -> &str {
         match self {
             TableDesc::Utf8(t) => &t.name,
+            TableDesc::Fsst(t) => &t.name,
             TableDesc::Dna2(t) => &t.name,
         }
     }
@@ -40,6 +45,7 @@ impl TableDesc {
     pub fn row_count(&self) -> RowId {
         match self {
             TableDesc::Utf8(t) => t.text.row_count,
+            TableDesc::Fsst(t) => t.text.row_count,
             TableDesc::Dna2(t) => t.sequence.row_count,
         }
     }
@@ -48,6 +54,7 @@ impl TableDesc {
 #[derive(Debug)]
 pub enum TableBuilder {
     Utf8(Utf8TableBuilder),
+    Fsst(FsstTableBuilder),
     Dna2(Dna2TableBuilder),
 }
 
@@ -55,6 +62,7 @@ impl TableBuilder {
     pub fn kind(&self) -> TableKind {
         match self {
             TableBuilder::Utf8(_) => TableKind::Utf8,
+            TableBuilder::Fsst(_) => TableKind::Fsst,
             TableBuilder::Dna2(_) => TableKind::Dna2,
         }
     }
@@ -62,6 +70,7 @@ impl TableBuilder {
     pub fn name(&self) -> &str {
         match self {
             TableBuilder::Utf8(t) => t.name(),
+            TableBuilder::Fsst(t) => t.name(),
             TableBuilder::Dna2(t) => t.name(),
         }
     }
@@ -69,6 +78,7 @@ impl TableBuilder {
     pub fn row_count(&self) -> RowId {
         match self {
             TableBuilder::Utf8(t) => t.row_count(),
+            TableBuilder::Fsst(t) => t.row_count(),
             TableBuilder::Dna2(t) => t.row_count(),
         }
     }
@@ -76,6 +86,7 @@ impl TableBuilder {
     fn finish(self, arena: &mut ArenaBuilder) -> TableDesc {
         match self {
             TableBuilder::Utf8(t) => TableDesc::Utf8(t.finish(arena)),
+            TableBuilder::Fsst(t) => TableDesc::Fsst(t.finish(arena)),
             TableBuilder::Dna2(t) => TableDesc::Dna2(t.finish(arena)),
         }
     }
@@ -84,6 +95,12 @@ impl TableBuilder {
 impl From<Utf8TableBuilder> for TableBuilder {
     fn from(value: Utf8TableBuilder) -> Self {
         TableBuilder::Utf8(value)
+    }
+}
+
+impl From<FsstTableBuilder> for TableBuilder {
+    fn from(value: FsstTableBuilder) -> Self {
+        TableBuilder::Fsst(value)
     }
 }
 
@@ -179,6 +196,10 @@ impl DbBuilder {
         self.add_table(table)
     }
 
+    pub fn add_fsst_table(&mut self, table: FsstTableBuilder) -> Result<TableId, DbError> {
+        self.add_table(table)
+    }
+
     pub fn add_dna2_table(&mut self, table: Dna2TableBuilder) -> Result<TableId, DbError> {
         self.add_table(table)
     }
@@ -230,6 +251,7 @@ impl Db {
         let desc = self.table_desc(id)?;
         Some(match desc {
             TableDesc::Utf8(t) => TableRef::Utf8(Utf8Table::new(&self.arena, t)),
+            TableDesc::Fsst(t) => TableRef::Fsst(FsstTable::new(&self.arena, t)),
             TableDesc::Dna2(t) => TableRef::Dna2(Dna2Table::new(&self.arena, t)),
         })
     }
@@ -253,6 +275,16 @@ impl Db {
         }
     }
 
+    pub fn fsst_table(&self, id: TableId) -> Result<FsstTable<'_>, DbError> {
+        match self.table(id).ok_or(DbError::TableIdOutOfBounds(id))? {
+            TableRef::Fsst(t) => Ok(t),
+            other => Err(DbError::WrongTableKind {
+                expected: TableKind::Fsst,
+                actual: other.kind(),
+            }),
+        }
+    }
+
     pub fn dna2_table(&self, id: TableId) -> Result<Dna2Table<'_>, DbError> {
         match self.table(id).ok_or(DbError::TableIdOutOfBounds(id))? {
             TableRef::Dna2(t) => Ok(t),
@@ -267,7 +299,15 @@ impl Db {
         let (id, table) = self.table_by_name(name)?;
         match table {
             TableRef::Utf8(t) => Some((id, t)),
-            TableRef::Dna2(_) => None,
+            TableRef::Fsst(_) | TableRef::Dna2(_) => None,
+        }
+    }
+
+    pub fn fsst_table_by_name(&self, name: &str) -> Option<(TableId, FsstTable<'_>)> {
+        let (id, table) = self.table_by_name(name)?;
+        match table {
+            TableRef::Fsst(t) => Some((id, t)),
+            TableRef::Utf8(_) | TableRef::Dna2(_) => None,
         }
     }
 
@@ -275,7 +315,7 @@ impl Db {
         let (id, table) = self.table_by_name(name)?;
         match table {
             TableRef::Dna2(t) => Some((id, t)),
-            TableRef::Utf8(_) => None,
+            TableRef::Utf8(_) | TableRef::Fsst(_) => None,
         }
     }
 }
@@ -292,6 +332,7 @@ impl fmt::Debug for Db {
 #[derive(Clone, Copy)]
 pub enum TableRef<'a> {
     Utf8(Utf8Table<'a>),
+    Fsst(FsstTable<'a>),
     Dna2(Dna2Table<'a>),
 }
 
@@ -299,6 +340,7 @@ impl<'a> TableRef<'a> {
     pub fn kind(&self) -> TableKind {
         match self {
             TableRef::Utf8(_) => TableKind::Utf8,
+            TableRef::Fsst(_) => TableKind::Fsst,
             TableRef::Dna2(_) => TableKind::Dna2,
         }
     }
@@ -306,6 +348,7 @@ impl<'a> TableRef<'a> {
     pub fn name(&self) -> &str {
         match self {
             TableRef::Utf8(t) => t.name(),
+            TableRef::Fsst(t) => t.name(),
             TableRef::Dna2(t) => t.name(),
         }
     }
@@ -313,6 +356,7 @@ impl<'a> TableRef<'a> {
     pub fn row_count(&self) -> RowId {
         match self {
             TableRef::Utf8(t) => t.row_count(),
+            TableRef::Fsst(t) => t.row_count(),
             TableRef::Dna2(t) => t.row_count(),
         }
     }
@@ -320,14 +364,21 @@ impl<'a> TableRef<'a> {
     pub fn as_utf8(self) -> Option<Utf8Table<'a>> {
         match self {
             TableRef::Utf8(t) => Some(t),
-            TableRef::Dna2(_) => None,
+            TableRef::Fsst(_) | TableRef::Dna2(_) => None,
+        }
+    }
+
+    pub fn as_fsst(self) -> Option<FsstTable<'a>> {
+        match self {
+            TableRef::Fsst(t) => Some(t),
+            TableRef::Utf8(_) | TableRef::Dna2(_) => None,
         }
     }
 
     pub fn as_dna2(self) -> Option<Dna2Table<'a>> {
         match self {
             TableRef::Dna2(t) => Some(t),
-            TableRef::Utf8(_) => None,
+            TableRef::Utf8(_) | TableRef::Fsst(_) => None,
         }
     }
 }
@@ -336,6 +387,7 @@ impl fmt::Debug for TableRef<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TableRef::Utf8(t) => t.fmt(f),
+            TableRef::Fsst(t) => t.fmt(f),
             TableRef::Dna2(t) => t.fmt(f),
         }
     }

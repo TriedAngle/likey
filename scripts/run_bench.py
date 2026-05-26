@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--name", default="bench")
     p.add_argument("--cargo", default="cargo")
     p.add_argument("--package", default="runner")
+    p.add_argument("--features", default="", help="Cargo features to enable, e.g. avx512")
     p.add_argument("--warmups", type=int, default=1)
     p.add_argument("--iterations", type=int, default=5)
     p.add_argument("--batch-rows", type=int, default=4096)
@@ -76,6 +77,10 @@ def main() -> int:
         "-p",
         args.package,
         "--release",
+    ]
+    if args.features:
+        command.extend(["--features", args.features])
+    command.extend([
         "--",
         "--data-csv",
         str(args.data_csv),
@@ -101,7 +106,7 @@ def main() -> int:
         args.row_overflow_policy,
         "--invalid-dna",
         args.invalid_dna,
-    ]
+    ])
     if args.indexes_csv:
         command.extend(["--indexes-csv", str(args.indexes_csv)])
     if args.max_rows:

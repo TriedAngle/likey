@@ -167,9 +167,34 @@ impl<'a> Dna2Row<'a> {
     }
 
     #[inline]
+    pub fn packed_payload(&self) -> &'a [u8] {
+        self.payload
+    }
+
+    #[inline]
     pub fn base_code_at(&self, local_base_idx: u32) -> u8 {
         assert!(local_base_idx < self.len, "base index out of bounds");
         get_base_code(self.payload, self.start_base + u64::from(local_base_idx))
+    }
+
+    /// Load up to 32 DNA bases starting at `local_base_idx` as a compact 2-bit
+    /// word. The first requested base becomes the highest base within the
+    /// returned `2 * bases` low bits. For example, three bases `A,C,G` become
+    /// binary `00_01_10`.
+    #[inline]
+    pub fn load_2bit_window(&self, local_base_idx: u32, bases: u32) -> Option<u64> {
+        if bases > 32 {
+            return None;
+        }
+        let end = local_base_idx.checked_add(bases)?;
+        if end > self.len {
+            return None;
+        }
+        Some(load_2bit_window_from_payload(
+            self.payload,
+            self.start_base + u64::from(local_base_idx),
+            bases,
+        ))
     }
 
     pub fn iter(&self) -> Dna2Iter<'a> {
@@ -206,6 +231,39 @@ impl fmt::Debug for Dna2Row<'_> {
             .field("len", &self.len)
             .finish()
     }
+}
+
+#[inline]
+fn load_2bit_window_from_payload(payload: &[u8], absolute_base: u64, bases: u32) -> u64 {
+    debug_assert!(bases <= 32);
+    if bases == 0 {
+        return 0;
+    }
+
+    let bit_start = absolute_base * 2;
+    let byte_idx = (bit_start / 8) as usize;
+    let bit_in_byte = (bit_start % 8) as usize;
+    let wanted_bits = (bases as usize) * 2;
+    let needed_bits = bit_in_byte + wanted_bits;
+    let needed_bytes = needed_bits.div_ceil(8);
+
+    debug_assert!(needed_bytes <= 9);
+    debug_assert!(byte_idx + needed_bytes <= payload.len());
+
+    let mut acc = 0u128;
+    for i in 0..needed_bytes {
+        acc = (acc << 8) | u128::from(payload[byte_idx + i]);
+    }
+
+    let total_bits = needed_bytes * 8;
+    let shift = total_bits - bit_in_byte - wanted_bits;
+    let mask = if wanted_bits == 64 {
+        u128::from(u64::MAX)
+    } else {
+        (1u128 << wanted_bits) - 1
+    };
+
+    ((acc >> shift) & mask) as u64
 }
 
 pub struct Dna2Iter<'a> {

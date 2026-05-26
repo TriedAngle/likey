@@ -10,9 +10,9 @@ pub mod trigram;
 
 pub use fm::{FmIndex, FmIndexError, FmProbe};
 pub use trigram::{
-    Dna2TrigramDomain, Dna2TrigramIndex, Fixed64PostingStore, HasTrigramIndex, HashMapPostingStore,
-    TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe, TypedTrigramIndex,
-    Utf8ByteTrigramDomain, Utf8TrigramIndex, dna2_trigram_key, trigram_key, trigram_keys,
+    Dna2TrigramDomain, Fixed64PostingStore, FsstDecodedTrigramDomain, HasTrigramIndex,
+    HashMapPostingStore, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
+    TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key, trigram_key, trigram_keys,
 };
 
 use crate::RowId;
@@ -37,8 +37,8 @@ where
 
 /// Marker trait for index probes.
 ///
-/// Implementing [`CandidateProvider`] is the important part. This alias-style
-/// trait is useful when naming APIs such as `fn probe(...) -> impl IndexProbe`.
+/// Implementing [`CandidateProvider`] is the important part. This marker trait is
+/// useful when naming APIs such as `fn probe(...) -> impl IndexProbe`.
 pub trait IndexProbe: CandidateProvider {}
 
 impl<T: CandidateProvider> IndexProbe for T {}

@@ -199,7 +199,22 @@ pub enum AlgorithmKind {
     NaiveScalar,
     NaiveVectorized,
     NaiveVectorizedV2,
+    NaiveAvx2,
+    NaiveAvx2V2,
+    NaiveAvx512,
+    NaiveAvx512V2,
+    NaiveAuto,
     NaiveMixed,
+    NaiveWildcard,
+    NaiveScalarWildcard,
+    NaiveVectorizedWildcard,
+    NaiveVectorizedV2Wildcard,
+    NaiveAvx2Wildcard,
+    NaiveAvx2V2Wildcard,
+    NaiveAvx512Wildcard,
+    NaiveAvx512V2Wildcard,
+    NaiveAutoWildcard,
+    NaiveMixedWildcard,
     Bm,
     TwoWay,
     TwoWay2,
@@ -207,6 +222,8 @@ pub enum AlgorithmKind {
     Fft0,
     Fft1,
     Dna2Naive,
+    Dna2PackedScalar,
+    Dna2PackedVectorized,
 }
 
 impl AlgorithmKind {
@@ -218,7 +235,22 @@ impl AlgorithmKind {
             AlgorithmKind::NaiveScalar => "naive-scalar",
             AlgorithmKind::NaiveVectorized => "naive-vectorized",
             AlgorithmKind::NaiveVectorizedV2 => "naive-vectorized-v2",
+            AlgorithmKind::NaiveAvx2 => "naive-avx2",
+            AlgorithmKind::NaiveAvx2V2 => "naive-avx2-v2",
+            AlgorithmKind::NaiveAvx512 => "naive-avx512",
+            AlgorithmKind::NaiveAvx512V2 => "naive-avx512-v2",
+            AlgorithmKind::NaiveAuto => "naive-auto",
             AlgorithmKind::NaiveMixed => "naive-mixed",
+            AlgorithmKind::NaiveWildcard => "naive-wildcard",
+            AlgorithmKind::NaiveScalarWildcard => "naive-scalar-wildcard",
+            AlgorithmKind::NaiveVectorizedWildcard => "naive-vectorized-wildcard",
+            AlgorithmKind::NaiveVectorizedV2Wildcard => "naive-vectorized-v2-wildcard",
+            AlgorithmKind::NaiveAvx2Wildcard => "naive-avx2-wildcard",
+            AlgorithmKind::NaiveAvx2V2Wildcard => "naive-avx2-v2-wildcard",
+            AlgorithmKind::NaiveAvx512Wildcard => "naive-avx512-wildcard",
+            AlgorithmKind::NaiveAvx512V2Wildcard => "naive-avx512-v2-wildcard",
+            AlgorithmKind::NaiveAutoWildcard => "naive-auto-wildcard",
+            AlgorithmKind::NaiveMixedWildcard => "naive-mixed-wildcard",
             AlgorithmKind::Bm => "bm",
             AlgorithmKind::TwoWay => "two-way",
             AlgorithmKind::TwoWay2 => "two-way2",
@@ -226,13 +258,25 @@ impl AlgorithmKind {
             AlgorithmKind::Fft0 => "fft0",
             AlgorithmKind::Fft1 => "fft1",
             AlgorithmKind::Dna2Naive => "dna2-naive",
+            AlgorithmKind::Dna2PackedScalar => "dna2-packed-scalar",
+            AlgorithmKind::Dna2PackedVectorized => "dna2-packed-vectorized",
         }
     }
 
     pub const fn is_compatible(self, storage: StorageKind) -> bool {
         match storage {
-            StorageKind::Utf8 => !matches!(self, AlgorithmKind::Dna2Naive),
-            StorageKind::Dna2 => matches!(self, AlgorithmKind::Dna2Naive),
+            StorageKind::Utf8 => !matches!(
+                self,
+                AlgorithmKind::Dna2Naive
+                    | AlgorithmKind::Dna2PackedScalar
+                    | AlgorithmKind::Dna2PackedVectorized
+            ),
+            StorageKind::Dna2 => matches!(
+                self,
+                AlgorithmKind::Dna2Naive
+                    | AlgorithmKind::Dna2PackedScalar
+                    | AlgorithmKind::Dna2PackedVectorized
+            ),
         }
     }
 }
@@ -250,7 +294,62 @@ impl FromStr for AlgorithmKind {
             "naive-vectorized-v2" | "naive_vectorized_v2" | "naive-v2" | "naive_v2" => {
                 Ok(Self::NaiveVectorizedV2)
             }
+            "naive-avx2" | "naive_avx2" | "avx2" => Ok(Self::NaiveAvx2),
+            "naive-avx2-v2" | "naive_avx2_v2" | "avx2-v2" | "avx2_v2" => Ok(Self::NaiveAvx2V2),
+            "naive-avx512" | "naive_avx512" | "avx512" => Ok(Self::NaiveAvx512),
+            "naive-avx512-v2" | "naive_avx512_v2" | "avx512-v2" | "avx512_v2" => {
+                Ok(Self::NaiveAvx512V2)
+            }
+            "naive-auto" | "naive_auto" | "auto" => Ok(Self::NaiveAuto),
             "naive-mixed" | "naive_mixed" => Ok(Self::NaiveMixed),
+            "naive-wildcard" | "naive_wildcard" => Ok(Self::NaiveWildcard),
+            "naive-scalar-wildcard" | "naive_scalar_wildcard" => Ok(Self::NaiveScalarWildcard),
+            "naive-vectorized-wildcard"
+            | "naive_vectorized_wildcard"
+            | "naive-wildcard-vectorized"
+            | "naive_wildcard_vectorized" => Ok(Self::NaiveVectorizedWildcard),
+            "naive-vectorized-v2-wildcard"
+            | "naive_vectorized_v2_wildcard"
+            | "naive-v2-wildcard"
+            | "naive_v2_wildcard"
+            | "naive-wildcard-vectorized-v2"
+            | "naive_wildcard_vectorized_v2"
+            | "naive-wildcard-v2"
+            | "naive_wildcard_v2" => Ok(Self::NaiveVectorizedV2Wildcard),
+            "naive-avx2-wildcard"
+            | "naive_avx2_wildcard"
+            | "naive-wildcard-avx2"
+            | "naive_wildcard_avx2"
+            | "avx2-wildcard"
+            | "avx2_wildcard" => Ok(Self::NaiveAvx2Wildcard),
+            "naive-avx2-v2-wildcard"
+            | "naive_avx2_v2_wildcard"
+            | "naive-wildcard-avx2-v2"
+            | "naive_wildcard_avx2_v2"
+            | "avx2-v2-wildcard"
+            | "avx2_v2_wildcard" => Ok(Self::NaiveAvx2V2Wildcard),
+            "naive-avx512-wildcard"
+            | "naive_avx512_wildcard"
+            | "naive-wildcard-avx512"
+            | "naive_wildcard_avx512"
+            | "avx512-wildcard"
+            | "avx512_wildcard" => Ok(Self::NaiveAvx512Wildcard),
+            "naive-avx512-v2-wildcard"
+            | "naive_avx512_v2_wildcard"
+            | "naive-wildcard-avx512-v2"
+            | "naive_wildcard_avx512_v2"
+            | "avx512-v2-wildcard"
+            | "avx512_v2_wildcard" => Ok(Self::NaiveAvx512V2Wildcard),
+            "naive-auto-wildcard"
+            | "naive_auto_wildcard"
+            | "naive-wildcard-auto"
+            | "naive_wildcard_auto"
+            | "auto-wildcard"
+            | "auto_wildcard" => Ok(Self::NaiveAutoWildcard),
+            "naive-mixed-wildcard"
+            | "naive_mixed_wildcard"
+            | "naive-wildcard-mixed"
+            | "naive_wildcard_mixed" => Ok(Self::NaiveMixedWildcard),
             "bm" | "boyer-moore" | "boyer_moore" => Ok(Self::Bm),
             "two-way" | "two_way" | "twoway" => Ok(Self::TwoWay),
             "two-way2" | "two_way2" | "twoway2" => Ok(Self::TwoWay2),
@@ -258,6 +357,8 @@ impl FromStr for AlgorithmKind {
             "fft0" | "fft-str0" | "fft_str0" | "fftstr0" => Ok(Self::Fft0),
             "fft1" | "fft-str1" | "fft_str1" | "fftstr1" | "fft" => Ok(Self::Fft1),
             "dna2-naive" | "dna2_naive" | "dna" | "dna2" => Ok(Self::Dna2Naive),
+            "dna2-packed-scalar" | "dna2_packed_scalar" => Ok(Self::Dna2PackedScalar),
+            "dna2-packed-vectorized" | "dna2_packed_vectorized" => Ok(Self::Dna2PackedVectorized),
             other => bail!("unknown algorithm {other:?}"),
         }
     }

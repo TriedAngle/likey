@@ -10,7 +10,7 @@ runner/                CSV-driven benchmark binary for db
 scripts/run_bench.py   release runner wrapper with summaries and plots
 ```
 
-`db` is the library crate. It provides dense UTF-8 byte columns, packed DNA2 columns, `RowId`, the generic `Column<Symbol = u8>` API, LIKE pattern compilation/verification, candidate providers, result sinks, full scan, an FM-index, and trigram indexes.
+`db` is the library crate. It provides dense UTF-8 byte columns, FSST-compressed byte columns, packed DNA2 columns, `RowId`, the generic `Column<Symbol = u8>` API, LIKE pattern compilation/verification, candidate providers, result sinks, full scan, an FM-index, and trigram indexes.
 
 `runner` is the benchmark binary. It loads datasets, builds the requested storage and indexes, runs compatible algorithm/pattern/index combinations, and writes timing CSVs. `scripts/run_bench.py` handles release-mode runs, summaries, and plots.
 
@@ -24,6 +24,7 @@ cargo run -p db --example full_scan
 cargo run -p db --example like_matching
 cargo run -p db --example fm_index_utf8_like
 cargo run -p db --example like_with_trigram_candidates
+cargo run -p db --example fsst_table
 ```
 
 Run the benchmark binary directly:
@@ -96,9 +97,11 @@ If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.cs
 
 ## Algorithms and Semantics
 
-UTF-8 algorithms run on UTF-8 storage: `std`, `kmp`, `naive`, `naive-scalar`, `naive-vectorized`, `naive-vectorized-v2`, `naive-mixed`, `bm`, `two-way`, `two-way2`, `libc-memmem`, `fft0`, and `fft1`.
+UTF-8 algorithms run on UTF-8 storage: `std`, `kmp`, `naive`, `naive-scalar`, `naive-vectorized`, `naive-vectorized-v2`, `naive-avx2`, `naive-avx2-v2`, `naive-avx512`, `naive-avx512-v2`, `naive-auto`, `naive-mixed`, wildcard-aware naive variants, `bm`, `two-way`, `two-way2`, `libc-memmem`, `fft0`, and `fft1`.
 
-`dna2-naive` runs on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
+`dna2-naive` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
+
+FSST columns expose decoded bytes as logical symbols, so FM-index and typed trigram index construction work through the same `Column<Symbol = u8>` API. The current FSST LIKE path decodes candidate rows before verification; it is not compressed-domain matching yet.
 
 UTF-8 LIKE matching is byte-based. `_` matches one byte, not one Unicode scalar or grapheme. Index probes only provide candidates; the LIKE verifier is still the correctness check.
 

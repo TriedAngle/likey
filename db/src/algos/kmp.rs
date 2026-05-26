@@ -73,20 +73,40 @@ impl<'db> RowLiteralSearch<Utf8Column<'db>> for Utf8Kmp {
             return None;
         }
 
-        let mut j = 0usize;
-        for (i, &b) in text.iter().enumerate().skip(from) {
-            while j > 0 && b != pat[j] {
-                j = state[j - 1];
-            }
-            if b == pat[j] {
-                j += 1;
-                if j == pat.len() {
-                    return Some((i + 1 - pat.len()) as u32);
-                }
+        kmp_find_from(text, pat, state, from).map(|pos| pos as u32)
+    }
+}
+
+#[inline]
+pub fn kmp_find(text: &[u8], pat: &[u8], state: &[usize]) -> Option<usize> {
+    kmp_find_from(text, pat, state, 0)
+}
+
+#[inline]
+pub fn kmp_find_from(text: &[u8], pat: &[u8], state: &[usize], from: usize) -> Option<usize> {
+    if from > text.len() {
+        return None;
+    }
+    if pat.is_empty() {
+        return Some(from);
+    }
+    if pat.len() > text.len().saturating_sub(from) {
+        return None;
+    }
+
+    let mut j = 0usize;
+    for (i, &b) in text.iter().enumerate().skip(from) {
+        while j > 0 && b != pat[j] {
+            j = state[j - 1];
+        }
+        if b == pat[j] {
+            j += 1;
+            if j == pat.len() {
+                return Some(i + 1 - pat.len());
             }
         }
-        None
     }
+    None
 }
 
 fn build_kmp_lps(pat: &[u8]) -> Vec<usize> {

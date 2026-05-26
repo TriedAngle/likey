@@ -18,6 +18,7 @@ use crate::like::{LikePattern, LiteralAlgorithm};
 use crate::query::{CandidateBatch, CandidateProvider, CandidateScratch};
 use crate::storage::Column;
 use crate::storage::dna2::{Dna2Column, Dna2Row};
+use crate::storage::fsst::FsstColumn;
 use crate::storage::utf8::Utf8Column;
 
 #[inline(always)]
@@ -193,6 +194,47 @@ impl<'db> TrigramDomain<Utf8Column<'db>> for Utf8ByteTrigramDomain {
     }
 }
 
+/// Default domain for FSST-compressed byte columns.
+///
+/// The current FSST trigram domain decodes one row at index-build time and then
+/// emits byte trigrams over the decompressed bytes. This keeps trigram semantics
+/// identical to `Utf8ByteTrigramDomain` while preserving compressed storage for
+/// the table itself.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FsstDecodedTrigramDomain;
+
+impl<'db> TrigramDomain<FsstColumn<'db>> for FsstDecodedTrigramDomain {
+    type Key = u32;
+    type Store = HashMapPostingStore<u32>;
+
+    fn new_store(_row_count: RowId) -> Self::Store {
+        HashMapPostingStore::new()
+    }
+
+    fn for_each_unique_row_trigram<F>(column: &FsstColumn<'db>, row: RowId, mut f: F)
+    where
+        F: FnMut(Self::Key),
+    {
+        let bytes = column.row_bytes_decoded(row);
+        if bytes.len() < 3 {
+            return;
+        }
+
+        let mut seen = HashSet::<u32>::new();
+        for window in bytes.windows(3) {
+            let key = trigram_key(window[0], window[1], window[2]);
+            if seen.insert(key) {
+                f(key);
+            }
+        }
+    }
+
+    fn literal_trigrams(symbols: &[u8]) -> Option<Vec<Self::Key>> {
+        let keys = trigram_keys(symbols);
+        if keys.is_empty() { None } else { Some(keys) }
+    }
+}
+
 /// Specialized domain for packed DNA2 columns.
 ///
 /// The key space is fixed at 64 entries: `A/C/G/T` are encoded as `0..=3`, and
@@ -274,6 +316,10 @@ pub trait HasTrigramIndex: Column<Symbol = u8> + Sized {
 
 impl<'db> HasTrigramIndex for Utf8Column<'db> {
     type TrigramDomain = Utf8ByteTrigramDomain;
+}
+
+impl<'db> HasTrigramIndex for FsstColumn<'db> {
+    type TrigramDomain = FsstDecodedTrigramDomain;
 }
 
 impl<'db> HasTrigramIndex for Dna2Column<'db> {
@@ -466,6 +512,16 @@ impl<'db> TrigramIndex<Utf8Column<'db>> {
     }
 }
 
+impl<'db> TrigramIndex<FsstColumn<'db>> {
+    pub fn postings_for_key(&self, key: u32) -> Option<&[RowId]> {
+        self.inner.postings_for_key(key)
+    }
+
+    pub fn postings_for_gram(&self, gram: [u8; 3]) -> Option<&[RowId]> {
+        self.postings_for_key(trigram_key(gram[0], gram[1], gram[2]))
+    }
+}
+
 impl<'db> TrigramIndex<Dna2Column<'db>> {
     pub fn postings_for_dna2_key(&self, key: u8) -> Option<&[RowId]> {
         self.inner.postings_for_key(key)
@@ -478,9 +534,6 @@ impl<'db> TrigramIndex<Dna2Column<'db>> {
         self.postings_for_dna2_key(dna2_trigram_key(gram[0], gram[1], gram[2]))
     }
 }
-
-pub type Utf8TrigramIndex<'db> = TrigramIndex<Utf8Column<'db>>;
-pub type Dna2TrigramIndex<'db> = TrigramIndex<Dna2Column<'db>>;
 
 fn intersect_sorted_in_place(left: &mut Vec<RowId>, right: &[RowId]) {
     let mut out = 0usize;

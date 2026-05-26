@@ -1,12 +1,14 @@
 //! Storage abstractions and concrete dense column implementations.
 //!
 //! The central abstraction is a dense logical-symbol column. UTF-8 byte columns
-//! expose symbols as bytes. DNA2 columns expose symbols as base codes 0..=3.
+//! expose symbols as bytes. FSST columns expose decoded bytes. DNA2 columns
+//! expose symbols as base codes 0..=3.
 //! Generic indexes can be written over `Column<Symbol = u8>`.
 
 use crate::RowId;
 
 pub mod dna2;
+pub mod fsst;
 pub mod utf8;
 
 /// Dense logical-symbol column.
@@ -29,7 +31,7 @@ pub trait Column {
 
     /// Logical length in this column's semantics.
     ///
-    /// UTF-8 byte column: bytes. DNA2 column: bases.
+    /// UTF-8 byte column: bytes. FSST column: decoded bytes. DNA2 column: bases.
     fn logical_len(&self, row: RowId) -> u32;
 
     /// Borrow a row in its concrete representation.

@@ -1,6 +1,6 @@
 use db::{
-    AcceptAll, Column, DbBuilder, Dna2TableBuilder, DnaBase, FullScan, LenConstraint, QueryScratch,
-    RowId, SortedRowsProbe, Utf8TableBuilder, execute_like,
+    AcceptAll, Column, DbBuilder, Dna2TableBuilder, DnaBase, FsstTableBuilder, FullScan,
+    LenConstraint, QueryScratch, RowId, SortedRowsProbe, Utf8TableBuilder, execute_like,
 };
 
 #[test]
@@ -36,6 +36,23 @@ fn dna2_storage_roundtrip() {
     assert_eq!(col.row_to_ascii_string(1), "TTAA");
     assert_eq!(col.base_code_at(0, 0), DnaBase::A.code());
     assert_eq!(col.base_code_at(0, 3), DnaBase::T.code());
+}
+
+#[test]
+fn fsst_storage_roundtrip() {
+    let mut dbb = DbBuilder::new();
+    let mut t = FsstTableBuilder::new("docs_fsst");
+    t.push_str("banana");
+    t.push_str("bandana");
+    let id = dbb.add_fsst_table(t).unwrap();
+    let db = dbb.freeze();
+
+    let table = db.fsst_table(id).unwrap();
+    let col = table.text();
+    assert_eq!(col.row_count(), 2);
+    assert_eq!(col.row(0).bytes(), b"banana");
+    assert_eq!(col.row(1).bytes(), b"bandana");
+    assert_eq!(col.logical_len(0), 6);
 }
 
 #[test]
