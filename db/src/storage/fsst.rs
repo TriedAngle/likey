@@ -18,6 +18,11 @@ use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
 use crate::storage::Column;
 
 #[derive(Clone)]
+/// FSST compressor plus a compact symbol-table snapshot.
+///
+/// The compressor is used for row decompression. `symbol_words` and
+/// `symbol_lens` expose the trained symbol table for diagnostics or future
+/// persistence work.
 pub struct FsstCodec {
     compressor: Compressor,
     symbol_words: Box<[u64]>,
@@ -25,6 +30,7 @@ pub struct FsstCodec {
 }
 
 impl FsstCodec {
+    /// Capture an FSST compressor and its symbol table.
     pub fn from_compressor(compressor: Compressor) -> Self {
         let symbol_words = compressor
             .symbol_table()
@@ -41,21 +47,25 @@ impl FsstCodec {
     }
 
     #[inline]
+    /// Compressor used to decompress stored rows.
     pub fn compressor(&self) -> &Compressor {
         &self.compressor
     }
 
     #[inline]
+    /// Symbol words from the compressor's trained symbol table.
     pub fn symbol_words(&self) -> &[u64] {
         &self.symbol_words
     }
 
     #[inline]
+    /// Byte length of each symbol in the trained symbol table.
     pub fn symbol_lens(&self) -> &[u8] {
         &self.symbol_lens
     }
 
     #[inline]
+    /// Number of symbols in the trained symbol table.
     pub fn symbol_count(&self) -> usize {
         self.symbol_lens.len()
     }
@@ -70,6 +80,7 @@ impl fmt::Debug for FsstCodec {
 }
 
 #[derive(Clone)]
+/// Frozen FSST table descriptor stored inside [`Db`](crate::Db).
 pub struct FsstTableDesc {
     pub name: String,
     pub text: FsstColumnDesc,
@@ -87,6 +98,7 @@ impl fmt::Debug for FsstTableDesc {
 }
 
 #[derive(Debug, Clone)]
+/// Frozen descriptor for one FSST-compressed byte column.
 pub struct FsstColumnDesc {
     pub row_count: RowId,
     /// `row_count + 1` byte offsets into the compressed payload.
@@ -100,6 +112,7 @@ pub struct FsstColumnDesc {
 }
 
 #[derive(Clone, Copy)]
+/// Borrowed view of an FSST-compressed table.
 pub struct FsstTable<'a> {
     arena: &'a FrozenArena,
     desc: &'a FsstTableDesc,
@@ -111,16 +124,19 @@ impl<'a> FsstTable<'a> {
     }
 
     #[inline]
+    /// Table name.
     pub fn name(&self) -> &str {
         &self.desc.name
     }
 
     #[inline]
+    /// Number of rows in the table.
     pub fn row_count(&self) -> RowId {
         self.desc.text.row_count
     }
 
     #[inline]
+    /// The table's single compressed byte column.
     pub fn text(&self) -> FsstColumn<'a> {
         FsstColumn {
             arena: self.arena,
@@ -129,10 +145,12 @@ impl<'a> FsstTable<'a> {
         }
     }
 
+    /// Number of logical columns in this table.
     pub fn column_count(&self) -> usize {
         1
     }
 
+    /// Borrow and decode one row.
     pub fn row(&self, row: RowId) -> FsstRowEntry {
         FsstRowEntry {
             id: row,
@@ -153,6 +171,10 @@ impl fmt::Debug for FsstTable<'_> {
 }
 
 #[derive(Clone, Copy)]
+/// Borrowed view of one FSST-compressed byte column.
+///
+/// Row access decodes into an owned [`FsstRow`]. Generic symbol iteration also
+/// decodes, so indexes see the same byte stream as UTF-8/byte storage.
 pub struct FsstColumn<'a> {
     arena: &'a FrozenArena,
     desc: &'a FsstColumnDesc,
@@ -161,41 +183,49 @@ pub struct FsstColumn<'a> {
 
 impl<'a> FsstColumn<'a> {
     #[inline]
+    /// Frozen column descriptor.
     pub fn desc(&self) -> &'a FsstColumnDesc {
         self.desc
     }
 
     #[inline]
+    /// Codec used to decode compressed rows.
     pub fn codec(&self) -> &'a FsstCodec {
         self.codec
     }
 
     #[inline]
+    /// Row-start offsets into the compressed payload.
     pub fn offsets(&self) -> &'a [u64] {
         self.arena.slice(self.desc.offsets)
     }
 
     #[inline]
+    /// Decoded byte length per row.
     pub fn logical_lens(&self) -> &'a [u32] {
         self.arena.slice(self.desc.logical_lens)
     }
 
     #[inline]
+    /// Concatenated compressed row payload.
     pub fn compressed_payload(&self) -> &'a [u8] {
         self.arena.bytes(self.desc.compressed_payload)
     }
 
     #[inline]
+    /// Total decoded bytes across all rows.
     pub fn uncompressed_bytes(&self) -> u64 {
         self.desc.uncompressed_bytes
     }
 
     #[inline]
+    /// Total compressed payload bytes.
     pub fn compressed_bytes(&self) -> usize {
         self.compressed_payload().len()
     }
 
     #[inline]
+    /// Compressed-size to decoded-size ratio, or `None` for an empty column.
     pub fn compression_ratio(&self) -> Option<f64> {
         if self.desc.uncompressed_bytes == 0 {
             None
@@ -205,6 +235,7 @@ impl<'a> FsstColumn<'a> {
     }
 
     #[inline]
+    /// Compressed bytes for one row.
     pub fn row_compressed_bytes(&self, row: RowId) -> &'a [u8] {
         assert!(row < self.desc.row_count, "row out of bounds");
         let offsets = self.offsets();
@@ -214,6 +245,7 @@ impl<'a> FsstColumn<'a> {
         &payload[start..end]
     }
 
+    /// Decode one row into a new byte vector.
     pub fn row_bytes_decoded(&self, row: RowId) -> Vec<u8> {
         let compressed = self.row_compressed_bytes(row);
         let expected_len = self.logical_len(row) as usize;
@@ -232,6 +264,7 @@ impl<'a> FsstColumn<'a> {
         decoded
     }
 
+    /// Decode one row into a caller-provided buffer.
     pub fn copy_row_decoded_to(&self, row: RowId, out: &mut Vec<u8>) {
         out.clear();
         let compressed = self.row_compressed_bytes(row);
@@ -253,6 +286,7 @@ impl<'a> FsstColumn<'a> {
     }
 
     #[inline]
+    /// Decode one row into an owned row view.
     pub fn row_view(&self, row: RowId) -> FsstRow {
         FsstRow {
             bytes: self.row_bytes_decoded(row).into_boxed_slice(),
@@ -272,38 +306,45 @@ impl fmt::Debug for FsstColumn<'_> {
 }
 
 #[derive(Debug, Clone)]
+/// Decoded row entry with its physical row ID.
 pub struct FsstRowEntry {
     pub id: RowId,
     pub text: FsstRow,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Owned decoded FSST row.
 pub struct FsstRow {
     bytes: Box<[u8]>,
 }
 
 impl FsstRow {
     #[inline]
+    /// Decoded row bytes.
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
 
     #[inline]
+    /// Interpret the decoded bytes as UTF-8.
     pub fn as_str(&self) -> Result<&str, std::str::Utf8Error> {
         std::str::from_utf8(&self.bytes)
     }
 
     #[inline]
+    /// Decoded byte length.
     pub fn logical_len(&self) -> u32 {
         self.bytes.len() as u32
     }
 
     #[inline]
+    /// Whether the decoded row is empty.
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
     #[inline]
+    /// Consume the row and return decoded bytes.
     pub fn into_bytes(self) -> Box<[u8]> {
         self.bytes
     }
@@ -343,16 +384,22 @@ impl<'a> Column for FsstColumn<'a> {
 }
 
 #[derive(Debug, Default)]
+/// Builder for one FSST-compressed byte column.
+///
+/// Rows are buffered uncompressed until `finish`, when a single FSST compressor
+/// is trained for the whole column and all rows are compressed into the arena.
 pub struct FsstColumnBuilder {
     rows: Vec<Box<[u8]>>,
     uncompressed_bytes: usize,
 }
 
 impl FsstColumnBuilder {
+    /// Create an empty FSST column builder.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create an FSST column builder with row capacity.
     pub fn with_capacity(rows: usize, _uncompressed_bytes: usize) -> Self {
         Self {
             rows: Vec::with_capacity(rows),
@@ -360,10 +407,12 @@ impl FsstColumnBuilder {
         }
     }
 
+    /// Append a UTF-8 string row.
     pub fn push_str(&mut self, value: &str) {
         self.push_bytes(value.as_bytes())
     }
 
+    /// Append a byte row.
     pub fn push_bytes(&mut self, value: &[u8]) {
         let _ = u32::try_from(value.len()).expect("row exceeds u32 logical length");
         self.uncompressed_bytes = self
@@ -373,18 +422,22 @@ impl FsstColumnBuilder {
         self.rows.push(value.into());
     }
 
+    /// Number of buffered rows.
     pub fn row_count(&self) -> RowId {
         self.rows.len() as RowId
     }
 
+    /// Total buffered uncompressed bytes.
     pub fn uncompressed_bytes(&self) -> usize {
         self.uncompressed_bytes
     }
 
+    /// Whether no rows have been buffered.
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
 
+    /// Compress rows into the arena and return the frozen descriptor and codec.
     pub fn finish(self, arena: &mut ArenaBuilder) -> (FsstColumnDesc, FsstCodec) {
         let row_count = self.row_count();
         let compressor = if self.rows.is_empty() || self.uncompressed_bytes == 0 {
@@ -425,12 +478,14 @@ impl FsstColumnBuilder {
 }
 
 #[derive(Debug)]
+/// Builder for a single-column FSST table.
 pub struct FsstTableBuilder {
     name: String,
     text: FsstColumnBuilder,
 }
 
 impl FsstTableBuilder {
+    /// Create an empty FSST table builder.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -438,6 +493,7 @@ impl FsstTableBuilder {
         }
     }
 
+    /// Create an FSST table builder with row capacity.
     pub fn with_capacity(name: impl Into<String>, rows: usize, uncompressed_bytes: usize) -> Self {
         Self {
             name: name.into(),
@@ -445,26 +501,32 @@ impl FsstTableBuilder {
         }
     }
 
+    /// Table name.
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Append a UTF-8 string row to the table's text column.
     pub fn push_str(&mut self, value: &str) {
         self.text.push_str(value)
     }
 
+    /// Append a byte row to the table's text column.
     pub fn push_bytes(&mut self, value: &[u8]) {
         self.text.push_bytes(value)
     }
 
+    /// Number of buffered rows.
     pub fn row_count(&self) -> RowId {
         self.text.row_count()
     }
 
+    /// Total buffered uncompressed bytes.
     pub fn uncompressed_bytes(&self) -> usize {
         self.text.uncompressed_bytes()
     }
 
+    /// Compress rows into the arena and return the frozen table descriptor.
     pub fn finish(self, arena: &mut ArenaBuilder) -> FsstTableDesc {
         let (text, codec) = self.text.finish(arena);
         FsstTableDesc {

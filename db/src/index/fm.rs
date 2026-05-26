@@ -16,6 +16,7 @@ const DATA_BASE: u16 = 2;
 const NO_ROW: RowId = RowId::MAX;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Errors returned while building an FM-index.
 pub enum FmIndexError {
     RowCountTooLarge,
     TextTooLarge,
@@ -35,6 +36,13 @@ impl std::fmt::Display for FmIndexError {
 impl std::error::Error for FmIndexError {}
 
 #[derive(Debug, Clone)]
+/// Baseline FM-index over a dense logical-symbol column.
+///
+/// The index concatenates every row's logical symbols, inserts private row
+/// separators between rows, and appends a final sentinel. Searches return row
+/// IDs whose rows contain the searched literal; matches cannot cross row
+/// boundaries. The implementation is intended as a correctness-oriented
+/// benchmark index rather than a compressed production index.
 pub struct FmIndex {
     text_len: usize,
     sa: Box<[usize]>,
@@ -60,8 +68,10 @@ where
 }
 
 impl FmIndex {
+    /// Default occurrence checkpoint spacing.
     pub const DEFAULT_CHECKPOINT: usize = 128;
 
+    /// Build an FM-index using [`DEFAULT_CHECKPOINT`](Self::DEFAULT_CHECKPOINT).
     pub fn build<C>(column: &C) -> Result<Self, FmIndexError>
     where
         C: Column<Symbol = u8>,
@@ -69,6 +79,7 @@ impl FmIndex {
         Self::build_with_checkpoint(column, Self::DEFAULT_CHECKPOINT)
     }
 
+    /// Build an FM-index with a custom occurrence checkpoint spacing.
     pub fn build_with_checkpoint<C>(column: &C, checkpoint: usize) -> Result<Self, FmIndexError>
     where
         C: Column<Symbol = u8>,
@@ -142,26 +153,32 @@ impl FmIndex {
         })
     }
 
+    /// Number of source rows indexed.
     pub fn row_count(&self) -> RowId {
         self.row_count
     }
 
+    /// Total indexed symbols, including row separators and final sentinel.
     pub fn text_len(&self) -> usize {
         self.text_len
     }
 
+    /// Suffix array over the internal encoded text.
     pub fn suffix_array(&self) -> &[usize] {
         &self.sa
     }
 
+    /// Number of internal alphabet ranks.
     pub fn alphabet_size(&self) -> usize {
         self.sigma
     }
 
+    /// Occurrence checkpoint spacing.
     pub fn checkpoint(&self) -> usize {
         self.checkpoint
     }
 
+    /// Return the suffix-array interval for an exact literal.
     pub fn backward_search(&self, needle: &[u8]) -> Option<(usize, usize)> {
         if needle.is_empty() {
             return Some((0, self.text_len));
@@ -187,6 +204,7 @@ impl FmIndex {
         Some((top, bottom))
     }
 
+    /// Return sorted, deduplicated rows containing an exact literal.
     pub fn search_rows(&self, needle: &[u8]) -> Vec<RowId> {
         if needle.is_empty() {
             return (0..self.row_count).collect();
@@ -220,10 +238,12 @@ impl FmIndex {
         rows
     }
 
+    /// Build a candidate probe for an exact literal.
     pub fn probe(&self, needle: &[u8], batch_rows: usize) -> FmProbe {
         FmProbe::new(self.search_rows(needle), batch_rows)
     }
 
+    /// Build a candidate probe for a fixed-length wildcard literal.
     pub fn probe_with_wildcard(&self, pattern: &[u8], wildcard: u8, batch_rows: usize) -> FmProbe {
         FmProbe::new(
             self.search_rows_with_wildcard(pattern, wildcard),
@@ -329,6 +349,7 @@ impl FmIndex {
 }
 
 #[derive(Debug, Clone)]
+/// Candidate provider backed by FM-index search results.
 pub struct FmProbe {
     rows: Vec<RowId>,
     cursor: usize,
@@ -336,6 +357,7 @@ pub struct FmProbe {
 }
 
 impl FmProbe {
+    /// Create a probe from sorted, deduplicated row IDs.
     pub fn new(rows: Vec<RowId>, batch_rows: usize) -> Self {
         Self {
             rows,
@@ -344,14 +366,17 @@ impl FmProbe {
         }
     }
 
+    /// Candidate rows returned by the probe.
     pub fn rows(&self) -> &[RowId] {
         &self.rows
     }
 
+    /// Consume the probe and return its candidate rows.
     pub fn into_rows(self) -> Vec<RowId> {
         self.rows
     }
 
+    /// Whether the probe has no candidate rows.
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }

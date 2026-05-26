@@ -169,8 +169,7 @@ struct SegmentPlan {
     token_end: usize,
     /// Fixed logical length of this segment: literals plus lowered `_` skips.
     len: u32,
-    /// First literal in this segment. Used by the direct implementation of the
-    /// proposed adaptive algorithm.
+    /// First literal in this segment. Used by the adaptive restart verifier.
     first_anchor: Option<SegmentAnchor>,
     /// Best static literal anchor in this segment. Today this means the longest
     /// literal fragment, with exact/indexable fragments winning ties.
@@ -184,6 +183,15 @@ enum SegmentVerify {
     FailedUnanchored,
 }
 
+/// Compiled LIKE pattern for one literal-search algorithm.
+///
+/// A `LikePattern` owns normalized tokens, compiled literal state, and the
+/// matching strategy chosen for the pattern shape. It can be reused across many
+/// rows and implements [`RowVerifier`](crate::RowVerifier) for every column type
+/// supported by `A`.
+///
+/// Matching is over the column's logical `u8` symbols. For UTF-8 and FSST
+/// columns this means bytes; for DNA2 columns this means packed-base codes.
 pub struct LikePattern<A: LiteralAlgorithm> {
     tokens: Box<[LikeToken]>,
     literals: Box<[CompiledLiteral<A>]>,
@@ -199,10 +207,16 @@ impl<A> LikePattern<A>
 where
     A: LiteralAlgorithm,
 {
+    /// Compile a LIKE pattern with default options.
+    ///
+    /// `%` matches any sequence of logical symbols. `_` either becomes a
+    /// one-symbol skip or remains inside literal fragments when the selected
+    /// algorithm supports algorithm-level underscores.
     pub fn compile(pattern: &str) -> Result<Self, LikeCompileError> {
         Self::compile_with_options(pattern, LikeCompileOptions::default())
     }
 
+    /// Compile a LIKE pattern with explicit underscore-handling options.
     pub fn compile_with_options(
         pattern: &str,
         options: LikeCompileOptions,
@@ -280,30 +294,37 @@ where
         })
     }
 
+    /// Normalized token stream used by the verifier.
     pub fn tokens(&self) -> &[LikeToken] {
         &self.tokens
     }
 
+    /// Matching strategy selected from the normalized token shape.
     pub fn strategy(&self) -> MatchStrategy {
         self.strategy
     }
 
+    /// Minimum logical row length that can match this pattern.
     pub fn min_len(&self) -> u32 {
         self.min_len
     }
 
+    /// Whether the pattern contains `%`.
     pub fn has_any(&self) -> bool {
         self.has_any
     }
 
+    /// Whether the pattern contains lowered `_` skip tokens.
     pub fn has_skip(&self) -> bool {
         self.has_skip
     }
 
+    /// Number of compiled literal fragments.
     pub fn literal_count(&self) -> usize {
         self.literals.len()
     }
 
+    /// Original source text for one compiled literal fragment.
     pub fn literal_source(&self, literal_idx: usize) -> &str {
         &self.literals[literal_idx].source
     }
@@ -329,6 +350,10 @@ where
         }
     }
 
+    /// Verify one concrete row against this LIKE pattern.
+    ///
+    /// This applies the length constraint before running the selected matching
+    /// strategy, so it is safe to call directly outside `execute_like`.
     pub fn matches_row<'r, C>(&self, row: &C::Row<'r>) -> bool
     where
         C: Column<Symbol = u8>,
@@ -383,12 +408,12 @@ where
         }
     }
 
-    /// Direct implementation of the proposed adaptive restart idea.
+    /// General LIKE verification using adaptive restart anchors.
     ///
     /// For each fixed-width segment, it starts by searching for the first
     /// literal fragment. If verification later fails at another literal, that
     /// failed literal becomes the next search anchor. This is useful for
-    /// benchmarking the proposed heuristic against the static best-anchor plan.
+    /// comparing adaptive anchors against the static best-anchor plan.
     pub fn matches_row_general_pure_proposed<'r, C>(&self, row: &C::Row<'r>) -> bool
     where
         C: Column<Symbol = u8>,
@@ -405,11 +430,10 @@ where
         }
     }
 
-    /// Reference implementation of the old recursive/backtracking verifier.
+    /// Recursive reference verifier.
     ///
-    /// Kept public so tests/benchmarks can compare the new segment-based
-    /// implementations against the original behavior without keeping dead
-    /// private code around.
+    /// Kept public so tests and benchmarks can compare the segment-based
+    /// verifier against a straightforward recursive implementation.
     pub fn matches_row_recursive_reference<'r, C>(&self, row: &C::Row<'r>) -> bool
     where
         C: Column<Symbol = u8>,

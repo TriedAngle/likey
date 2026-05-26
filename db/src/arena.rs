@@ -22,6 +22,13 @@ use std::slice;
 /// Adding custom POD structs is fine, but they must not contain references,
 /// pointers, padding you care about, or platform-dependent layout unless you
 /// accept those constraints.
+///
+/// # Safety
+///
+/// Implementors must be plain data that can be copied to and from raw bytes
+/// without running destructors or invalidating Rust aliasing/lifetime rules.
+/// Types with references, ownership, invalid bit patterns, or layout-sensitive
+/// padding must not implement this trait.
 pub unsafe trait Pod: Copy + 'static {}
 
 unsafe impl Pod for u8 {}

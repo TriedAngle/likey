@@ -5,9 +5,10 @@ use db::{
     LikePattern, QueryScratch, RowId, SortedRowsProbe, Utf8Kmp, Utf8TableBuilder, execute_like,
 };
 
-/// Tiny index example. Real trigram/FM indexes should have better storage, but
-/// the important part is that the probe returns RowIds and execute_like still
-/// verifies every candidate row with the compiled LIKE pattern.
+/// Toy trigram index for demonstrating candidate generation.
+///
+/// `execute_like` still verifies every candidate row with the compiled LIKE
+/// pattern, so false positives from this index remain safe.
 #[derive(Debug, Default)]
 struct TrigramIndex {
     postings: HashMap<[u8; 3], Vec<RowId>>,

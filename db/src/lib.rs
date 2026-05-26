@@ -67,22 +67,22 @@ pub use crate::storage::utf8::{
 /// the same physical row ordering, and indexes should return these IDs.
 pub type RowId = u64;
 
-/// Stable table identifier within one [`Db`](crate::Db).
+/// Stable table identifier within one [`Db`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TableId(pub u32);
 
 /// Stable column identifier within one table.
 ///
-/// The current UTF-8 and DNA2 table types each have one searchable column, but
-/// keeping a column ID in the public vocabulary makes it easier to add proper
-/// multi-column tables later.
+/// The current UTF-8, FSST, and DNA2 table types each have one searchable
+/// column, but keeping a column ID in the public vocabulary makes it easier to
+/// add proper multi-column tables later.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ColumnId(pub u32);
 
-/// Logical-length constraint computed by a future LIKE compiler.
+/// Logical-length constraint used by query verifiers.
 ///
-/// For `Utf8Column` with byte LIKE semantics this is bytes. For `Dna2Column`,
-/// this is bases.
+/// For `Utf8Column` and `FsstColumn` with byte LIKE semantics this is decoded
+/// bytes. For `Dna2Column`, this is bases.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LenConstraint {
     pub min: u32,

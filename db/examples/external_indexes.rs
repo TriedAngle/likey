@@ -1,7 +1,8 @@
-//! Example showing how external indexes and verifiers plug into the storage API.
+//! External index example using the candidate-provider/verifier/sink API.
 //!
-//! This is deliberately not a real LIKE implementation. The important seam is:
-//! index probe -> candidate rows -> verifier -> sink.
+//! The toy trigram index here supplies candidate rows. `AcceptAll` stands in for
+//! a real compiled verifier so the example can focus on the query execution
+//! seam.
 
 use std::collections::HashMap;
 

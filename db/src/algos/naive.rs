@@ -9,45 +9,65 @@ use super::utf8_shared::{
 };
 
 #[derive(Debug, Clone, Copy, Default)]
+/// Default byte-wise naive literal search marker.
 pub struct Naive;
 #[derive(Debug, Clone, Copy, Default)]
+/// Scalar byte-wise naive literal search marker.
 pub struct NaiveScalar;
 #[derive(Debug, Clone, Copy, Default)]
+/// Platform vectorized byte-wise naive literal search marker.
 pub struct NaiveVectorized;
 #[derive(Debug, Clone, Copy, Default)]
+/// Platform vectorized byte-wise search using first/last-byte prefilters.
 pub struct NaiveVectorizedV2;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX2 byte-wise search marker with runtime fallback when AVX2 is unavailable.
 pub struct NaiveAvx2;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX2 byte-wise search marker using first/last-byte prefilters.
 pub struct NaiveAvx2V2;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX-512 byte-wise search marker with runtime fallback when unavailable.
 pub struct NaiveAvx512;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX-512 byte-wise search marker using first/last-byte prefilters.
 pub struct NaiveAvx512V2;
 #[derive(Debug, Clone, Copy, Default)]
+/// Runtime-selected byte-wise search marker.
 pub struct NaiveAuto;
 #[derive(Debug, Clone, Copy, Default)]
+/// Hybrid search marker that uses scalar code for small cases and auto selection otherwise.
 pub struct NaiveMixed;
 
 #[derive(Debug, Clone, Copy, Default)]
+/// Default byte-wise search marker that treats `_` inside literals as a wildcard byte.
 pub struct NaiveWildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Scalar wildcard-aware byte-wise search marker.
 pub struct NaiveScalarWildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Platform vectorized wildcard-aware byte-wise search marker.
 pub struct NaiveVectorizedWildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Vectorized wildcard-aware search marker using first/last fixed-byte anchors.
 pub struct NaiveVectorizedV2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX2 wildcard-aware search marker with runtime fallback when AVX2 is unavailable.
 pub struct NaiveAvx2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX2 wildcard-aware search marker using first/last fixed-byte anchors.
 pub struct NaiveAvx2V2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX-512 wildcard-aware search marker with runtime fallback when unavailable.
 pub struct NaiveAvx512Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// AVX-512 wildcard-aware search marker using first/last fixed-byte anchors.
 pub struct NaiveAvx512V2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Runtime-selected wildcard-aware byte-wise search marker.
 pub struct NaiveAutoWildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Hybrid wildcard-aware marker that uses scalar code for small cases and auto selection otherwise.
 pub struct NaiveMixedWildcard;
 
 macro_rules! impl_naive_literal_algorithm {

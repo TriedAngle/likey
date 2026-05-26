@@ -1,10 +1,14 @@
 use crate::like::{LiteralAlgorithm, RowLiteralSearch};
 use crate::storage::dna2::{Dna2Column, Dna2Row, DnaBase};
 
+/// Algorithm-level wildcard symbol used by DNA2 literal needles.
 pub const DNA_WILDCARD: u8 = 0xFF;
 const LOW_2BIT_LANES: u64 = 0x5555_5555_5555_5555;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Compiled DNA2 literal for the reference matcher.
+///
+/// Symbols are DNA base codes `0..=3` plus [`DNA_WILDCARD`] for `_`.
 pub struct Dna2Needle {
     symbols: Box<[u8]>,
     has_wildcard: bool,
@@ -104,6 +108,10 @@ pub struct Dna2PackedChunk {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Compiled DNA2 literal for packed matchers.
+///
+/// The original symbol stream is retained for indexing and diagnostics; packed
+/// chunks are used for row verification.
 pub struct Dna2PackedNeedle {
     symbols: Box<[u8]>,
     chunks: Box<[Dna2PackedChunk]>,
@@ -128,6 +136,7 @@ impl Dna2PackedNeedle {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Fixed-base anchors used to reject packed DNA2 candidate starts quickly.
 pub struct Dna2PackedState {
     anchors: [(u32, u8); 8],
     anchor_count: u8,

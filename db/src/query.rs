@@ -1,8 +1,9 @@
 //! Query execution shell.
 //!
-//! `execute_like` deliberately does not know what a LIKE pattern is. A future
-//! compiler should produce a verifier and optionally an index probe. The probe
-//! is only a candidate provider; the verifier remains the correctness gate.
+//! `execute_like` deliberately does not know LIKE syntax. Compiled patterns
+//! such as [`LikePattern`](crate::LikePattern) implement [`RowVerifier`], while
+//! scans and indexes provide candidate rows. The verifier remains the
+//! correctness gate for every candidate.
 
 use crate::storage::Column;
 use crate::{LenConstraint, RowId};
@@ -165,7 +166,7 @@ impl<'p> CandidateProvider for SortedRowsProbe<'p> {
     }
 }
 
-/// Future compiled LIKE objects should implement this trait.
+/// Verifier for one candidate row.
 ///
 /// Keep concrete verifier types monomorphized in hot paths. Avoid boxing this
 /// trait unless benchmark overhead is irrelevant.

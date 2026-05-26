@@ -4,6 +4,8 @@
 //! storage-specific [`TrigramDomain`] through [`HasTrigramIndex`]:
 //!
 //! - UTF-8 byte columns use 24-bit byte trigrams stored in a `HashMap`.
+//! - FSST columns decode rows during index construction and use the same byte
+//!   trigram domain as UTF-8 columns.
 //! - DNA2 columns use 6-bit DNA trigrams stored in a fixed `[Vec<RowId>; 64]`.
 //!
 //! The outer query API is the same for both: probe a literal, get a

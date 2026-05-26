@@ -8,20 +8,20 @@ use clap::{Parser, ValueEnum};
 #[command(author, version, about)]
 pub struct Args {
     /// CSV file describing data inputs. Columns:
-    /// name,path,type,storage,column[,key_column,value_column,enabled].
+    /// name,path,type,storage,column\[,key_column,value_column,enabled\].
     /// type supports dna-fasta, protein-fasta, and job-csv.
     #[arg(long)]
     pub data_csv: PathBuf,
 
-    /// CSV file listing algorithms to run. Columns: algorithm[,enabled].
+    /// CSV file listing algorithms to run. Columns: algorithm\[,enabled\].
     #[arg(long)]
     pub algorithms_csv: PathBuf,
 
-    /// CSV file listing LIKE patterns. Columns: name,pattern[,enabled].
+    /// CSV file listing LIKE patterns. Columns: name,pattern\[,enabled\].
     #[arg(long)]
     pub patterns_csv: PathBuf,
 
-    /// Optional CSV file listing candidate sources/indexes. Columns: index[,enabled].
+    /// Optional CSV file listing candidate sources/indexes. Columns: index\[,enabled\].
     /// If omitted, only full-scan is run.
     #[arg(long)]
     pub indexes_csv: Option<PathBuf>,
