@@ -1,0 +1,11 @@
+algorithm,enabled
+std,true
+kmp,true
+naive-mixed,true
+bm,true
+two-way,true
+two-way2,true
+libc-memmem,true
+fft0,true
+fft1,true
+dna2-naive,true

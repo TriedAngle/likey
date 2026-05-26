@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{bail, Context, Result};
-use serde::Serialize;
+use anyhow::{Context, Result, bail};
 use db::{
-    execute_like, BM, CountSink, Column, Dna2Column, Dna2NaiveWildcard, FmIndex, FullScan,
-    LibcMemmem, LikePattern, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier,
-    StdSearch, /* TrigramBitmapIndex, */ TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch,
+    BM, Column, CountSink, Dna2Column, Dna2NaiveWildcard, FftStr0, FftStr1, FmIndex, FullScan,
+    HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch,
+    TrigramIndex, TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch, execute_like,
 };
+use serde::Serialize;
 
 use crate::cli::{AlgorithmKind, IndexKind, StorageKind};
 use crate::loaders::LoadStats;
@@ -125,15 +125,29 @@ pub struct BuiltIndex<T> {
     pub build_ns: u128,
 }
 
-#[derive(Debug, Default)]
-pub struct BuiltIndexes {
+pub struct BuiltIndexes<C>
+where
+    C: HasTrigramIndex,
+{
     pub fm: Option<BuiltIndex<FmIndex>>,
-    // pub trigram: Option<BuiltIndex<TrigramBitmapIndex>>,
+    pub trigram: Option<BuiltIndex<TrigramIndex<C>>>,
 }
 
-pub fn build_indexes<C>(column: &C, requested: &[IndexKind]) -> Result<BuiltIndexes>
+impl<C> Default for BuiltIndexes<C>
 where
-    C: Column<Symbol = u8>,
+    C: HasTrigramIndex,
+{
+    fn default() -> Self {
+        Self {
+            fm: None,
+            trigram: None,
+        }
+    }
+}
+
+pub fn build_indexes<C>(column: &C, requested: &[IndexKind]) -> Result<BuiltIndexes<C>>
+where
+    C: HasTrigramIndex,
 {
     let mut out = BuiltIndexes::default();
 
@@ -146,14 +160,14 @@ where
         });
     }
 
-    // if requested.iter().any(|kind| *kind == IndexKind::Trigram) {
-    //     let start = Instant::now();
-    //     let index = TrigramBitmapIndex::build(column);
-    //     out.trigram = Some(BuiltIndex {
-    //         index,
-    //         build_ns: start.elapsed().as_nanos(),
-    //     });
-    // }
+    if requested.iter().any(|kind| *kind == IndexKind::Trigram) {
+        let start = Instant::now();
+        let index = column.build_trigram_index();
+        out.trigram = Some(BuiltIndex {
+            index,
+            build_ns: start.elapsed().as_nanos(),
+        });
+    }
 
     Ok(out)
 }
@@ -161,23 +175,129 @@ where
 pub fn run_utf8_algorithm<'db>(
     column: &Utf8Column<'db>,
     algorithm: AlgorithmKind,
-    indexes: &BuiltIndexes,
+    indexes: &BuiltIndexes<Utf8Column<'db>>,
     config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
     profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Std => run_algorithm::<Utf8Column<'db>, StdSearch, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::Naive => run_algorithm::<Utf8Column<'db>, Naive, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::NaiveScalar => run_algorithm::<Utf8Column<'db>, NaiveScalar, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::NaiveVectorized => run_algorithm::<Utf8Column<'db>, NaiveVectorized, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::NaiveVectorizedV2 => run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::NaiveMixed => run_algorithm::<Utf8Column<'db>, NaiveMixed, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::TwoWay => run_algorithm::<Utf8Column<'db>, TwoWay, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::TwoWay2 => run_algorithm::<Utf8Column<'db>, TwoWay2, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
-        AlgorithmKind::LibcMemmem => run_algorithm::<Utf8Column<'db>, LibcMemmem, _>(column, algorithm, indexes, config, out, profile_out, sample_utf8_row),
+        AlgorithmKind::Std => run_algorithm::<Utf8Column<'db>, StdSearch, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::Naive => run_algorithm::<Utf8Column<'db>, Naive, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveScalar => run_algorithm::<Utf8Column<'db>, NaiveScalar, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveVectorized => run_algorithm::<Utf8Column<'db>, NaiveVectorized, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveVectorizedV2 => run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::NaiveMixed => run_algorithm::<Utf8Column<'db>, NaiveMixed, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::TwoWay => run_algorithm::<Utf8Column<'db>, TwoWay, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::TwoWay2 => run_algorithm::<Utf8Column<'db>, TwoWay2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::LibcMemmem => run_algorithm::<Utf8Column<'db>, LibcMemmem, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::Fft0 => run_algorithm::<Utf8Column<'db>, FftStr0, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::Fft1 => run_algorithm::<Utf8Column<'db>, FftStr1, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
         AlgorithmKind::Dna2Naive => bail!("algorithm dna2-naive cannot run on UTF-8 storage"),
     }
 }
@@ -185,13 +305,21 @@ pub fn run_utf8_algorithm<'db>(
 pub fn run_dna2_algorithm<'db>(
     column: &Dna2Column<'db>,
     algorithm: AlgorithmKind,
-    indexes: &BuiltIndexes,
+    indexes: &BuiltIndexes<Dna2Column<'db>>,
     config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
     profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Dna2Naive => run_algorithm::<Dna2Column<'db>, Dna2NaiveWildcard, _>(column, algorithm, indexes, config, out, profile_out, sample_dna2_row),
+        AlgorithmKind::Dna2Naive => run_algorithm::<Dna2Column<'db>, Dna2NaiveWildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
         other => bail!("algorithm {} cannot run on DNA2 storage", other.as_str()),
     }
 }
@@ -199,14 +327,14 @@ pub fn run_dna2_algorithm<'db>(
 fn run_algorithm<C, A, F>(
     column: &C,
     algorithm: AlgorithmKind,
-    indexes: &BuiltIndexes,
+    indexes: &BuiltIndexes<C>,
     config: &BenchConfig<'_>,
     out: &mut Vec<BenchRow>,
     mut profile_out: Option<&mut Vec<RowProfileRow>>,
     sample_row: F,
 ) -> Result<()>
 where
-    C: Column<Symbol = u8>,
+    C: HasTrigramIndex,
     A: RowLiteralSearch<C>,
     F: Fn(&C, RowId, usize) -> String + Copy,
 {
@@ -218,7 +346,15 @@ where
 
         if config.row_profile_enabled {
             if let Some(rows) = profile_out.as_mut() {
-                profile_algorithm_rows::<C, A, F>(column, algorithm, &pattern, pattern_spec, config, &mut **rows, sample_row);
+                profile_algorithm_rows::<C, A, F>(
+                    column,
+                    algorithm,
+                    &pattern,
+                    pattern_spec,
+                    config,
+                    &mut **rows,
+                    sample_row,
+                );
             }
         }
 
@@ -229,7 +365,14 @@ where
             for _ in 0..config.warmups {
                 scratch.candidates.clear();
                 scratch.verify.clear();
-                let exec = execute_once(column, &pattern, requested_index, indexes, config.batch_rows, &mut scratch);
+                let exec = execute_once(
+                    column,
+                    &pattern,
+                    requested_index,
+                    indexes,
+                    config.batch_rows,
+                    &mut scratch,
+                );
                 std::hint::black_box(exec.stats.rows_matched);
                 std::hint::black_box(exec.count);
             }
@@ -238,7 +381,14 @@ where
                 scratch.candidates.clear();
                 scratch.verify.clear();
 
-                let exec = execute_once(column, &pattern, requested_index, indexes, config.batch_rows, &mut scratch);
+                let exec = execute_once(
+                    column,
+                    &pattern,
+                    requested_index,
+                    indexes,
+                    config.batch_rows,
+                    &mut scratch,
+                );
 
                 std::hint::black_box(exec.stats.rows_matched);
                 std::hint::black_box(exec.count);
@@ -272,9 +422,15 @@ where
                     candidate_rows_seen: exec.stats.candidate_rows_seen,
                     rows_after_len_filter: exec.stats.rows_after_len_filter,
                     rows_matched: exec.stats.rows_matched,
-                    ns_per_table_row: ns_per(exec.candidate_prepare_ns + exec.execute_ns, column.row_count()),
+                    ns_per_table_row: ns_per(
+                        exec.candidate_prepare_ns + exec.execute_ns,
+                        column.row_count(),
+                    ),
                     ns_per_candidate_row: ns_per(exec.execute_ns, exec.stats.candidate_rows_seen),
-                    ns_per_loaded_symbol: ns_per(exec.candidate_prepare_ns + exec.execute_ns, config.load_stats.total_loaded_symbols),
+                    ns_per_loaded_symbol: ns_per(
+                        exec.candidate_prepare_ns + exec.execute_ns,
+                        config.load_stats.total_loaded_symbols,
+                    ),
                     fallback_reason: exec.fallback_reason.to_owned(),
                 });
             }
@@ -356,16 +512,18 @@ fn execute_once<C, A>(
     column: &C,
     pattern: &LikePattern<A>,
     requested_index: IndexKind,
-    indexes: &BuiltIndexes,
+    indexes: &BuiltIndexes<C>,
     batch_rows: usize,
     scratch: &mut QueryScratch,
 ) -> ExecuteOnceResult
 where
-    C: Column<Symbol = u8>,
+    C: HasTrigramIndex,
     A: RowLiteralSearch<C>,
 {
     match requested_index {
-        IndexKind::FullScan => execute_full_scan(column, pattern, batch_rows, scratch, "", "full-scan"),
+        IndexKind::FullScan => {
+            execute_full_scan(column, pattern, batch_rows, scratch, "", "full-scan")
+        }
         IndexKind::Fm => {
             if let Some(fm) = indexes.fm.as_ref() {
                 let prepare_start = Instant::now();
@@ -397,54 +555,79 @@ where
                     res
                 }
             } else {
-                execute_full_scan(column, pattern, batch_rows, scratch, "fm-not-built", "full-scan")
+                execute_full_scan(
+                    column,
+                    pattern,
+                    batch_rows,
+                    scratch,
+                    "fm-not-built",
+                    "full-scan",
+                )
             }
         }
         IndexKind::Trigram => {
-            unimplemented!()
-            // if let Some(trigram) = indexes.trigram.as_ref() {
-            //     if let Some(literal) = pattern.longest_indexable_literal() {
-            //         if literal.len() >= 3 {
-            //             let gram = [literal[0], literal[1], literal[2]];
-            //             let block_words = ((batch_rows.max(64) + 63) / 64).max(1);
-            //             let prepare_start = Instant::now();
-            //             let mut probe = trigram.index.probe(gram, block_words);
-            //             let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
-            //             let mut sink = CountSink::default();
-            //             let execute_start = Instant::now();
-            //             let stats = execute_like(column, &mut probe, pattern, scratch, &mut sink);
-            //             let execute_ns = execute_start.elapsed().as_nanos();
-            //             ExecuteOnceResult {
-            //                 stats,
-            //                 count: sink.count,
-            //                 actual_index: "trigram",
-            //                 fallback_reason: "",
-            //                 candidate_prepare_ns,
-            //                 execute_ns,
-            //             }
-            //         } else {
-            //             execute_full_scan(
-            //                 column,
-            //                 pattern,
-            //                 batch_rows,
-            //                 scratch,
-            //                 "literal-shorter-than-trigram",
-            //                 "full-scan",
-            //             )
-            //         }
-            //     } else {
-            //         execute_full_scan(
-            //             column,
-            //             pattern,
-            //             batch_rows,
-            //             scratch,
-            //             "no-indexable-literal",
-            //             "full-scan",
-            //         )
-            //     }
-            // } else {
-            //     execute_full_scan(column, pattern, batch_rows, scratch, "trigram-not-built", "full-scan")
-            // }
+            if let Some(trigram) = indexes.trigram.as_ref() {
+                if let Some(literal) = pattern.longest_indexable_literal() {
+                    if literal.len() >= 3 {
+                        let prepare_start = Instant::now();
+                        let probe = trigram.index.probe_literal(literal, batch_rows);
+                        let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
+                        if let Some(mut probe) = probe {
+                            let mut sink = CountSink::default();
+                            let execute_start = Instant::now();
+                            let stats =
+                                execute_like(column, &mut probe, pattern, scratch, &mut sink);
+                            let execute_ns = execute_start.elapsed().as_nanos();
+                            ExecuteOnceResult {
+                                stats,
+                                count: sink.count,
+                                actual_index: "trigram",
+                                fallback_reason: "",
+                                candidate_prepare_ns,
+                                execute_ns,
+                            }
+                        } else {
+                            let mut res = execute_full_scan(
+                                column,
+                                pattern,
+                                batch_rows,
+                                scratch,
+                                "literal-not-valid-for-trigram",
+                                "full-scan",
+                            );
+                            res.candidate_prepare_ns += candidate_prepare_ns;
+                            res
+                        }
+                    } else {
+                        execute_full_scan(
+                            column,
+                            pattern,
+                            batch_rows,
+                            scratch,
+                            "literal-shorter-than-trigram",
+                            "full-scan",
+                        )
+                    }
+                } else {
+                    execute_full_scan(
+                        column,
+                        pattern,
+                        batch_rows,
+                        scratch,
+                        "no-indexable-literal",
+                        "full-scan",
+                    )
+                }
+            } else {
+                execute_full_scan(
+                    column,
+                    pattern,
+                    batch_rows,
+                    scratch,
+                    "trigram-not-built",
+                    "full-scan",
+                )
+            }
         }
     }
 }
@@ -478,12 +661,14 @@ where
     }
 }
 
-fn index_build_ns(indexes: &BuiltIndexes, requested: IndexKind) -> u128 {
+fn index_build_ns<C>(indexes: &BuiltIndexes<C>, requested: IndexKind) -> u128
+where
+    C: HasTrigramIndex,
+{
     match requested {
         IndexKind::FullScan => 0,
         IndexKind::Fm => indexes.fm.as_ref().map_or(0, |idx| idx.build_ns),
-        // IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.build_ns),
-        IndexKind::Trigram => unimplemented!(),
+        IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.build_ns),
     }
 }
 
@@ -587,7 +772,10 @@ fn summarize_group(key: SummaryKey, rows: Vec<&BenchRow>) -> SummaryRow {
     debug_assert!(!rows.is_empty());
     let mut total = rows.iter().map(|r| r.query_total_ns).collect::<Vec<_>>();
     let mut exec = rows.iter().map(|r| r.execute_ns).collect::<Vec<_>>();
-    let mut prep = rows.iter().map(|r| r.candidate_prepare_ns).collect::<Vec<_>>();
+    let mut prep = rows
+        .iter()
+        .map(|r| r.candidate_prepare_ns)
+        .collect::<Vec<_>>();
     total.sort_unstable();
     exec.sort_unstable();
     prep.sort_unstable();
@@ -595,7 +783,9 @@ fn summarize_group(key: SummaryKey, rows: Vec<&BenchRow>) -> SummaryRow {
     let runs = total.len();
     let sum = total.iter().copied().sum::<u128>();
     let mean = sum as f64 / runs as f64;
-    let p90_idx = ((runs as f64 * 0.90).ceil() as usize).saturating_sub(1).min(runs - 1);
+    let p90_idx = ((runs as f64 * 0.90).ceil() as usize)
+        .saturating_sub(1)
+        .min(runs - 1);
     let first = rows[0];
     let median_total = median_u128(&total);
 
@@ -645,10 +835,6 @@ fn geomean_u128(values: &[u128]) -> f64 {
     if values.iter().any(|&v| v == 0) {
         return 0.0;
     }
-    let mean_log = values
-        .iter()
-        .map(|&v| (v as f64).ln())
-        .sum::<f64>()
-        / values.len() as f64;
+    let mean_log = values.iter().map(|&v| (v as f64).ln()).sum::<f64>() / values.len() as f64;
     mean_log.exp()
 }

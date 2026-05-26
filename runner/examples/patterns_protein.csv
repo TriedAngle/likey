@@ -1,0 +1,5 @@
+name,pattern,enabled
+contains_kinase,%KINASE%,true
+prefix_m,M%,true
+contains_gg,%GG%,true
+wildcard_a_g,A_G%,true

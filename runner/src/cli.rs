@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
 
 #[derive(Debug, Parser)]
@@ -127,7 +127,9 @@ impl FromStr for DataType {
             "dna-fasta" | "dna" | "fasta" | "fa" | "fna" => Ok(Self::DnaFasta),
             "protein-fasta" | "protein" | "aa-fasta" | "faa" | "pep" => Ok(Self::ProteinFasta),
             "job-csv" | "job" | "csv" | "key-value" | "keyvalue" | "kv-csv" => Ok(Self::JobCsv),
-            other => bail!("unknown data type {other:?}; supported: dna-fasta, protein-fasta, job-csv"),
+            other => {
+                bail!("unknown data type {other:?}; supported: dna-fasta, protein-fasta, job-csv")
+            }
         }
     }
 }
@@ -183,7 +185,7 @@ impl FromStr for IndexKind {
         match normalize_name(s).as_str() {
             "none" | "scan" | "fullscan" | "full-scan" | "full_scan" => Ok(Self::FullScan),
             "fm" | "fmindex" | "fm-index" | "fm_index" => Ok(Self::Fm),
-            "trigram" | "tri" | "trigram-bitmap" | "trigram_bitmap" => Ok(Self::Trigram),
+            "trigram" | "tri" => Ok(Self::Trigram),
             other => bail!("unknown index {other:?}; supported: none/full-scan, fm, trigram"),
         }
     }
@@ -202,6 +204,8 @@ pub enum AlgorithmKind {
     TwoWay,
     TwoWay2,
     LibcMemmem,
+    Fft0,
+    Fft1,
     Dna2Naive,
 }
 
@@ -219,6 +223,8 @@ impl AlgorithmKind {
             AlgorithmKind::TwoWay => "two-way",
             AlgorithmKind::TwoWay2 => "two-way2",
             AlgorithmKind::LibcMemmem => "libc-memmem",
+            AlgorithmKind::Fft0 => "fft0",
+            AlgorithmKind::Fft1 => "fft1",
             AlgorithmKind::Dna2Naive => "dna2-naive",
         }
     }
@@ -241,12 +247,16 @@ impl FromStr for AlgorithmKind {
             "naive" => Ok(Self::Naive),
             "naive-scalar" | "naive_scalar" => Ok(Self::NaiveScalar),
             "naive-vectorized" | "naive_vectorized" => Ok(Self::NaiveVectorized),
-            "naive-vectorized-v2" | "naive_vectorized_v2" | "naive-v2" | "naive_v2" => Ok(Self::NaiveVectorizedV2),
+            "naive-vectorized-v2" | "naive_vectorized_v2" | "naive-v2" | "naive_v2" => {
+                Ok(Self::NaiveVectorizedV2)
+            }
             "naive-mixed" | "naive_mixed" => Ok(Self::NaiveMixed),
             "bm" | "boyer-moore" | "boyer_moore" => Ok(Self::Bm),
             "two-way" | "two_way" | "twoway" => Ok(Self::TwoWay),
             "two-way2" | "two_way2" | "twoway2" => Ok(Self::TwoWay2),
             "libc-memmem" | "libc_memmem" | "memmem" => Ok(Self::LibcMemmem),
+            "fft0" | "fft-str0" | "fft_str0" | "fftstr0" => Ok(Self::Fft0),
+            "fft1" | "fft-str1" | "fft_str1" | "fftstr1" | "fft" => Ok(Self::Fft1),
             "dna2-naive" | "dna2_naive" | "dna" | "dna2" => Ok(Self::Dna2Naive),
             other => bail!("unknown algorithm {other:?}"),
         }

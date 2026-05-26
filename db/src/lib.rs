@@ -13,21 +13,24 @@ mod query;
 mod storage;
 
 pub use crate::algos::{
-    bm_find, bytes_eq_same_len, eq_at_bytes, matches_at_bytes, memmem_find, naive_find,
-    naive_find_mixed, naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2,
-    two_way2_find, two_way_find, BMState, ByteNeedle, Dna2NaiveWildcard, Dna2Needle,
-    Utf8Kmp, LibcMemmem, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
-    NaiveVectorizedV2, StdSearch, TwoWay, TwoWay2, TwoWay2State, TwoWayState,
-    BM,
+    BM, BMState, ByteNeedle, Dna2NaiveWildcard, Dna2Needle, FftNeedle, FftState0, FftState1,
+    FftStr0, FftStr1, LibcMemmem, Naive, NaiveMixed, NaiveScalar, NaiveVectorized,
+    NaiveVectorizedV2, StdSearch, TwoWay, TwoWay2, TwoWay2State, TwoWayState, Utf8Kmp, bm_find,
+    bytes_eq_same_len, eq_at_bytes, matches_at_bytes, memmem_find, naive_find, naive_find_mixed,
+    naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2, two_way_find,
+    two_way2_find,
 };
 pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
-    BuildIndex, FmIndex, FmIndexError, FmProbe, IndexProbe, intersect_sorted_rowids,
+    BuildIndex, Dna2TrigramDomain, Dna2TrigramIndex, Fixed64PostingStore, FmIndex, FmIndexError,
+    FmProbe, HasTrigramIndex, HashMapPostingStore, IndexProbe, TrigramDomain, TrigramIndex,
+    TrigramPostingStore, TrigramProbe, TypedTrigramIndex, Utf8ByteTrigramDomain, Utf8TrigramIndex,
+    dna2_trigram_key, intersect_sorted_rowids, trigram_key, trigram_keys,
 };
 pub use crate::like::{
-    LikeCompileError, LikeCompileOptions, LikePattern, LikeToken,
-    LiteralAlgorithm, MatchStrategy, RowLiteralSearch,
+    LikeCompileError, LikeCompileOptions, LikePattern, LikeToken, LiteralAlgorithm, MatchStrategy,
+    RowLiteralSearch,
 };
 pub use crate::query::{
     AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CandidateScratch, CountSink,

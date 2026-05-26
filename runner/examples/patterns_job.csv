@@ -1,0 +1,5 @@
+name,pattern,enabled
+contains_love,%love%,true
+contains_movie,%movie%,true
+prefix_the,The%,true
+suffix_drama,%drama,true

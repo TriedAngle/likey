@@ -8,16 +8,19 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 
 use crate::cli::{Args, DataType, StorageKind};
-use crate::loaders::{load_fasta_column, load_job_csv_dataset, resolve_relative, LoadOptions, LoadedColumn, LoadedDataset};
-use crate::runner::{
-    build_indexes, run_dna2_algorithm, run_utf8_algorithm, write_row_profiles, write_rows,
-    write_summary, BenchConfig, BenchRow, RowProfileRow,
+use crate::loaders::{
+    LoadOptions, LoadedColumn, LoadedDataset, load_fasta_column, load_job_csv_dataset,
+    resolve_relative,
 };
-use crate::specs::{load_algorithms, load_data_specs, load_indexes, load_patterns, DataSpec};
+use crate::runner::{
+    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_utf8_algorithm,
+    write_row_profiles, write_rows, write_summary,
+};
+use crate::specs::{DataSpec, load_algorithms, load_data_specs, load_indexes, load_patterns};
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -101,7 +104,9 @@ fn main() -> Result<()> {
     )?;
 
     if bench_rows.is_empty() {
-        bail!("no benchmark rows were produced; check storage/algorithm compatibility and CSV enabled flags");
+        bail!(
+            "no benchmark rows were produced; check storage/algorithm compatibility and CSV enabled flags"
+        );
     }
 
     write_rows(&args.output_csv, &bench_rows)
@@ -117,9 +122,17 @@ fn main() -> Result<()> {
             .with_context(|| format!("write row profile CSV {}", profile_path.display()))?;
     }
 
-    eprintln!("wrote {} measured runs to {}", bench_rows.len(), args.output_csv.display());
+    eprintln!(
+        "wrote {} measured runs to {}",
+        bench_rows.len(),
+        args.output_csv.display()
+    );
     if let Some(path) = args.row_profile_csv.as_deref() {
-        eprintln!("wrote {} row profile rows to {}", profile_rows.len(), path.display());
+        eprintln!(
+            "wrote {} row profile rows to {}",
+            profile_rows.len(),
+            path.display()
+        );
     }
     Ok(())
 }
@@ -136,11 +149,15 @@ fn run_fasta_specs(
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
 ) -> Result<()> {
-    for spec in data_specs.iter().filter(|s| matches!(s.data_type, DataType::DnaFasta | DataType::ProteinFasta)) {
+    for spec in data_specs
+        .iter()
+        .filter(|s| matches!(s.data_type, DataType::DnaFasta | DataType::ProteinFasta))
+    {
         let data_path = resolve_relative(data_base, &spec.path);
         for &storage in &spec.storages {
             let load_start = Instant::now();
-            let loaded = load_fasta_column(&data_path, &spec.name, &spec.column, storage, load_options)?;
+            let loaded =
+                load_fasta_column(&data_path, &spec.name, &spec.column, storage, load_options)?;
             let load_ns = load_start.elapsed().as_nanos();
             run_loaded_dataset(
                 args,
@@ -172,8 +189,14 @@ fn run_job_specs(
     profile_rows: &mut Vec<RowProfileRow>,
 ) -> Result<()> {
     let mut groups = BTreeMap::<String, Vec<DataSpec>>::new();
-    for spec in data_specs.iter().filter(|s| s.data_type == DataType::JobCsv) {
-        groups.entry(spec.name.clone()).or_default().push(spec.clone());
+    for spec in data_specs
+        .iter()
+        .filter(|s| s.data_type == DataType::JobCsv)
+    {
+        groups
+            .entry(spec.name.clone())
+            .or_default()
+            .push(spec.clone());
     }
 
     for (dataset, specs) in groups {

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use db::{Db, DbBuilder, Dna2TableBuilder, DnaBase, TableId, Utf8TableBuilder};
 
 use crate::cli::{InvalidDnaPolicy, RowOverflowPolicy, StorageKind};
@@ -131,7 +131,10 @@ pub fn load_fasta_column(
             current.clear_for_header(header.trim().to_owned());
         } else {
             if current.header.is_none() {
-                bail!("sequence data appears before first FASTA header at line {}", line_no + 1);
+                bail!(
+                    "sequence data appears before first FASTA header at line {}",
+                    line_no + 1
+                );
             }
             current.push_sequence_line(trimmed.as_bytes(), options)?;
         }
@@ -270,8 +273,13 @@ pub fn load_job_csv_dataset(
 
     for spec in specs {
         let path = resolve_relative(base, &spec.path);
-        let data = read_job_column(&path, spec, options)
-            .with_context(|| format!("load JOB CSV column {} from {}", spec.column, path.display()))?;
+        let data = read_job_column(&path, spec, options).with_context(|| {
+            format!(
+                "load JOB CSV column {} from {}",
+                spec.column,
+                path.display()
+            )
+        })?;
         if let Some(keys) = reference_keys.as_ref() {
             ensure_same_keys(dataset, &spec.column, keys, &data.keys)?;
         } else {
@@ -321,8 +329,18 @@ fn read_job_column(path: &Path, spec: &DataSpec, options: &LoadOptions) -> Resul
         .from_path(path)
         .with_context(|| format!("open CSV {}", path.display()))?;
     let headers = reader.headers()?.clone();
-    let key_idx = select_column_index(&headers, spec.key_column.as_deref(), &["key", "id", "row_id"], 0)?;
-    let value_idx = select_column_index(&headers, spec.value_column.as_deref(), &["value", "text", "data"], 1)?;
+    let key_idx = select_column_index(
+        &headers,
+        spec.key_column.as_deref(),
+        &["key", "id", "row_id"],
+        0,
+    )?;
+    let value_idx = select_column_index(
+        &headers,
+        spec.value_column.as_deref(),
+        &["value", "text", "data"],
+        1,
+    )?;
 
     let mut keys = Vec::new();
     let mut builder = Utf8TableBuilder::new(format!("{}.{}.utf8", spec.name, spec.column));
@@ -411,7 +429,12 @@ fn select_column_index(
     }
 }
 
-fn ensure_same_keys(dataset: &str, column: &str, expected: &[String], actual: &[String]) -> Result<()> {
+fn ensure_same_keys(
+    dataset: &str,
+    column: &str,
+    expected: &[String],
+    actual: &[String],
+) -> Result<()> {
     if expected.len() != actual.len() {
         bail!(
             "JOB dataset {dataset:?} column {column:?} has {} rows, expected {}; key-aligned columns must have equal row counts",
@@ -450,7 +473,9 @@ fn normalize_dna2_record(
             Err(_) => {
                 stats.records_invalid_dna += 1;
                 match policy {
-                    InvalidDnaPolicy::Error => return Err(anyhow!("invalid DNA byte {:?}", b as char)),
+                    InvalidDnaPolicy::Error => {
+                        return Err(anyhow!("invalid DNA byte {:?}", b as char));
+                    }
                     InvalidDnaPolicy::SkipRecord => return Ok(None),
                     InvalidDnaPolicy::MapToA => out.push(b'A'),
                 }

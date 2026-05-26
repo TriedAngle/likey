@@ -1,0 +1,6 @@
+name,pattern,enabled
+contains_acg,%ACG%,true
+prefix_acg,ACG%,true
+suffix_tga,%TGA,true
+wildcard_a_g,A_G%,true
+contains_long,%ACGTACGT%,true

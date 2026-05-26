@@ -1,0 +1,2 @@
+name,path,type,storage,column,enabled
+example_protein,example_protein.fa,protein-fasta,utf8,sequence,true

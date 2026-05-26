@@ -9,6 +9,7 @@ pub mod utf8_shared;
 
 pub mod bm;
 pub mod dna2_naive;
+pub mod fftstr;
 pub mod kmp;
 pub mod libc_find;
 pub mod naive;
@@ -18,6 +19,7 @@ pub mod two_way2;
 
 pub use bm::{BM, BMState, bm_find};
 pub use dna2_naive::{Dna2NaiveWildcard, Dna2Needle};
+pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
 pub use kmp::Utf8Kmp;
 pub use libc_find::{LibcMemmem, memmem_find};
 pub use naive::{

@@ -155,9 +155,39 @@ struct CompiledLiteral<A: LiteralAlgorithm> {
     index_symbols: Option<Box<[u8]>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SegmentAnchor {
+    literal_idx: usize,
+    /// Logical offset of this literal from the start of the `%`-free segment.
+    offset: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SegmentPlan {
+    /// Half-open token range. This range never contains `LikeToken::Any`.
+    token_start: usize,
+    token_end: usize,
+    /// Fixed logical length of this segment: literals plus lowered `_` skips.
+    len: u32,
+    /// First literal in this segment. Used by the direct implementation of the
+    /// proposed adaptive algorithm.
+    first_anchor: Option<SegmentAnchor>,
+    /// Best static literal anchor in this segment. Today this means the longest
+    /// literal fragment, with exact/indexable fragments winning ties.
+    best_anchor: Option<SegmentAnchor>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SegmentVerify {
+    Match,
+    FailedLiteral { anchor: SegmentAnchor, pos: u32 },
+    FailedUnanchored,
+}
+
 pub struct LikePattern<A: LiteralAlgorithm> {
     tokens: Box<[LikeToken]>,
     literals: Box<[CompiledLiteral<A>]>,
+    segments: Box<[SegmentPlan]>,
     strategy: MatchStrategy,
     min_len: u32,
     has_any: bool,
@@ -235,11 +265,13 @@ where
 
         let has_any = tokens.iter().any(|t| matches!(t, LikeToken::Any));
         let has_skip = tokens.iter().any(|t| matches!(t, LikeToken::Skip(_)));
+        let segments = build_segments::<A>(&tokens, &literals);
         let strategy = derive_strategy(&tokens, has_skip);
 
         Ok(Self {
             tokens: tokens.into_boxed_slice(),
             literals: literals.into_boxed_slice(),
+            segments,
             strategy,
             min_len,
             has_any,
@@ -325,7 +357,72 @@ where
             MatchStrategy::Contains { literal_idx } => {
                 self.find_literal_from::<C>(row, 0, literal_idx).is_some()
             }
+            MatchStrategy::General => self.match_general_segmented::<C>(row, text_len),
+        }
+    }
+
+    /// General LIKE verification using the improved `%`-split segment plan.
+    ///
+    /// This is the default `General` implementation used by `matches_row`.
+    /// It splits the pattern into fixed-width segments separated by `%`, picks
+    /// the best literal anchor inside each segment, searches for that anchor,
+    /// and verifies the whole segment around each candidate hit.
+    pub fn matches_row_general_segmented<'r, C>(&self, row: &C::Row<'r>) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let text_len = A::row_len(row);
+        if !self.len_constraint_internal().matches(text_len) {
+            return false;
+        }
+
+        match self.strategy {
+            MatchStrategy::General => self.match_general_segmented::<C>(row, text_len),
+            _ => self.matches_row::<C>(row),
+        }
+    }
+
+    /// Direct implementation of the proposed adaptive restart idea.
+    ///
+    /// For each fixed-width segment, it starts by searching for the first
+    /// literal fragment. If verification later fails at another literal, that
+    /// failed literal becomes the next search anchor. This is useful for
+    /// benchmarking the proposed heuristic against the static best-anchor plan.
+    pub fn matches_row_general_pure_proposed<'r, C>(&self, row: &C::Row<'r>) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let text_len = A::row_len(row);
+        if !self.len_constraint_internal().matches(text_len) {
+            return false;
+        }
+
+        match self.strategy {
+            MatchStrategy::General => self.match_general_pure_proposed::<C>(row, text_len),
+            _ => self.matches_row::<C>(row),
+        }
+    }
+
+    /// Reference implementation of the old recursive/backtracking verifier.
+    ///
+    /// Kept public so tests/benchmarks can compare the new segment-based
+    /// implementations against the original behavior without keeping dead
+    /// private code around.
+    pub fn matches_row_recursive_reference<'r, C>(&self, row: &C::Row<'r>) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let text_len = A::row_len(row);
+        if !self.len_constraint_internal().matches(text_len) {
+            return false;
+        }
+
+        match self.strategy {
             MatchStrategy::General => self.match_from::<C>(row, 0, 0, text_len),
+            _ => self.matches_row::<C>(row),
         }
     }
 
@@ -357,6 +454,307 @@ where
     {
         let lit = &self.literals[literal_idx];
         A::find_from(row, from, &lit.needle, &lit.state)
+    }
+
+    fn match_general_segmented<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        self.match_general_segments::<C>(row, text_len, false)
+    }
+
+    fn match_general_pure_proposed<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        self.match_general_segments::<C>(row, text_len, true)
+    }
+
+    fn match_general_segments<'r, C>(
+        &self,
+        row: &C::Row<'r>,
+        text_len: u32,
+        pure_proposed: bool,
+    ) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        if self.segments.is_empty() {
+            // The length constraint has already handled `%`/`_`-only patterns.
+            return true;
+        }
+
+        let starts_with_any = matches!(self.tokens.first(), Some(LikeToken::Any));
+        let ends_with_any = matches!(self.tokens.last(), Some(LikeToken::Any));
+
+        let mut first_middle = 0usize;
+        let mut last_middle = self.segments.len();
+        let mut lower = 0u32;
+        let mut upper = text_len;
+
+        // SQL LIKE is implicitly anchored at the start unless the pattern starts
+        // with `%`.
+        if !starts_with_any {
+            let segment = &self.segments[0];
+            if !self.segment_matches_at::<C>(row, segment, 0, text_len) {
+                return false;
+            }
+            lower = segment.len;
+            first_middle = 1;
+        }
+
+        // SQL LIKE is implicitly anchored at the end unless the pattern ends
+        // with `%`. If there is only one segment, the prefix check above has
+        // already checked it; the global length constraint enforces exactness.
+        if !ends_with_any && last_middle > first_middle {
+            let suffix_idx = last_middle - 1;
+            let segment = &self.segments[suffix_idx];
+            if text_len < segment.len {
+                return false;
+            }
+            let suffix_start = text_len - segment.len;
+            if suffix_start < lower {
+                return false;
+            }
+            if !self.segment_matches_at::<C>(row, segment, suffix_start, text_len) {
+                return false;
+            }
+            upper = suffix_start;
+            last_middle = suffix_idx;
+        }
+
+        // Middle segments are ordered by `%` separators. Taking the earliest
+        // valid occurrence is safe because `%` imposes only a lower bound on the
+        // next segment; an earlier match leaves at least as much room for the
+        // remaining suffix.
+        for segment_idx in first_middle..last_middle {
+            let start = if pure_proposed {
+                self.find_segment_from_pure_proposed::<C>(row, segment_idx, lower, upper, text_len)
+            } else {
+                self.find_segment_from_best_anchor::<C>(row, segment_idx, lower, upper, text_len)
+            };
+
+            let Some(start) = start else {
+                return false;
+            };
+            let Some(next_lower) = start.checked_add(self.segments[segment_idx].len) else {
+                return false;
+            };
+            lower = next_lower;
+        }
+
+        true
+    }
+
+    fn segment_matches_at<'r, C>(
+        &self,
+        row: &C::Row<'r>,
+        segment: &SegmentPlan,
+        start: u32,
+        text_len: u32,
+    ) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let Some(end) = start.checked_add(segment.len) else {
+            return false;
+        };
+        if end > text_len {
+            return false;
+        }
+
+        let mut pos = start;
+        for token in &self.tokens[segment.token_start..segment.token_end] {
+            match *token {
+                LikeToken::Literal(literal_idx) => {
+                    let literal_len = self.literal_len(literal_idx);
+                    if pos > text_len || text_len - pos < literal_len {
+                        return false;
+                    }
+                    if !self.literal_matches_at::<C>(row, pos, literal_idx) {
+                        return false;
+                    }
+                    let Some(next) = pos.checked_add(literal_len) else {
+                        return false;
+                    };
+                    pos = next;
+                }
+                LikeToken::Skip(count) => {
+                    let Some(next) = A::advance(row, pos, count) else {
+                        return false;
+                    };
+                    pos = next;
+                }
+                LikeToken::Any => unreachable!("segments never contain `%` tokens"),
+            }
+        }
+
+        pos == end
+    }
+
+    fn verify_segment_or_first_failed_anchor<'r, C>(
+        &self,
+        row: &C::Row<'r>,
+        segment: &SegmentPlan,
+        start: u32,
+        text_len: u32,
+    ) -> SegmentVerify
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let Some(end) = start.checked_add(segment.len) else {
+            return SegmentVerify::FailedUnanchored;
+        };
+        if end > text_len {
+            return SegmentVerify::FailedUnanchored;
+        }
+
+        let mut pos = start;
+        let mut offset = 0u32;
+        for token in &self.tokens[segment.token_start..segment.token_end] {
+            match *token {
+                LikeToken::Literal(literal_idx) => {
+                    let literal_len = self.literal_len(literal_idx);
+                    let anchor = SegmentAnchor {
+                        literal_idx,
+                        offset,
+                    };
+                    if pos > text_len || text_len - pos < literal_len {
+                        return SegmentVerify::FailedLiteral { anchor, pos };
+                    }
+                    if !self.literal_matches_at::<C>(row, pos, literal_idx) {
+                        return SegmentVerify::FailedLiteral { anchor, pos };
+                    }
+
+                    let Some(next_pos) = pos.checked_add(literal_len) else {
+                        return SegmentVerify::FailedUnanchored;
+                    };
+                    let Some(next_offset) = offset.checked_add(literal_len) else {
+                        return SegmentVerify::FailedUnanchored;
+                    };
+                    pos = next_pos;
+                    offset = next_offset;
+                }
+                LikeToken::Skip(count) => {
+                    let Some(next_pos) = A::advance(row, pos, count) else {
+                        return SegmentVerify::FailedUnanchored;
+                    };
+                    let Some(next_offset) = offset.checked_add(count) else {
+                        return SegmentVerify::FailedUnanchored;
+                    };
+                    pos = next_pos;
+                    offset = next_offset;
+                }
+                LikeToken::Any => unreachable!("segments never contain `%` tokens"),
+            }
+        }
+
+        if pos == end {
+            SegmentVerify::Match
+        } else {
+            SegmentVerify::FailedUnanchored
+        }
+    }
+
+    fn find_segment_from_best_anchor<'r, C>(
+        &self,
+        row: &C::Row<'r>,
+        segment_idx: usize,
+        lower: u32,
+        upper: u32,
+        text_len: u32,
+    ) -> Option<u32>
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let segment = &self.segments[segment_idx];
+        let max_start = max_segment_start(lower, upper, segment.len)?;
+
+        let Some(anchor) = segment.best_anchor else {
+            return Some(lower);
+        };
+
+        let mut search_from = lower.checked_add(anchor.offset)?;
+        loop {
+            let hit = self.find_literal_from::<C>(row, search_from, anchor.literal_idx)?;
+            if hit < anchor.offset {
+                search_from = A::advance(row, hit, 1)?;
+                continue;
+            }
+
+            let start = hit - anchor.offset;
+            if start < lower {
+                search_from = A::advance(row, hit, 1)?;
+                continue;
+            }
+            if start > max_start {
+                return None;
+            }
+
+            if self.segment_matches_at::<C>(row, segment, start, text_len) {
+                return Some(start);
+            }
+
+            search_from = A::advance(row, hit, 1)?;
+        }
+    }
+
+    fn find_segment_from_pure_proposed<'r, C>(
+        &self,
+        row: &C::Row<'r>,
+        segment_idx: usize,
+        lower: u32,
+        upper: u32,
+        text_len: u32,
+    ) -> Option<u32>
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let segment = &self.segments[segment_idx];
+        let max_start = max_segment_start(lower, upper, segment.len)?;
+
+        let Some(mut anchor) = segment.first_anchor else {
+            return Some(lower);
+        };
+
+        let mut search_from = lower.checked_add(anchor.offset)?;
+        loop {
+            let hit = self.find_literal_from::<C>(row, search_from, anchor.literal_idx)?;
+            if hit < anchor.offset {
+                search_from = A::advance(row, hit, 1)?;
+                continue;
+            }
+
+            let start = hit - anchor.offset;
+            if start < lower {
+                search_from = A::advance(row, hit, 1)?;
+                continue;
+            }
+            if start > max_start {
+                return None;
+            }
+
+            match self.verify_segment_or_first_failed_anchor::<C>(row, segment, start, text_len) {
+                SegmentVerify::Match => return Some(start),
+                SegmentVerify::FailedLiteral {
+                    anchor: failed_anchor,
+                    pos,
+                } => {
+                    anchor = failed_anchor;
+                    search_from = pos;
+                }
+                SegmentVerify::FailedUnanchored => {
+                    search_from = A::advance(row, hit, 1)?;
+                }
+            }
+        }
     }
 
     fn match_from<'r, C>(&self, row: &C::Row<'r>, token_idx: usize, pos: u32, text_len: u32) -> bool
@@ -477,12 +875,100 @@ where
     Ok(())
 }
 
+fn build_segments<A>(tokens: &[LikeToken], literals: &[CompiledLiteral<A>]) -> Box<[SegmentPlan]>
+where
+    A: LiteralAlgorithm,
+{
+    let mut segments = Vec::new();
+    let mut start = 0usize;
+
+    while start < tokens.len() {
+        let mut end = start;
+        while end < tokens.len() && !matches!(tokens[end], LikeToken::Any) {
+            end += 1;
+        }
+
+        if start < end {
+            segments.push(build_segment(tokens, literals, start, end));
+        }
+
+        // `end` is either the first `%` after this segment, or `tokens.len()`.
+        // Adjacent `%` tokens are collapsed by the compiler, but this also
+        // handles leading/trailing `%` by simply skipping empty segments.
+        start = end.saturating_add(1);
+    }
+
+    segments.into_boxed_slice()
+}
+
+fn build_segment<A>(
+    tokens: &[LikeToken],
+    literals: &[CompiledLiteral<A>],
+    token_start: usize,
+    token_end: usize,
+) -> SegmentPlan
+where
+    A: LiteralAlgorithm,
+{
+    let mut len = 0u32;
+    let mut first_anchor = None;
+    let mut best_anchor = None;
+    let mut best_score = (0u32, false);
+
+    for token in &tokens[token_start..token_end] {
+        match *token {
+            LikeToken::Literal(literal_idx) => {
+                let anchor = SegmentAnchor {
+                    literal_idx,
+                    offset: len,
+                };
+                first_anchor.get_or_insert(anchor);
+
+                let literal = &literals[literal_idx];
+                let exact = literal.index_symbols.is_some();
+                let score = (literal.len, exact);
+                if best_anchor.is_none() || score > best_score {
+                    best_anchor = Some(anchor);
+                    best_score = score;
+                }
+
+                len = len
+                    .checked_add(literal.len)
+                    .expect("pattern length was checked while compiling");
+            }
+            LikeToken::Skip(count) => {
+                len = len
+                    .checked_add(count)
+                    .expect("pattern length was checked while compiling");
+            }
+            LikeToken::Any => unreachable!("segment builder stops before `%` tokens"),
+        }
+    }
+
+    SegmentPlan {
+        token_start,
+        token_end,
+        len,
+        first_anchor,
+        best_anchor,
+    }
+}
+
+fn max_segment_start(lower: u32, upper: u32, segment_len: u32) -> Option<u32> {
+    if lower > upper {
+        return None;
+    }
+    let max_start = upper.checked_sub(segment_len)?;
+    if lower <= max_start {
+        Some(max_start)
+    } else {
+        None
+    }
+}
+
 fn derive_strategy(tokens: &[LikeToken], has_skip: bool) -> MatchStrategy {
     if tokens.is_empty() {
         return MatchStrategy::Exact { literal_idx: None };
-    }
-    if has_skip {
-        return MatchStrategy::General;
     }
 
     let mut literal_idx = None;
@@ -495,7 +981,12 @@ fn derive_strategy(tokens: &[LikeToken], has_skip: bool) -> MatchStrategy {
     }
 
     if literal_count == 0 {
+        // The row-level length constraint already distinguishes `_`, `___`,
+        // `%_`, `%__%`, etc. from plain `%`. No row contents need scanning.
         return MatchStrategy::All;
+    }
+    if has_skip {
+        return MatchStrategy::General;
     }
     if literal_count > 1 {
         return MatchStrategy::General;

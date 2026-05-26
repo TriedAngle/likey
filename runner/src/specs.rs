@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 
-use crate::cli::{parse_boolish, AlgorithmKind, DataType, IndexKind, StorageKind};
+use crate::cli::{AlgorithmKind, DataType, IndexKind, StorageKind, parse_boolish};
 
 #[derive(Debug, Clone)]
 pub struct DataSpec {
@@ -71,7 +71,10 @@ pub fn load_data_specs(path: &std::path::Path) -> Result<Vec<DataSpec>> {
             .as_deref()
             .unwrap_or("dna-fasta")
             .parse::<DataType>()?;
-        let storage_raw = row.storage.as_deref().unwrap_or(data_type.default_storage_raw());
+        let storage_raw = row
+            .storage
+            .as_deref()
+            .unwrap_or(data_type.default_storage_raw());
         let storages = parse_storage_list(storage_raw)?;
         if !data_type.allows_dna2() && storages.iter().any(|s| *s == StorageKind::Dna2) {
             bail!(
@@ -116,13 +119,17 @@ pub fn load_algorithms(path: &std::path::Path) -> Result<Vec<AlgorithmKind>> {
         if row.enabled.as_deref().is_some_and(|s| !parse_boolish(s)) {
             continue;
         }
-        let raw = row.algorithm.or(row.name).with_context(|| {
-            format!("algorithms CSV row {} needs algorithm or name", idx + 2)
-        })?;
+        let raw = row
+            .algorithm
+            .or(row.name)
+            .with_context(|| format!("algorithms CSV row {} needs algorithm or name", idx + 2))?;
         out.push(AlgorithmKind::from_str(&raw)?);
     }
     if out.is_empty() {
-        bail!("algorithms CSV {} produced no enabled algorithms", path.display());
+        bail!(
+            "algorithms CSV {} produced no enabled algorithms",
+            path.display()
+        );
     }
     out.sort_by_key(|a| a.as_str());
     out.dedup();
@@ -141,9 +148,10 @@ pub fn load_indexes(path: Option<&std::path::Path>) -> Result<Vec<IndexKind>> {
         if row.enabled.as_deref().is_some_and(|s| !parse_boolish(s)) {
             continue;
         }
-        let raw = row.index.or(row.name).with_context(|| {
-            format!("indexes CSV row {} needs index or name", idx + 2)
-        })?;
+        let raw = row
+            .index
+            .or(row.name)
+            .with_context(|| format!("indexes CSV row {} needs index or name", idx + 2))?;
         out.push(IndexKind::from_str(&raw)?);
     }
     if out.is_empty() {
@@ -170,7 +178,10 @@ pub fn load_patterns(path: &std::path::Path) -> Result<Vec<PatternSpec>> {
         });
     }
     if out.is_empty() {
-        bail!("patterns CSV {} produced no enabled patterns", path.display());
+        bail!(
+            "patterns CSV {} produced no enabled patterns",
+            path.display()
+        );
     }
     Ok(out)
 }

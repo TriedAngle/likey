@@ -1,0 +1,3 @@
+name,path,type,storage,column,key_column,value_column,enabled
+example_job,job/title.csv,job-csv,utf8,title,key,value,true
+example_job,job/keyword.csv,job-csv,utf8,keyword,key,value,true
