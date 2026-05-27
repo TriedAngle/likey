@@ -8,7 +8,7 @@
 pub mod utf8_shared;
 
 pub mod bm;
-pub mod dna2_naive;
+pub mod dna2;
 pub mod fftstr;
 pub mod fsst_decoded;
 pub mod kmp;
@@ -19,9 +19,9 @@ pub mod two_way;
 pub mod two_way2;
 
 pub use bm::{BM, BMState, bm_find};
-pub use dna2_naive::{
-    DNA_WILDCARD, Dna2NaiveWildcard, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle,
-    Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized,
+pub use dna2::{
+    DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle, Dna2PackedScalar,
+    Dna2PackedState, Dna2PackedVectorized,
 };
 pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
 pub use kmp::{Utf8Kmp, kmp_find, kmp_find_from};
@@ -411,7 +411,7 @@ mod tests {
         let table = db.dna2_table(id).unwrap();
         let col = table.sequence();
 
-        let like = LikePattern::<Dna2NaiveWildcard>::compile("A_G%").unwrap();
+        let like = LikePattern::<Dna2>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
         let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();

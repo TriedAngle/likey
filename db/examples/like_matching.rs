@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use db::{
-    Column, DbBuilder, Dna2NaiveWildcard, Dna2TableBuilder, FullScan, LikeCompileOptions,
-    LikePattern, QueryScratch, RowId, SortedRowsProbe, Utf8Kmp, Utf8TableBuilder, execute_like,
+    Column, DbBuilder, Dna2, Dna2TableBuilder, FullScan, LikeCompileOptions, LikePattern,
+    QueryScratch, RowId, SortedRowsProbe, Utf8Kmp, Utf8TableBuilder, execute_like,
 };
 
 /// Toy trigram index for demonstrating candidate generation.
@@ -116,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reads = db.dna2_table(reads_id)?;
     let seq = reads.sequence();
 
-    let dna_pattern = LikePattern::<Dna2NaiveWildcard>::compile("A_G%")?;
+    let dna_pattern = LikePattern::<Dna2>::compile("A_G%")?;
     let mut scan = FullScan::new(seq.row_count(), 1024);
     let mut scratch = QueryScratch::default();
     let mut dna_matches = Vec::<RowId>::new();
@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // If you want `_` to become Skip(1) even for a wildcard-capable algorithm,
     // force this at compile time. This may expose smaller exact fragments to
     // indexes, at the cost of not using the algorithm's direct wildcard path.
-    let dna_skip_pattern = LikePattern::<Dna2NaiveWildcard>::compile_with_options(
+    let dna_skip_pattern = LikePattern::<Dna2>::compile_with_options(
         "A_G%",
         LikeCompileOptions {
             pass_underscore_to_algorithm: false,

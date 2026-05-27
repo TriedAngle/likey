@@ -221,7 +221,7 @@ pub enum AlgorithmKind {
     LibcMemmem,
     Fft0,
     Fft1,
-    Dna2Naive,
+    Dna2,
     Dna2PackedScalar,
     Dna2PackedVectorized,
 }
@@ -257,7 +257,7 @@ impl AlgorithmKind {
             AlgorithmKind::LibcMemmem => "libc-memmem",
             AlgorithmKind::Fft0 => "fft0",
             AlgorithmKind::Fft1 => "fft1",
-            AlgorithmKind::Dna2Naive => "dna2-naive",
+            AlgorithmKind::Dna2 => "dna2",
             AlgorithmKind::Dna2PackedScalar => "dna2-packed-scalar",
             AlgorithmKind::Dna2PackedVectorized => "dna2-packed-vectorized",
         }
@@ -267,13 +267,13 @@ impl AlgorithmKind {
         match storage {
             StorageKind::Utf8 => !matches!(
                 self,
-                AlgorithmKind::Dna2Naive
+                AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
             ),
             StorageKind::Dna2 => matches!(
                 self,
-                AlgorithmKind::Dna2Naive
+                AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
             ),
@@ -356,7 +356,7 @@ impl FromStr for AlgorithmKind {
             "libc-memmem" | "libc_memmem" | "memmem" => Ok(Self::LibcMemmem),
             "fft0" | "fft-str0" | "fft_str0" | "fftstr0" => Ok(Self::Fft0),
             "fft1" | "fft-str1" | "fft_str1" | "fftstr1" | "fft" => Ok(Self::Fft1),
-            "dna2-naive" | "dna2_naive" | "dna" | "dna2" => Ok(Self::Dna2Naive),
+            "dna" | "dna2" => Ok(Self::Dna2),
             "dna2-packed-scalar" | "dna2_packed_scalar" => Ok(Self::Dna2PackedScalar),
             "dna2-packed-vectorized" | "dna2_packed_vectorized" => Ok(Self::Dna2PackedVectorized),
             other => bail!("unknown algorithm {other:?}"),

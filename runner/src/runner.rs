@@ -4,11 +4,11 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use db::{
-    BM, Column, CountSink, Dna2Column, Dna2NaiveWildcard, Dna2PackedScalar, Dna2PackedVectorized,
-    FftStr0, FftStr1, FmIndex, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive,
-    NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard,
-    NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed,
-    NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedScalar, Dna2PackedVectorized, FftStr0,
+    FftStr1, FmIndex, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto,
+    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
+    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
+    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
     NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats,
     RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column,
     Utf8Kmp, VerifyScratch, execute_like,
@@ -451,7 +451,7 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
-        AlgorithmKind::Dna2Naive
+        AlgorithmKind::Dna2
         | AlgorithmKind::Dna2PackedScalar
         | AlgorithmKind::Dna2PackedVectorized => {
             bail!(
@@ -471,7 +471,7 @@ pub fn run_dna2_algorithm<'db>(
     profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Dna2Naive => run_algorithm::<Dna2Column<'db>, Dna2NaiveWildcard, _>(
+        AlgorithmKind::Dna2 => run_algorithm::<Dna2Column<'db>, Dna2, _>(
             column,
             algorithm,
             indexes,

@@ -72,8 +72,8 @@ mod tests {
     use crate::storage::dna2::{Dna2Column, Dna2TableBuilder};
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
     use crate::{
-        DbBuilder, Dna2NaiveWildcard, FullScan, LikePattern, QueryScratch, RowLiteralSearch,
-        StdSearch, execute_like,
+        DbBuilder, Dna2, FullScan, LikePattern, QueryScratch, RowLiteralSearch, StdSearch,
+        execute_like,
     };
 
     macro_rules! index_suites {
@@ -186,20 +186,20 @@ mod tests {
 
     fn dna2_like_index_suite<I>()
     where
-        for<'db> I: IndexUnderTest<Dna2Column<'db>, Dna2NaiveWildcard>,
+        for<'db> I: IndexUnderTest<Dna2Column<'db>, Dna2>,
     {
         let (db, id) = dna2_db();
         let table = db.dna2_table(id).unwrap();
         let column = table.sequence();
 
         for literal in [&[0, 1, 2][..], &[0, 1, 2, 3], &[2, 2, 2], &[3, 0, 1, 2]] {
-            assert_literal_candidates_cover::<_, Dna2NaiveWildcard, I>(&column, literal);
+            assert_literal_candidates_cover::<_, Dna2, I>(&column, literal);
         }
 
         for pattern in [
             "%ACG%", "ACG%", "%CGT", "%GGG%", "%ACGT%", "T%ACG%", "A_G%ACG%",
         ] {
-            assert_index_matches_full_scan::<_, Dna2NaiveWildcard, I>(&column, pattern);
+            assert_index_matches_full_scan::<_, Dna2, I>(&column, pattern);
         }
     }
 

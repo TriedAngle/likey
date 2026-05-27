@@ -23,6 +23,6 @@ naive-avx512-wildcard,true
 naive-avx512-v2-wildcard,true
 naive-wildcard,true
 naive-scalar-wildcard,true
-dna2-naive,true
+dna2,true
 dna2-packed-scalar,true
 dna2-packed-vectorized,true

@@ -1,6 +1,5 @@
 use db::{
-    DbBuilder, Dna2NaiveWildcard, Dna2TableBuilder, FmIndex, LikePattern, QueryScratch, RowId,
-    execute_like,
+    DbBuilder, Dna2, Dna2TableBuilder, FmIndex, LikePattern, QueryScratch, RowId, execute_like,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,7 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // This LIKE verifier operates on packed DNA2 rows. The exact fragment ACG
     // becomes logical symbols [0, 1, 2], which the FM-index can use directly.
-    let like = LikePattern::<Dna2NaiveWildcard>::compile("%ACG%")?;
+    let like = LikePattern::<Dna2>::compile("%ACG%")?;
 
     let fm = FmIndex::build(&seq)?;
     let mut candidates = fm

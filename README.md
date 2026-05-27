@@ -99,7 +99,7 @@ If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.cs
 
 UTF-8 algorithms run on UTF-8 storage: `std`, `kmp`, `naive`, `naive-scalar`, `naive-vectorized`, `naive-vectorized-v2`, `naive-avx2`, `naive-avx2-v2`, `naive-avx512`, `naive-avx512-v2`, `naive-auto`, `naive-mixed`, wildcard-aware naive variants, `bm`, `two-way`, `two-way2`, `libc-memmem`, `fft0`, and `fft1`.
 
-`dna2-naive` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
+`dna2` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
 
 FSST columns expose decoded bytes as logical symbols, so FM-index and typed trigram index construction work through the same `Column<Symbol = u8>` API. The current FSST LIKE path decodes candidate rows before verification; it is not compressed-domain matching yet.
 
