@@ -382,17 +382,17 @@ where
             MatchStrategy::Contains { literal_idx } => {
                 self.find_literal_from::<C>(row, 0, literal_idx).is_some()
             }
-            MatchStrategy::General => self.match_general_segmented::<C>(row, text_len),
+            MatchStrategy::General => self.match_general_static_anchor::<C>(row, text_len),
         }
     }
 
-    /// General LIKE verification using the improved `%`-split segment plan.
+    /// General LIKE verification using static segment anchors.
     ///
     /// This is the default `General` implementation used by `matches_row`.
     /// It splits the pattern into fixed-width segments separated by `%`, picks
-    /// the best literal anchor inside each segment, searches for that anchor,
-    /// and verifies the whole segment around each candidate hit.
-    pub fn matches_row_general_segmented<'r, C>(&self, row: &C::Row<'r>) -> bool
+    /// the best static literal anchor inside each segment, searches for that
+    /// anchor, and verifies the whole segment around each candidate hit.
+    pub fn matches_row_general_static_anchor<'r, C>(&self, row: &C::Row<'r>) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
@@ -403,18 +403,18 @@ where
         }
 
         match self.strategy {
-            MatchStrategy::General => self.match_general_segmented::<C>(row, text_len),
+            MatchStrategy::General => self.match_general_static_anchor::<C>(row, text_len),
             _ => self.matches_row::<C>(row),
         }
     }
 
-    /// General LIKE verification using adaptive restart anchors.
+    /// General LIKE verification using adaptive segment anchors.
     ///
     /// For each fixed-width segment, it starts by searching for the first
     /// literal fragment. If verification later fails at another literal, that
     /// failed literal becomes the next search anchor. This is useful for
-    /// comparing adaptive anchors against the static best-anchor plan.
-    pub fn matches_row_general_pure_proposed<'r, C>(&self, row: &C::Row<'r>) -> bool
+    /// comparing adaptive anchors against the static-anchor plan.
+    pub fn matches_row_general_adaptive_anchor<'r, C>(&self, row: &C::Row<'r>) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
@@ -425,7 +425,7 @@ where
         }
 
         match self.strategy {
-            MatchStrategy::General => self.match_general_pure_proposed::<C>(row, text_len),
+            MatchStrategy::General => self.match_general_adaptive_anchor::<C>(row, text_len),
             _ => self.matches_row::<C>(row),
         }
     }
@@ -480,7 +480,7 @@ where
         A::find_from(row, from, &lit.needle, &lit.state)
     }
 
-    fn match_general_segmented<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    fn match_general_static_anchor<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
@@ -488,7 +488,7 @@ where
         self.match_general_segments::<C>(row, text_len, false)
     }
 
-    fn match_general_pure_proposed<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    fn match_general_adaptive_anchor<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
@@ -500,7 +500,7 @@ where
         &self,
         row: &C::Row<'r>,
         text_len: u32,
-        pure_proposed: bool,
+        adaptive_anchor: bool,
     ) -> bool
     where
         C: Column<Symbol = u8>,
@@ -555,10 +555,16 @@ where
         // next segment; an earlier match leaves at least as much room for the
         // remaining suffix.
         for segment_idx in first_middle..last_middle {
-            let start = if pure_proposed {
-                self.find_segment_from_pure_proposed::<C>(row, segment_idx, lower, upper, text_len)
+            let start = if adaptive_anchor {
+                self.find_segment_from_adaptive_anchor::<C>(
+                    row,
+                    segment_idx,
+                    lower,
+                    upper,
+                    text_len,
+                )
             } else {
-                self.find_segment_from_best_anchor::<C>(row, segment_idx, lower, upper, text_len)
+                self.find_segment_from_static_anchor::<C>(row, segment_idx, lower, upper, text_len)
             };
 
             let Some(start) = start else {
@@ -685,7 +691,7 @@ where
         }
     }
 
-    fn find_segment_from_best_anchor<'r, C>(
+    fn find_segment_from_static_anchor<'r, C>(
         &self,
         row: &C::Row<'r>,
         segment_idx: usize,
@@ -729,7 +735,7 @@ where
         }
     }
 
-    fn find_segment_from_pure_proposed<'r, C>(
+    fn find_segment_from_adaptive_anchor<'r, C>(
         &self,
         row: &C::Row<'r>,
         segment_idx: usize,

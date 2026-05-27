@@ -60,7 +60,7 @@ pub struct Args {
     #[arg(long, default_value_t = 5)]
     pub iterations: usize,
 
-    /// Candidate batch size in rows for full scan/FM and approximate rows for bitmap blocks.
+    /// Candidate batch size in rows for full scan and row-list indexes.
     #[arg(long, default_value_t = 4096)]
     pub batch_rows: usize,
 

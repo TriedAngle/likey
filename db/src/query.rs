@@ -20,14 +20,11 @@ pub struct CandidateScratch {
     /// row deduplication.
     pub row_ids: Vec<RowId>,
 
-    /// Generic bitmap buffer for dense candidate sets.
-    pub bitmap_words: Vec<u64>,
 }
 
 impl CandidateScratch {
     pub fn clear(&mut self) {
         self.row_ids.clear();
-        self.bitmap_words.clear();
     }
 }
 
@@ -54,9 +51,6 @@ pub enum CandidateBatch<'a> {
 
     /// Sorted physical row IDs. Indexes should deduplicate before returning.
     SortedRows(&'a [RowId]),
-
-    /// Dense bitmap block. `words[0]` corresponds to rows `base..base+64`.
-    BitmapBlock { base: RowId, words: &'a [u64] },
 }
 
 impl CandidateBatch<'_> {
@@ -64,7 +58,6 @@ impl CandidateBatch<'_> {
         match self {
             CandidateBatch::RowRange { len, .. } => *len == 0,
             CandidateBatch::SortedRows(rows) => rows.is_empty(),
-            CandidateBatch::BitmapBlock { words, .. } => words.iter().all(|&w| w == 0),
         }
     }
 }
@@ -317,25 +310,6 @@ where
                         sink,
                         &mut stats,
                     );
-                }
-            }
-            CandidateBatch::BitmapBlock { base, words } => {
-                for (word_idx, &word) in words.iter().enumerate() {
-                    let mut bits = word;
-                    while bits != 0 {
-                        let bit = bits.trailing_zeros() as u64;
-                        let row = base + word_idx as u64 * 64 + bit;
-                        verify_one(
-                            column,
-                            row,
-                            len_constraint,
-                            verifier,
-                            &mut scratch.verify,
-                            sink,
-                            &mut stats,
-                        );
-                        bits &= bits - 1;
-                    }
                 }
             }
         }

@@ -53,7 +53,6 @@ pub struct FmIndex {
     checkpoint: usize,
     sigma: usize,
     symbol_to_rank: Box<[i16]>,
-    data_ranks: Box<[usize]>,
     pos_to_row: Box<[RowId]>,
     row_count: RowId,
 }
@@ -130,12 +129,6 @@ impl FmIndex {
         let bwt_ranks = remap_bwt(&bwt_symbols, &alphabet.symbol_to_rank);
         let c = build_c(&alphabet.counts);
         let occ = build_occ(&bwt_ranks, alphabet.counts.len(), checkpoint);
-        let data_ranks = alphabet
-            .rank_to_symbol
-            .iter()
-            .enumerate()
-            .filter_map(|(rank, &symbol)| (symbol >= DATA_BASE).then_some(rank))
-            .collect::<Vec<_>>();
 
         Ok(Self {
             text_len,
@@ -147,7 +140,6 @@ impl FmIndex {
             checkpoint,
             sigma: alphabet.rank_to_symbol.len(),
             symbol_to_rank: alphabet.symbol_to_rank.into_boxed_slice(),
-            data_ranks: data_ranks.into_boxed_slice(),
             pos_to_row: pos_to_row.into_boxed_slice(),
             row_count,
         })
@@ -217,38 +209,9 @@ impl FmIndex {
         self.rows_from_interval(top, bottom)
     }
 
-    /// Search a fixed-length pattern where `wildcard` matches any one data
-    /// symbol. It never matches row separators or the final sentinel.
-    pub fn search_rows_with_wildcard(&self, pattern: &[u8], wildcard: u8) -> Vec<RowId> {
-        if pattern.is_empty() {
-            return (0..self.row_count).collect();
-        }
-
-        let mut rows = Vec::new();
-        self.wildcard_rec(
-            pattern,
-            wildcard,
-            pattern.len() as isize - 1,
-            0,
-            self.text_len,
-            &mut rows,
-        );
-        rows.sort_unstable();
-        rows.dedup();
-        rows
-    }
-
     /// Build a candidate probe for an exact literal.
     pub fn probe(&self, needle: &[u8], batch_rows: usize) -> FmProbe {
         FmProbe::new(self.search_rows(needle), batch_rows)
-    }
-
-    /// Build a candidate probe for a fixed-length wildcard literal.
-    pub fn probe_with_wildcard(&self, pattern: &[u8], wildcard: u8, batch_rows: usize) -> FmProbe {
-        FmProbe::new(
-            self.search_rows_with_wildcard(pattern, wildcard),
-            batch_rows,
-        )
     }
 
     /// Use the longest exact literal exported by a compiled LIKE pattern.
@@ -278,46 +241,6 @@ impl FmIndex {
         rows.sort_unstable();
         rows.dedup();
         rows
-    }
-
-    fn wildcard_rec(
-        &self,
-        pattern: &[u8],
-        wildcard: u8,
-        idx: isize,
-        top: usize,
-        bottom: usize,
-        rows: &mut Vec<RowId>,
-    ) {
-        if top >= bottom {
-            return;
-        }
-
-        if idx < 0 {
-            for &pos in &self.sa[top..bottom] {
-                if let Some(row) = self.row_for_text_pos(pos) {
-                    rows.push(row);
-                }
-            }
-            return;
-        }
-
-        let ch = pattern[idx as usize];
-        if ch == wildcard {
-            for &rank in &self.data_ranks {
-                let new_top = self.c[rank] + self.occ_at(rank, top);
-                let new_bottom = self.c[rank] + self.occ_at(rank, bottom);
-                if new_top < new_bottom {
-                    self.wildcard_rec(pattern, wildcard, idx - 1, new_top, new_bottom, rows);
-                }
-            }
-        } else if let Some(rank) = self.rank_for_external_symbol(ch) {
-            let new_top = self.c[rank] + self.occ_at(rank, top);
-            let new_bottom = self.c[rank] + self.occ_at(rank, bottom);
-            if new_top < new_bottom {
-                self.wildcard_rec(pattern, wildcard, idx - 1, new_top, new_bottom, rows);
-            }
-        }
     }
 
     #[inline]
@@ -566,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn dna2_exact_and_wildcard_rows() {
+    fn dna2_exact_rows() {
         let mut reads = Dna2TableBuilder::new("reads");
         reads.push_str("AACGT").unwrap();
         reads.push_str("TTACG").unwrap();
@@ -580,9 +503,5 @@ mod tests {
 
         let fm = FmIndex::build(&col).unwrap();
         assert_eq!(fm.search_rows(&[0, 1, 2]), vec![0, 1]);
-        assert_eq!(
-            fm.search_rows_with_wildcard(&[0, 255, 2], 255),
-            vec![0, 1, 2]
-        );
     }
 }
