@@ -1,2 +1,2 @@
 name,path,type,storage,column,enabled
-example_dna,example_dna.fa,dna-fasta,both,sequence,true
+example_dna,example_dna.fa,dna-fasta,all,sequence,true

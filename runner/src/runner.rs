@@ -5,10 +5,10 @@ use std::time::Instant;
 use anyhow::{Context, Result, bail};
 use db::{
     BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedScalar, Dna2PackedVectorized, FftStr0,
-    FftStr1, FmIndex, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto,
-    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
-    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
-    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    FftStr1, FmIndex, FsstColumn, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive,
+    NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard,
+    NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed,
+    NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
     NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats,
     RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column,
     Utf8Kmp, VerifyScratch, execute_like,
@@ -185,7 +185,7 @@ pub fn run_utf8_algorithm<'db>(
     profile_out: Option<&mut Vec<RowProfileRow>>,
 ) -> Result<()> {
     match algorithm {
-        AlgorithmKind::Std => run_algorithm::<Utf8Column<'db>, StdSearch, _>(
+        AlgorithmKind::StdSearch => run_algorithm::<Utf8Column<'db>, StdSearch, _>(
             column,
             algorithm,
             indexes,
@@ -194,7 +194,7 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
-        AlgorithmKind::Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp, _>(
+        AlgorithmKind::Utf8Kmp => run_algorithm::<Utf8Column<'db>, Utf8Kmp, _>(
             column,
             algorithm,
             indexes,
@@ -397,7 +397,7 @@ pub fn run_utf8_algorithm<'db>(
                 sample_utf8_row,
             )
         }
-        AlgorithmKind::Bm => run_algorithm::<Utf8Column<'db>, BM, _>(
+        AlgorithmKind::BM => run_algorithm::<Utf8Column<'db>, BM, _>(
             column,
             algorithm,
             indexes,
@@ -433,7 +433,7 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
-        AlgorithmKind::Fft0 => run_algorithm::<Utf8Column<'db>, FftStr0, _>(
+        AlgorithmKind::FftStr0 => run_algorithm::<Utf8Column<'db>, FftStr0, _>(
             column,
             algorithm,
             indexes,
@@ -442,7 +442,7 @@ pub fn run_utf8_algorithm<'db>(
             profile_out,
             sample_utf8_row,
         ),
-        AlgorithmKind::Fft1 => run_algorithm::<Utf8Column<'db>, FftStr1, _>(
+        AlgorithmKind::FftStr1 => run_algorithm::<Utf8Column<'db>, FftStr1, _>(
             column,
             algorithm,
             indexes,
@@ -459,6 +459,267 @@ pub fn run_utf8_algorithm<'db>(
                 algorithm.as_str()
             )
         }
+    }
+}
+
+pub fn run_fsst_algorithm<'db>(
+    column: &FsstColumn<'db>,
+    algorithm: AlgorithmKind,
+    indexes: &BuiltIndexes<FsstColumn<'db>>,
+    config: &BenchConfig<'_>,
+    out: &mut Vec<BenchRow>,
+    profile_out: Option<&mut Vec<RowProfileRow>>,
+) -> Result<()> {
+    match algorithm {
+        AlgorithmKind::StdSearch => run_algorithm::<FsstColumn<'db>, StdSearch, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::Utf8Kmp => run_algorithm::<FsstColumn<'db>, Utf8Kmp, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::Naive => run_algorithm::<FsstColumn<'db>, Naive, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveScalar => run_algorithm::<FsstColumn<'db>, NaiveScalar, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveVectorized => run_algorithm::<FsstColumn<'db>, NaiveVectorized, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveVectorizedV2 => run_algorithm::<FsstColumn<'db>, NaiveVectorizedV2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAvx2 => run_algorithm::<FsstColumn<'db>, NaiveAvx2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAvx2V2 => run_algorithm::<FsstColumn<'db>, NaiveAvx2V2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAvx512 => run_algorithm::<FsstColumn<'db>, NaiveAvx512, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAvx512V2 => run_algorithm::<FsstColumn<'db>, NaiveAvx512V2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAuto => run_algorithm::<FsstColumn<'db>, NaiveAuto, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveMixed => run_algorithm::<FsstColumn<'db>, NaiveMixed, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveWildcard => run_algorithm::<FsstColumn<'db>, NaiveWildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveScalarWildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveScalarWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveVectorizedWildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveVectorizedWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveVectorizedV2Wildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveVectorizedV2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx2Wildcard => run_algorithm::<FsstColumn<'db>, NaiveAvx2Wildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveAvx2V2Wildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveAvx2V2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx512Wildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveAvx512Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveAvx512V2Wildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveAvx512V2Wildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::NaiveAutoWildcard => run_algorithm::<FsstColumn<'db>, NaiveAutoWildcard, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::NaiveMixedWildcard => {
+            run_algorithm::<FsstColumn<'db>, NaiveMixedWildcard, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
+        AlgorithmKind::BM => run_algorithm::<FsstColumn<'db>, BM, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::TwoWay => run_algorithm::<FsstColumn<'db>, TwoWay, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::TwoWay2 => run_algorithm::<FsstColumn<'db>, TwoWay2, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::LibcMemmem => run_algorithm::<FsstColumn<'db>, LibcMemmem, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        other => bail!("algorithm {} cannot run on FSST storage", other.as_str()),
     }
 }
 
@@ -862,6 +1123,13 @@ fn ns_per(ns: u128, denom: u64) -> f64 {
 
 fn sample_utf8_row(column: &Utf8Column<'_>, row: RowId, max_bytes: usize) -> String {
     let bytes = column.row_bytes(row);
+    let end = bytes.len().min(max_bytes);
+    String::from_utf8_lossy(&bytes[..end]).into_owned()
+}
+
+fn sample_fsst_row(column: &FsstColumn<'_>, row: RowId, max_bytes: usize) -> String {
+    let row = column.row(row);
+    let bytes = row.bytes();
     let end = bytes.len().min(max_bytes);
     String::from_utf8_lossy(&bytes[..end]).into_owned()
 }

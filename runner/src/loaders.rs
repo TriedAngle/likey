@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
-use db::{Db, DbBuilder, Dna2TableBuilder, DnaBase, TableId, Utf8TableBuilder};
+use db::{Db, DbBuilder, Dna2TableBuilder, DnaBase, FsstTableBuilder, TableId, Utf8TableBuilder};
 
 use crate::cli::{InvalidDnaPolicy, RowOverflowPolicy, StorageKind};
 use crate::specs::DataSpec;
@@ -96,6 +96,8 @@ pub fn load_fasta_column(
     let mut metadata = Utf8TableBuilder::new(format!("{dataset}.metadata"));
     let mut data_utf8 = (storage == StorageKind::Utf8)
         .then(|| Utf8TableBuilder::new(format!("{dataset}.{column_name}.utf8")));
+    let mut data_fsst = (storage == StorageKind::Fsst)
+        .then(|| FsstTableBuilder::new(format!("{dataset}.{column_name}.fsst")));
     let mut data_dna2 = (storage == StorageKind::Dna2)
         .then(|| Dna2TableBuilder::new(format!("{dataset}.{column_name}.dna2")));
 
@@ -120,6 +122,7 @@ pub fn load_fasta_column(
                     &mut ids,
                     &mut metadata,
                     &mut data_utf8,
+                    &mut data_fsst,
                     &mut data_dna2,
                     &mut row_labels,
                     &mut stats,
@@ -149,6 +152,7 @@ pub fn load_fasta_column(
             &mut ids,
             &mut metadata,
             &mut data_utf8,
+            &mut data_fsst,
             &mut data_dna2,
             &mut row_labels,
             &mut stats,
@@ -160,6 +164,7 @@ pub fn load_fasta_column(
     let _metadata_table = dbb.add_utf8_table(metadata)?;
     let data_table = match storage {
         StorageKind::Utf8 => dbb.add_utf8_table(data_utf8.expect("utf8 data builder exists"))?,
+        StorageKind::Fsst => dbb.add_fsst_table(data_fsst.expect("fsst data builder exists"))?,
         StorageKind::Dna2 => dbb.add_dna2_table(data_dna2.expect("dna2 data builder exists"))?,
     };
 
@@ -185,6 +190,7 @@ fn append_fasta_record(
     ids: &mut Utf8TableBuilder,
     metadata: &mut Utf8TableBuilder,
     data_utf8: &mut Option<Utf8TableBuilder>,
+    data_fsst: &mut Option<FsstTableBuilder>,
     data_dna2: &mut Option<Dna2TableBuilder>,
     row_labels: &mut Vec<String>,
     stats: &mut LoadStats,
@@ -230,6 +236,17 @@ fn append_fasta_record(
             data_utf8
                 .as_mut()
                 .expect("utf8 data builder exists")
+                .push_bytes(&seq);
+            row_labels.push(id.to_owned());
+            stats.records_loaded += 1;
+            stats.total_loaded_symbols += seq.len() as u64;
+        }
+        StorageKind::Fsst => {
+            ids.push_str(id);
+            metadata.push_str(meta);
+            data_fsst
+                .as_mut()
+                .expect("fsst data builder exists")
                 .push_bytes(&seq);
             row_labels.push(id.to_owned());
             stats.records_loaded += 1;
@@ -298,15 +315,35 @@ pub fn load_job_csv_dataset(
 
     let mut loaded_columns = Vec::new();
     for data in columns {
-        let table_id = dbb.add_utf8_table(data.builder)?;
-        loaded_columns.push(LoadedColumn {
-            name: data.column,
-            source_path: data.path,
-            storage: StorageKind::Utf8,
-            table_id,
-            stats: data.stats,
-            row_labels: keys.clone(),
-        });
+        for storage in data.storages {
+            let table_id = match storage {
+                StorageKind::Utf8 => {
+                    let mut builder =
+                        Utf8TableBuilder::new(format!("{}.{}.utf8", dataset, data.column));
+                    for row in &data.rows {
+                        builder.push_bytes(row);
+                    }
+                    dbb.add_utf8_table(builder)?
+                }
+                StorageKind::Fsst => {
+                    let mut builder =
+                        FsstTableBuilder::new(format!("{}.{}.fsst", dataset, data.column));
+                    for row in &data.rows {
+                        builder.push_bytes(row);
+                    }
+                    dbb.add_fsst_table(builder)?
+                }
+                StorageKind::Dna2 => bail!("JOB CSV storage dna2 should be rejected earlier"),
+            };
+            loaded_columns.push(LoadedColumn {
+                name: data.column.clone(),
+                source_path: data.path.clone(),
+                storage,
+                table_id,
+                stats: data.stats.clone(),
+                row_labels: keys.clone(),
+            });
+        }
     }
 
     Ok(LoadedDataset {
@@ -318,8 +355,9 @@ pub fn load_job_csv_dataset(
 struct JobColumnData {
     column: String,
     path: PathBuf,
+    storages: Vec<StorageKind>,
     keys: Vec<String>,
-    builder: Utf8TableBuilder,
+    rows: Vec<Vec<u8>>,
     stats: LoadStats,
 }
 
@@ -343,7 +381,7 @@ fn read_job_column(path: &Path, spec: &DataSpec, options: &LoadOptions) -> Resul
     )?;
 
     let mut keys = Vec::new();
-    let mut builder = Utf8TableBuilder::new(format!("{}.{}.utf8", spec.name, spec.column));
+    let mut rows = Vec::new();
     let mut stats = LoadStats::default();
 
     for (idx, record) in reader.records().enumerate() {
@@ -391,16 +429,17 @@ fn read_job_column(path: &Path, spec: &DataSpec, options: &LoadOptions) -> Resul
         }
 
         keys.push(key);
-        builder.push_bytes(&bytes);
         stats.records_loaded += 1;
         stats.total_loaded_symbols += bytes.len() as u64;
+        rows.push(bytes);
     }
 
     Ok(JobColumnData {
         column: spec.column.clone(),
         path: path.to_owned(),
+        storages: spec.storages.clone(),
         keys,
-        builder,
+        rows,
         stats,
     })
 }

@@ -67,9 +67,9 @@ name,path,type,storage,column[,key_column,value_column,enabled]
 Supported dataset types:
 
 ```text
-dna-fasta       FASTA sequence data; storage=utf8, dna2, or both
-protein-fasta   FASTA sequence data; UTF-8/byte storage only
-job-csv         key/value CSV columns; UTF-8/byte storage only
+dna-fasta       FASTA sequence data; storage=utf8, fsst, dna2, or all
+protein-fasta   FASTA sequence data; storage=utf8, fsst, or all
+job-csv         key/value CSV columns; storage=utf8, fsst, or all
 ```
 
 For `job-csv`, multiple rows with the same `name` become key-aligned logical columns. Each column is stored as its own dense table in `db`.
@@ -97,9 +97,11 @@ If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.cs
 
 ## Algorithms and Semantics
 
-UTF-8 algorithms run on UTF-8 storage: `std`, `kmp`, `naive`, `naive-scalar`, `naive-vectorized`, `naive-vectorized-v2`, `naive-avx2`, `naive-avx2-v2`, `naive-avx512`, `naive-avx512-v2`, `naive-auto`, `naive-mixed`, wildcard-aware naive variants, `bm`, `two-way`, `two-way2`, `libc-memmem`, `fft0`, and `fft1`.
+Byte algorithms run on UTF-8 storage: `StdSearch`, `Utf8Kmp`, `Naive`, `NaiveScalar`, `NaiveVectorized`, `NaiveVectorizedV2`, `NaiveAvx2`, `NaiveAvx2V2`, `NaiveAvx512`, `NaiveAvx512V2`, `NaiveAuto`, `NaiveMixed`, wildcard-aware naive variants, `BM`, `TwoWay`, `TwoWay2`, `LibcMemmem`, `FftStr0`, and `FftStr1`.
 
-`dna2` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
+FSST storage runs decoded-row byte algorithms and supports FM/trigram indexing over decoded bytes. `FftStr0` and `FftStr1` are UTF-8 storage only for now.
+
+`Dna2` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
 
 FSST columns expose decoded bytes as logical symbols, so FM-index and typed trigram index construction work through the same `Column<Symbol = u8>` API. The current FSST LIKE path decodes candidate rows before verification; it is not compressed-domain matching yet.
 

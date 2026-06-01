@@ -2,3 +2,4 @@ target/
 Cargo.lock
 ARCHITECTURE.md
 tmp/
+**/__pycache__/

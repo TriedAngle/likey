@@ -75,7 +75,7 @@ pub fn load_data_specs(path: &std::path::Path) -> Result<Vec<DataSpec>> {
             .storage
             .as_deref()
             .unwrap_or(data_type.default_storage_raw());
-        let storages = parse_storage_list(storage_raw)?;
+        let storages = parse_storage_list(storage_raw, data_type)?;
         if !data_type.allows_dna2() && storages.iter().any(|s| *s == StorageKind::Dna2) {
             bail!(
                 "data CSV row {} requested dna2 storage for {}; only dna-fasta supports bitpacked DNA2 storage",
@@ -186,7 +186,7 @@ pub fn load_patterns(path: &std::path::Path) -> Result<Vec<PatternSpec>> {
     Ok(out)
 }
 
-fn parse_storage_list(s: &str) -> Result<Vec<StorageKind>> {
+fn parse_storage_list(s: &str, data_type: DataType) -> Result<Vec<StorageKind>> {
     let mut out = Vec::new();
     for part in s.split(|c| c == ',' || c == ';' || c == '|') {
         let part = part.trim();
@@ -194,9 +194,12 @@ fn parse_storage_list(s: &str) -> Result<Vec<StorageKind>> {
             continue;
         }
         let lower = part.to_ascii_lowercase();
-        if lower == "both" || lower == "all" {
+        if lower == "all" {
             out.push(StorageKind::Utf8);
-            out.push(StorageKind::Dna2);
+            out.push(StorageKind::Fsst);
+            if data_type.allows_dna2() {
+                out.push(StorageKind::Dna2);
+            }
         } else {
             out.push(StorageKind::from_str(part)?);
         }
@@ -207,4 +210,26 @@ fn parse_storage_list(s: &str) -> Result<Vec<StorageKind>> {
     out.sort_by_key(|s| s.as_str());
     out.dedup();
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn storage_all_expands_to_applicable_storages() {
+        assert_eq!(
+            parse_storage_list("all", DataType::DnaFasta).unwrap(),
+            vec![StorageKind::Dna2, StorageKind::Fsst, StorageKind::Utf8]
+        );
+        assert_eq!(
+            parse_storage_list("all", DataType::ProteinFasta).unwrap(),
+            vec![StorageKind::Fsst, StorageKind::Utf8]
+        );
+        assert_eq!(
+            parse_storage_list("all", DataType::JobCsv).unwrap(),
+            vec![StorageKind::Fsst, StorageKind::Utf8]
+        );
+        assert!(parse_storage_list("both", DataType::DnaFasta).is_err());
+    }
 }

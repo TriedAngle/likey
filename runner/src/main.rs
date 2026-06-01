@@ -17,8 +17,8 @@ use crate::loaders::{
     resolve_relative,
 };
 use crate::runner::{
-    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_utf8_algorithm,
-    write_row_profiles, write_rows, write_summary,
+    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_fsst_algorithm,
+    run_utf8_algorithm, write_row_profiles, write_rows, write_summary,
 };
 use crate::specs::{DataSpec, load_algorithms, load_data_specs, load_indexes, load_patterns};
 
@@ -332,6 +332,45 @@ fn run_loaded_column(
                     args.row_profile_csv.as_ref().map(|_| &mut *profile_rows),
                 )
                 .with_context(|| format!("run UTF-8 algorithm {}", algorithm.as_str()))?;
+            }
+        }
+        StorageKind::Fsst => {
+            let table = loaded
+                .db
+                .fsst_table(loaded_column.table_id)
+                .context("data table is not FSST")?;
+            let column = table.text();
+            let built_indexes = build_indexes(&column, indexes)?;
+            let config = BenchConfig {
+                dataset: dataset_name.to_owned(),
+                column: loaded_column.name.clone(),
+                data_path: loaded_column.source_path.clone(),
+                data_type: data_type.to_owned(),
+                storage,
+                indexes: indexes.to_vec(),
+                patterns: patterns.to_vec(),
+                warmups: args.warmups,
+                iterations: args.iterations,
+                batch_rows: args.batch_rows,
+                load_ns,
+                load_stats: loaded_column.stats.clone(),
+                row_labels: &loaded_column.row_labels,
+                row_profile_enabled: args.row_profile_csv.is_some(),
+                row_profile_repeats: args.row_profile_repeats,
+                row_profile_max_rows: args.row_profile_max_rows,
+                row_profile_sample_bytes: args.row_profile_sample_bytes,
+            };
+
+            for algorithm in compatible_algorithms {
+                run_fsst_algorithm(
+                    &column,
+                    algorithm,
+                    &built_indexes,
+                    &config,
+                    bench_rows,
+                    args.row_profile_csv.as_ref().map(|_| &mut *profile_rows),
+                )
+                .with_context(|| format!("run FSST algorithm {}", algorithm.as_str()))?;
             }
         }
         StorageKind::Dna2 => {
