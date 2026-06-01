@@ -474,6 +474,18 @@ def write_markdown(path: Path, stats: list[ColumnStats], max_total_bytes: int | 
     lines.append("- Pattern offset metrics use the first occurrence of the longest literal implied by the listed LIKE pattern.")
     lines.append("")
 
+    lines.append("Metric glossary:")
+    lines.append("- `Alphabet`: number of distinct byte values seen in the column.")
+    lines.append("- `Entropy bits/B`: Shannon entropy per byte; lower values mean more repetitive/skewed text.")
+    lines.append("- `Top byte %`: share of all bytes occupied by the most frequent byte.")
+    lines.append("- `Distinct values approx %`: estimated distinct row values divided by row count.")
+    lines.append("- `Top-10 values approx %`: approximate lower-bound share of rows covered by the 10 most frequent values.")
+    lines.append("- `Distinct trigrams`: number of distinct 3-byte sequences within rows.")
+    lines.append("- `Top trigram %`: share of all row-local trigrams occupied by the most frequent trigram.")
+    lines.append("- `Prefix3/Suffix3 distinct`: number of distinct first/last 3-byte prefixes/suffixes.")
+    lines.append("- `First offset`: byte offset of the first occurrence of the benchmark literal in matching rows.")
+    lines.append("")
+
     render_length_table(lines, stats)
     render_complexity_table(lines, stats)
     render_pattern_table(lines, stats)

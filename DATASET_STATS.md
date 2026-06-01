@@ -10,6 +10,17 @@ Notes:
 - Trigram metrics use byte trigrams within each row; trigrams do not cross row boundaries.
 - Pattern offset metrics use the first occurrence of the longest literal implied by the listed LIKE pattern.
 
+Metric glossary:
+- `Alphabet`: number of distinct byte values seen in the column.
+- `Entropy bits/B`: Shannon entropy per byte; lower values mean more repetitive/skewed text.
+- `Top byte %`: share of all bytes occupied by the most frequent byte.
+- `Distinct values approx %`: estimated distinct row values divided by row count.
+- `Top-10 values approx %`: approximate lower-bound share of rows covered by the 10 most frequent values.
+- `Distinct trigrams`: number of distinct 3-byte sequences within rows.
+- `Top trigram %`: share of all row-local trigrams occupied by the most frequent trigram.
+- `Prefix3/Suffix3 distinct`: number of distinct first/last 3-byte prefixes/suffixes.
+- `First offset`: byte offset of the first occurrence of the benchmark literal in matching rows.
+
 ## Length Stats
 
 | Dataset | Column | Rows | Total MB | Avg | Median | Geomean | Min | Max | P90 | P99 |
@@ -207,4 +218,3 @@ Notes:
 | job | title.title | contains_movie | %movie% | movie | 70 | 0.00 | 19.56 | 18.00 |
 | job | title.title | prefix_the | The% | The | 193,190 | 7.64 | 0.00 | 0.00 |
 | job | title.title | suffix_drama | %drama | drama | 73 | 0.00 | 13.95 | 11.00 |
-
