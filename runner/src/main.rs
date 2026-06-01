@@ -8,19 +8,19 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 
 use crate::cli::{Args, DataType, StorageKind};
 use crate::loaders::{
-    LoadOptions, LoadedColumn, LoadedDataset, load_fasta_column, load_job_csv_dataset,
-    resolve_relative,
+    load_fasta_column, load_job_csv_dataset, resolve_relative, LoadOptions, LoadedColumn,
+    LoadedDataset,
 };
 use crate::runner::{
-    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_fsst_algorithm,
-    run_utf8_algorithm, write_row_profiles, write_rows, write_summary,
+    build_indexes, run_dna2_algorithm, run_fsst_algorithm, run_utf8_algorithm, write_row_profiles,
+    write_rows, write_summary, BenchConfig, BenchRow, RowProfileRow,
 };
-use crate::specs::{DataSpec, load_algorithms, load_data_specs, load_indexes, load_patterns};
+use crate::specs::{load_algorithms, load_data_specs, load_indexes, load_patterns, DataSpec};
 
 fn main() -> Result<()> {
     let args = Args::parse();
@@ -294,6 +294,15 @@ fn run_loaded_column(
         load_ns
     );
 
+    let fm_progress_label = args.fm_build_progress.then(|| {
+        format!(
+            "dataset={} column={} storage={}",
+            dataset_name,
+            loaded_column.name,
+            storage.as_str()
+        )
+    });
+
     match storage {
         StorageKind::Utf8 => {
             let table = loaded
@@ -301,7 +310,7 @@ fn run_loaded_column(
                 .utf8_table(loaded_column.table_id)
                 .context("data table is not UTF-8")?;
             let column = table.text();
-            let built_indexes = build_indexes(&column, indexes)?;
+            let built_indexes = build_indexes(&column, indexes, fm_progress_label.as_deref())?;
             let config = BenchConfig {
                 dataset: dataset_name.to_owned(),
                 column: loaded_column.name.clone(),
@@ -340,7 +349,7 @@ fn run_loaded_column(
                 .fsst_table(loaded_column.table_id)
                 .context("data table is not FSST")?;
             let column = table.text();
-            let built_indexes = build_indexes(&column, indexes)?;
+            let built_indexes = build_indexes(&column, indexes, fm_progress_label.as_deref())?;
             let config = BenchConfig {
                 dataset: dataset_name.to_owned(),
                 column: loaded_column.name.clone(),
@@ -379,7 +388,7 @@ fn run_loaded_column(
                 .dna2_table(loaded_column.table_id)
                 .context("data table is not DNA2")?;
             let column = table.sequence();
-            let built_indexes = build_indexes(&column, indexes)?;
+            let built_indexes = build_indexes(&column, indexes, fm_progress_label.as_deref())?;
             let config = BenchConfig {
                 dataset: dataset_name.to_owned(),
                 column: loaded_column.name.clone(),

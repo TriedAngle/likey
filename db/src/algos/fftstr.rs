@@ -914,12 +914,12 @@ impl<V: FftValue> ImplActual<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::RowId;
     use crate::db::DbBuilder;
     use crate::like::LikePattern;
-    use crate::query::{FullScan, QueryScratch, execute_like};
-    use crate::storage::Column;
+    use crate::query::{execute_like, FullScan, QueryScratch};
     use crate::storage::utf8::Utf8TableBuilder;
+    use crate::storage::Column;
+    use crate::RowId;
 
     fn one_row(text: &str) -> (crate::Db, crate::TableId) {
         let mut t = Utf8TableBuilder::new("t");

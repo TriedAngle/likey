@@ -2,16 +2,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use db::{
-    BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedScalar, Dna2PackedVectorized, FftStr0,
-    FftStr1, FmIndex, FsstColumn, FullScan, HasTrigramIndex, LibcMemmem, LikePattern, Naive,
-    NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard,
-    NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed,
-    NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
-    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats,
-    RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column,
-    Utf8Kmp, VerifyScratch, execute_like,
+    execute_like, Column, CountSink, Dna2, Dna2Column, Dna2PackedScalar, Dna2PackedVectorized,
+    FftStr0, FftStr1, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan,
+    HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2,
+    NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
+    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
+    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
+    NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats, RowId, RowLiteralSearch,
+    RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch, BM,
 };
 use serde::Serialize;
 
@@ -149,7 +149,11 @@ where
     }
 }
 
-pub fn build_indexes<C>(column: &C, requested: &[IndexKind]) -> Result<BuiltIndexes<C>>
+pub fn build_indexes<C>(
+    column: &C,
+    requested: &[IndexKind],
+    fm_progress_label: Option<&str>,
+) -> Result<BuiltIndexes<C>>
 where
     C: HasTrigramIndex,
 {
@@ -157,7 +161,11 @@ where
 
     if requested.iter().any(|kind| *kind == IndexKind::Fm) {
         let start = Instant::now();
-        let index = FmIndex::build(column)?;
+        let index = if let Some(label) = fm_progress_label {
+            FmIndex::build_with_progress(column, |progress| print_fm_progress(label, progress))?
+        } else {
+            FmIndex::build(column)?
+        };
         out.fm = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
@@ -174,6 +182,46 @@ where
     }
 
     Ok(out)
+}
+
+fn print_fm_progress(label: &str, progress: FmIndexBuildProgress) {
+    match progress.phase {
+        FmIndexBuildPhase::Ingest => {
+            if let Some(total) = progress.total {
+                let pct = percent(progress.current, total);
+                eprintln!(
+                    "> FM build {label} ingest progress: {pct}% ({}/{})",
+                    progress.current, total
+                );
+            }
+        }
+        FmIndexBuildPhase::SuffixArrayStart => {
+            eprintln!(
+                "> FM build {label} corpus size: {} symbols. Starting suffix-array build...",
+                progress.current
+            );
+        }
+        FmIndexBuildPhase::SuffixArrayPass => {
+            if let Some(total) = progress.total {
+                eprintln!(
+                    "> FM build {label} suffix-array pass {}: width={} distinct_ranks={}/{}",
+                    progress.pass, progress.width, progress.distinct_ranks, total
+                );
+            }
+        }
+        FmIndexBuildPhase::Bwt => eprintln!("> FM build {label}: building BWT"),
+        FmIndexBuildPhase::Alphabet => eprintln!("> FM build {label}: building alphabet/ranks"),
+        FmIndexBuildPhase::Occ => eprintln!("> FM build {label}: building occurrence checkpoints"),
+        FmIndexBuildPhase::Done => eprintln!("> FM build {label}: done"),
+    }
+}
+
+fn percent(current: usize, total: usize) -> usize {
+    if total == 0 {
+        100
+    } else {
+        current.saturating_mul(100) / total
+    }
 }
 
 pub fn run_utf8_algorithm<'db>(

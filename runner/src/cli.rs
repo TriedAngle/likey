@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use clap::{Parser, ValueEnum};
 
 #[derive(Debug, Parser)]
@@ -89,6 +89,10 @@ pub struct Args {
     /// Uppercase FASTA sequence lines while loading. CSV values are left unchanged.
     #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     pub uppercase_sequences: bool,
+
+    /// Print coarse FM-index build progress to stderr.
+    #[arg(long)]
+    pub fm_build_progress: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

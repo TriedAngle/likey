@@ -9,7 +9,7 @@
 //! format, store integers explicitly as little-endian bytes and add a real file
 //! header/version.
 
-use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
+use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem::{align_of, size_of};

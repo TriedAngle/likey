@@ -13,40 +13,41 @@ mod query;
 mod storage;
 
 pub use crate::algos::{
-    BM, BMState, ByteNeedle, ByteWildcardNeedle, ByteWildcardState, DNA_WILDCARD, Dna2, Dna2Needle,
-    Dna2PackedChunk, Dna2PackedNeedle, Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized,
-    FftNeedle, FftState0, FftState1, FftStr0, FftStr1, LibcMemmem, Naive, NaiveAuto,
-    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
-    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
-    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
-    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, StdSearch, TwoWay, TwoWay2,
-    TwoWay2State, TwoWayState, Utf8Kmp, bm_find, bytes_eq_same_len, bytes_match_wildcard_same_len,
-    eq_at_bytes, kmp_find, kmp_find_from, matches_at_bytes, matches_at_bytes_wildcard, memmem_find,
-    naive_find, naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512,
-    naive_find_avx512_v2, naive_find_mixed, naive_find_scalar, naive_find_vectorized,
-    naive_find_vectorized_v2, naive_find_wildcard, naive_find_wildcard_auto,
-    naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512,
-    naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
-    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2, two_way_find, two_way2_find,
+    bm_find, bytes_eq_same_len, bytes_match_wildcard_same_len, eq_at_bytes, kmp_find,
+    kmp_find_from, matches_at_bytes, matches_at_bytes_wildcard, memmem_find, naive_find,
+    naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512, naive_find_avx512_v2,
+    naive_find_mixed, naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2,
+    naive_find_wildcard, naive_find_wildcard_auto, naive_find_wildcard_avx2,
+    naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512, naive_find_wildcard_avx512_v2,
+    naive_find_wildcard_mixed, naive_find_wildcard_scalar, naive_find_wildcard_vectorized,
+    naive_find_wildcard_vectorized_v2, two_way2_find, two_way_find, BMState, ByteNeedle,
+    ByteWildcardNeedle, ByteWildcardState, Dna2, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle,
+    Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized, FftNeedle, FftState0, FftState1,
+    FftStr0, FftStr1, LibcMemmem, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
+    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard,
+    NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard,
+    NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard,
+    NaiveWildcard, StdSearch, TwoWay, TwoWay2, TwoWay2State, TwoWayState, Utf8Kmp, BM,
+    DNA_WILDCARD,
 };
 pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
-    BuildIndex, Dna2TrigramDomain, Fixed64PostingStore, FmIndex, FmIndexError, FmProbe,
-    FsstDecodedTrigramDomain, HasTrigramIndex, HashMapPostingStore, IndexProbe, TrigramDomain,
-    TrigramIndex, TrigramPostingStore, TrigramProbe, TypedTrigramIndex, Utf8ByteTrigramDomain,
-    dna2_trigram_key, intersect_sorted_rowids, trigram_key, trigram_keys,
+    dna2_trigram_key, intersect_sorted_rowids, trigram_key, trigram_keys, BuildIndex,
+    Dna2TrigramDomain, Fixed64PostingStore, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress,
+    FmIndexError, FmProbe, FsstDecodedTrigramDomain, HasTrigramIndex, HashMapPostingStore,
+    IndexProbe, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe, TypedTrigramIndex,
+    Utf8ByteTrigramDomain,
 };
 pub use crate::like::{
     LikeCompileError, LikeCompileOptions, LikePattern, LikeToken, LiteralAlgorithm, MatchStrategy,
     RowLiteralSearch,
 };
 pub use crate::query::{
-    AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CandidateScratch, CountSink,
-    FullScan, QueryScratch, QueryStats, ResultSink, RowVerifier, SortedRowsProbe, VerifyScratch,
-    execute_like,
+    execute_like, AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CandidateScratch,
+    CountSink, FullScan, QueryScratch, QueryStats, ResultSink, RowVerifier, SortedRowsProbe,
+    VerifyScratch,
 };
-pub use crate::storage::Column;
 pub use crate::storage::dna2::{
     Dna2Column, Dna2ColumnBuilder, Dna2ColumnDesc, Dna2Iter, Dna2Row, Dna2RowEntry, Dna2Table,
     Dna2TableBuilder, Dna2TableDesc, DnaBase, DnaError,
@@ -59,6 +60,7 @@ pub use crate::storage::utf8::{
     Utf8Column, Utf8ColumnBuilder, Utf8ColumnDesc, Utf8Row, Utf8RowEntry, Utf8Table,
     Utf8TableBuilder, Utf8TableDesc,
 };
+pub use crate::storage::Column;
 
 /// Physical dense row ordinal.
 ///

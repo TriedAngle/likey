@@ -8,16 +8,16 @@
 pub mod fm;
 pub mod trigram;
 
-pub use fm::{FmIndex, FmIndexError, FmProbe};
+pub use fm::{FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmIndexError, FmProbe};
 pub use trigram::{
-    Dna2TrigramDomain, Fixed64PostingStore, FsstDecodedTrigramDomain, HasTrigramIndex,
-    HashMapPostingStore, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
-    TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key, trigram_key, trigram_keys,
+    dna2_trigram_key, trigram_key, trigram_keys, Dna2TrigramDomain, Fixed64PostingStore,
+    FsstDecodedTrigramDomain, HasTrigramIndex, HashMapPostingStore, TrigramDomain, TrigramIndex,
+    TrigramPostingStore, TrigramProbe, TypedTrigramIndex, Utf8ByteTrigramDomain,
 };
 
-use crate::RowId;
 use crate::query::CandidateProvider;
 use crate::storage::Column;
+use crate::RowId;
 
 /// Optional build hook for reusable index types.
 ///
@@ -68,12 +68,12 @@ pub fn intersect_sorted_rowids(a: &[RowId], b: &[RowId], out: &mut Vec<RowId>) {
 mod tests {
     use super::*;
     use crate::query::CandidateProvider;
-    use crate::storage::Column;
     use crate::storage::dna2::{Dna2Column, Dna2TableBuilder};
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
+    use crate::storage::Column;
     use crate::{
-        DbBuilder, Dna2, FullScan, LikePattern, QueryScratch, RowLiteralSearch, StdSearch,
-        execute_like,
+        execute_like, DbBuilder, Dna2, FullScan, LikePattern, QueryScratch, RowLiteralSearch,
+        StdSearch,
     };
 
     macro_rules! index_suites {

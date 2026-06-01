@@ -3,8 +3,8 @@ use crate::storage::utf8::{Utf8Column, Utf8Row};
 
 use super::naive::naive_find_scalar;
 use super::utf8_shared::{
-    ByteNeedle, byte_index_symbols, byte_literal_len, compile_byte_literal, matches_at_bytes,
-    utf8_row_len,
+    byte_index_symbols, byte_literal_len, compile_byte_literal, matches_at_bytes, utf8_row_len,
+    ByteNeedle,
 };
 
 /// Uses Rust's standard `str::find` when the row and start offset allow it.

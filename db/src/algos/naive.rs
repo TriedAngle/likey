@@ -2,10 +2,10 @@ use crate::like::{LiteralAlgorithm, RowLiteralSearch};
 use crate::storage::utf8::{Utf8Column, Utf8Row};
 
 use super::utf8_shared::{
-    ByteNeedle, ByteWildcardNeedle, ByteWildcardState, byte_index_symbols, byte_literal_len,
-    byte_wildcard_index_symbols, byte_wildcard_literal_len, bytes_match_wildcard_same_len,
-    compile_byte_literal, compile_byte_wildcard_literal, matches_at_bytes,
-    matches_at_bytes_wildcard, utf8_row_len,
+    byte_index_symbols, byte_literal_len, byte_wildcard_index_symbols, byte_wildcard_literal_len,
+    bytes_match_wildcard_same_len, compile_byte_literal, compile_byte_wildcard_literal,
+    matches_at_bytes, matches_at_bytes_wildcard, utf8_row_len, ByteNeedle, ByteWildcardNeedle,
+    ByteWildcardState,
 };
 
 #[derive(Debug, Clone, Copy, Default)]

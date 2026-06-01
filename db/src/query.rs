@@ -19,7 +19,6 @@ pub struct CandidateScratch {
     /// Generic row-id buffer for posting-list intersections or FM occurrence
     /// row deduplication.
     pub row_ids: Vec<RowId>,
-
 }
 
 impl CandidateScratch {

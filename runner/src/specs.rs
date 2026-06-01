@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 
-use crate::cli::{AlgorithmKind, DataType, IndexKind, StorageKind, parse_boolish};
+use crate::cli::{parse_boolish, AlgorithmKind, DataType, IndexKind, StorageKind};
 
 #[derive(Debug, Clone)]
 pub struct DataSpec {

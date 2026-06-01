@@ -4,9 +4,9 @@
 //! means any byte sequence. If you want Unicode scalar or grapheme semantics,
 //! add a separate storage type so the benchmark remains explicit.
 
-use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
 use crate::storage::Column;
+use crate::RowId;
 
 #[derive(Debug, Clone)]
 pub struct Utf8TableDesc {

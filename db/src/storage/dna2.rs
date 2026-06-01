@@ -6,9 +6,9 @@
 use std::fmt;
 use std::iter::FusedIterator;
 
-use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
 use crate::storage::Column;
+use crate::RowId;
 
 #[derive(Debug, Clone)]
 pub struct Dna2TableDesc {

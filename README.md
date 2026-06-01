@@ -27,6 +27,33 @@ cargo run -p db --example like_with_trigram_candidates
 cargo run -p db --example fsst_table
 ```
 
+## Python Setup
+
+Dataset scripts use Python. Create a project-local virtual environment before running them:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install duckdb zstandard
+```
+
+`duckdb` is needed for TPC-H/TPC-DS generation. `zstandard` is needed to extract the JOB `.tzst` archive.
+
+Download raw relational benchmark data into `data/raw/`:
+
+```bash
+python scripts/download_benchmarks.py
+```
+
+To download only JOB, run:
+
+```bash
+python scripts/download_benchmarks.py --skip-tpch --skip-tpcds
+```
+
+`--force` deletes/replaces existing generated or downloaded data for the requested datasets. Omit it to reuse data that is already present.
+
 Run the benchmark binary directly:
 
 ```bash

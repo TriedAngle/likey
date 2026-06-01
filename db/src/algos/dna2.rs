@@ -1099,9 +1099,9 @@ unsafe fn neon_movemask_u8(v: core::arch::aarch64::uint8x16_t) -> u16 {
 mod tests {
     use super::*;
     use crate::like::{LikePattern, RowLiteralSearch};
-    use crate::storage::Column;
     use crate::storage::dna2::Dna2TableBuilder;
-    use crate::{DbBuilder, FullScan, QueryScratch, RowId, execute_like};
+    use crate::storage::Column;
+    use crate::{execute_like, DbBuilder, FullScan, QueryScratch, RowId};
 
     fn one_row(seq: &str) -> (crate::Db, crate::TableId) {
         let mut table = Dna2TableBuilder::new("dna");

@@ -13,9 +13,9 @@ use std::fmt;
 
 use fsst::{Compressor, CompressorBuilder};
 
-use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
 use crate::storage::Column;
+use crate::RowId;
 
 #[derive(Clone)]
 /// FSST compressor plus a compact symbol-table snapshot.

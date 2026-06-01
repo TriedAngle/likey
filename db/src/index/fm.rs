@@ -57,6 +57,27 @@ pub struct FmIndex {
     row_count: RowId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FmIndexBuildPhase {
+    Ingest,
+    SuffixArrayStart,
+    SuffixArrayPass,
+    Bwt,
+    Alphabet,
+    Occ,
+    Done,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FmIndexBuildProgress {
+    pub phase: FmIndexBuildPhase,
+    pub current: usize,
+    pub total: Option<usize>,
+    pub pass: usize,
+    pub width: usize,
+    pub distinct_ranks: usize,
+}
+
 impl<C> BuildIndex<C> for FmIndex
 where
     C: Column<Symbol = u8>,
@@ -75,13 +96,35 @@ impl FmIndex {
     where
         C: Column<Symbol = u8>,
     {
-        Self::build_with_checkpoint(column, Self::DEFAULT_CHECKPOINT)
+        Self::build_with_checkpoint_and_progress(column, Self::DEFAULT_CHECKPOINT, |_| {})
     }
 
     /// Build an FM-index with a custom occurrence checkpoint spacing.
     pub fn build_with_checkpoint<C>(column: &C, checkpoint: usize) -> Result<Self, FmIndexError>
     where
         C: Column<Symbol = u8>,
+    {
+        Self::build_with_checkpoint_and_progress(column, checkpoint, |_| {})
+    }
+
+    /// Build an FM-index and report coarse-grained build progress.
+    pub fn build_with_progress<C, F>(column: &C, progress: F) -> Result<Self, FmIndexError>
+    where
+        C: Column<Symbol = u8>,
+        F: FnMut(FmIndexBuildProgress),
+    {
+        Self::build_with_checkpoint_and_progress(column, Self::DEFAULT_CHECKPOINT, progress)
+    }
+
+    /// Build an FM-index with a custom occurrence checkpoint spacing and progress callback.
+    pub fn build_with_checkpoint_and_progress<C, F>(
+        column: &C,
+        checkpoint: usize,
+        mut progress: F,
+    ) -> Result<Self, FmIndexError>
+    where
+        C: Column<Symbol = u8>,
+        F: FnMut(FmIndexBuildProgress),
     {
         if checkpoint == 0 {
             return Err(FmIndexError::CheckpointIsZero);
@@ -106,6 +149,7 @@ impl FmIndex {
 
         let mut text = Vec::with_capacity(total_symbols);
         let mut pos_to_row = Vec::with_capacity(total_symbols);
+        let mut next_ingest_pct = 1usize;
 
         for row in 0..row_count {
             for sym in column.symbols(row) {
@@ -114,21 +158,85 @@ impl FmIndex {
             }
             text.push(SEPARATOR);
             pos_to_row.push(NO_ROW);
+
+            while next_ingest_pct <= 100
+                && text.len().saturating_mul(100) >= total_symbols.saturating_mul(next_ingest_pct)
+            {
+                progress(FmIndexBuildProgress {
+                    phase: FmIndexBuildPhase::Ingest,
+                    current: text.len(),
+                    total: Some(total_symbols),
+                    pass: 0,
+                    width: 0,
+                    distinct_ranks: 0,
+                });
+                next_ingest_pct += 1;
+            }
         }
 
         text.push(SENTINEL);
         pos_to_row.push(NO_ROW);
+        if next_ingest_pct <= 100 {
+            progress(FmIndexBuildProgress {
+                phase: FmIndexBuildPhase::Ingest,
+                current: text.len(),
+                total: Some(total_symbols),
+                pass: 0,
+                width: 0,
+                distinct_ranks: 0,
+            });
+        }
 
         debug_assert_eq!(text.len(), total_symbols);
         debug_assert_eq!(pos_to_row.len(), text.len());
 
         let text_len = text.len();
-        let sa = build_suffix_array(&text);
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::SuffixArrayStart,
+            current: text_len,
+            total: Some(text_len),
+            pass: 0,
+            width: 0,
+            distinct_ranks: 0,
+        });
+        let sa = build_suffix_array_with_progress(&text, &mut progress);
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::Bwt,
+            current: text_len,
+            total: Some(text_len),
+            pass: 0,
+            width: 0,
+            distinct_ranks: 0,
+        });
         let bwt_symbols = build_bwt(&text, &sa);
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::Alphabet,
+            current: text_len,
+            total: Some(text_len),
+            pass: 0,
+            width: 0,
+            distinct_ranks: 0,
+        });
         let alphabet = build_alphabet(&text);
         let bwt_ranks = remap_bwt(&bwt_symbols, &alphabet.symbol_to_rank);
         let c = build_c(&alphabet.counts);
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::Occ,
+            current: text_len,
+            total: Some(text_len),
+            pass: 0,
+            width: 0,
+            distinct_ranks: 0,
+        });
         let occ = build_occ(&bwt_ranks, alphabet.counts.len(), checkpoint);
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::Done,
+            current: text_len,
+            total: Some(text_len),
+            pass: 0,
+            width: 0,
+            distinct_ranks: 0,
+        });
 
         Ok(Self {
             text_len,
@@ -342,7 +450,10 @@ fn rank_for_symbol(symbol_to_rank: &[i16], symbol: u16) -> Option<usize> {
     (rank >= 0).then_some(rank as usize)
 }
 
-fn build_suffix_array(text: &[u16]) -> Vec<usize> {
+fn build_suffix_array_with_progress<F>(text: &[u16], mut progress: F) -> Vec<usize>
+where
+    F: FnMut(FmIndexBuildProgress),
+{
     let n = text.len();
     let mut sa = (0..n).collect::<Vec<_>>();
     if n <= 1 {
@@ -352,6 +463,7 @@ fn build_suffix_array(text: &[u16]) -> Vec<usize> {
     let mut rank = text.iter().map(|&s| i32::from(s)).collect::<Vec<_>>();
     let mut next_rank = vec![0i32; n];
     let mut k = 1usize;
+    let mut pass = 1usize;
 
     loop {
         sa.sort_unstable_by(|&a, &b| match rank[a].cmp(&rank[b]) {
@@ -369,10 +481,20 @@ fn build_suffix_array(text: &[u16]) -> Vec<usize> {
         }
 
         rank.clone_from(&next_rank);
+        let distinct_ranks = rank[sa[n - 1]] as usize + 1;
+        progress(FmIndexBuildProgress {
+            phase: FmIndexBuildPhase::SuffixArrayPass,
+            current: distinct_ranks,
+            total: Some(n),
+            pass,
+            width: k,
+            distinct_ranks,
+        });
         if rank[sa[n - 1]] as usize == n - 1 || k >= n {
             break;
         }
         k = k.saturating_mul(2);
+        pass += 1;
     }
 
     sa

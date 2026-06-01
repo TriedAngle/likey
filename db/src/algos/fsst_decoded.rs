@@ -8,26 +8,26 @@
 use crate::like::RowLiteralSearch;
 use crate::storage::fsst::{FsstColumn, FsstRow};
 
-use super::bm::{BM, bm_find};
-use super::kmp::{Utf8Kmp, kmp_find_from};
-use super::libc_find::{LibcMemmem, memmem_find};
+use super::bm::{bm_find, BM};
+use super::kmp::{kmp_find_from, Utf8Kmp};
+use super::libc_find::{memmem_find, LibcMemmem};
 use super::naive::{
-    Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
-    NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
-    NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
-    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
     naive_find, naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512,
     naive_find_avx512_v2, naive_find_mixed, naive_find_scalar, naive_find_vectorized,
     naive_find_vectorized_v2, naive_find_wildcard, naive_find_wildcard_auto,
     naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512,
     naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
-    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
+    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2, Naive, NaiveAuto,
+    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
+    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
+    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
 };
 use super::std_search::StdSearch;
-use super::two_way::{TwoWay, two_way_find};
-use super::two_way2::{TwoWay2, two_way2_find};
+use super::two_way::{two_way_find, TwoWay};
+use super::two_way2::{two_way2_find, TwoWay2};
 use super::utf8_shared::{
-    ByteNeedle, ByteWildcardNeedle, bytes_match_wildcard_same_len, eq_at_bytes,
+    bytes_match_wildcard_same_len, eq_at_bytes, ByteNeedle, ByteWildcardNeedle,
 };
 
 #[inline(always)]

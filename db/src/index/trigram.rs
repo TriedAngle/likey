@@ -15,13 +15,13 @@ use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-use crate::RowId;
 use crate::like::{LikePattern, LiteralAlgorithm};
 use crate::query::{CandidateBatch, CandidateProvider, CandidateScratch};
-use crate::storage::Column;
 use crate::storage::dna2::{Dna2Column, Dna2Row};
 use crate::storage::fsst::FsstColumn;
 use crate::storage::utf8::Utf8Column;
+use crate::storage::Column;
+use crate::RowId;
 
 #[inline(always)]
 pub fn trigram_key(a: u8, b: u8, c: u8) -> u32 {
@@ -192,7 +192,11 @@ impl<'db> TrigramDomain<Utf8Column<'db>> for Utf8ByteTrigramDomain {
 
     fn literal_trigrams(symbols: &[u8]) -> Option<Vec<Self::Key>> {
         let keys = trigram_keys(symbols);
-        if keys.is_empty() { None } else { Some(keys) }
+        if keys.is_empty() {
+            None
+        } else {
+            Some(keys)
+        }
     }
 }
 
@@ -233,7 +237,11 @@ impl<'db> TrigramDomain<FsstColumn<'db>> for FsstDecodedTrigramDomain {
 
     fn literal_trigrams(symbols: &[u8]) -> Option<Vec<Self::Key>> {
         let keys = trigram_keys(symbols);
-        if keys.is_empty() { None } else { Some(keys) }
+        if keys.is_empty() {
+            None
+        } else {
+            Some(keys)
+        }
     }
 }
 
