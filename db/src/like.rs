@@ -149,6 +149,33 @@ where
     }
 }
 
+/// Static-anchor generic LIKE matcher.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct StaticGenericMatcher;
+
+/// Adaptive-anchor generic LIKE matcher.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AdaptiveGenericMatcher;
+
+/// Recursive reference generic LIKE matcher.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RecursiveGenericMatcher;
+
+/// Compile-time selector for the generic LIKE matching path.
+///
+/// `LikePattern<A>` is intentionally independent of this type. Callers that want
+/// a specific generic matcher use [`LikePattern::verifier`] or
+/// [`LikePattern::matches_row_with`], so the selected matcher is monomorphized
+/// into the row verifier instead of checked per row.
+pub trait GenericMatcher {
+    const NAME: &'static str;
+
+    fn matches_general<'r, C, A>(pattern: &LikePattern<A>, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>;
+}
+
 struct CompiledLiteral<A: LiteralAlgorithm> {
     source: Box<str>,
     needle: A::Needle,
@@ -185,6 +212,23 @@ enum SegmentVerify {
     FailedUnanchored,
 }
 
+trait SegmentAnchorMatcher {
+    fn find_segment_from<'r, C, A>(
+        pattern: &LikePattern<A>,
+        row: &C::Row<'r>,
+        segment_idx: usize,
+        lower: u32,
+        upper: u32,
+        text_len: u32,
+    ) -> Option<u32>
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>;
+}
+
+struct StaticSegmentAnchorMatcher;
+struct AdaptiveSegmentAnchorMatcher;
+
 /// Compiled LIKE pattern for one literal-search algorithm.
 ///
 /// A `LikePattern` owns normalized tokens, compiled literal state, and the
@@ -203,6 +247,18 @@ pub struct LikePattern<A: LiteralAlgorithm> {
     has_any: bool,
     has_skip: bool,
     _marker: PhantomData<A>,
+}
+
+/// A [`RowVerifier`] view of a [`LikePattern`] with a compile-time generic
+/// matcher selection.
+#[derive(Clone, Copy)]
+pub struct LikePatternVerifier<'p, A, M>
+where
+    A: LiteralAlgorithm,
+    M: GenericMatcher,
+{
+    pattern: &'p LikePattern<A>,
+    _marker: PhantomData<M>,
 }
 
 impl<A> LikePattern<A>
@@ -344,6 +400,17 @@ where
         self.indexable_literals().max_by_key(|lit| lit.len())
     }
 
+    /// Create a row verifier that uses a compile-time selected generic matcher.
+    pub fn verifier<M>(&self) -> LikePatternVerifier<'_, A, M>
+    where
+        M: GenericMatcher,
+    {
+        LikePatternVerifier {
+            pattern: self,
+            _marker: PhantomData,
+        }
+    }
+
     fn len_constraint_internal(&self) -> LenConstraint {
         if self.has_any {
             LenConstraint::at_least(self.min_len)
@@ -361,18 +428,41 @@ where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
     {
+        self.matches_row_with::<C, StaticGenericMatcher>(row)
+    }
+
+    /// Verify one concrete row using a compile-time selected generic matcher.
+    pub fn matches_row_with<'r, C, M>(&self, row: &C::Row<'r>) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+        M: GenericMatcher,
+    {
         let text_len = A::row_len(row);
         if !self.len_constraint_internal().matches(text_len) {
             return false;
         }
 
-        self.matches_row_len_prechecked::<C>(row, text_len)
+        self.matches_row_len_prechecked_with::<C, M>(row, text_len)
     }
 
     pub(crate) fn matches_row_len_prechecked<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
+    {
+        self.matches_row_len_prechecked_with::<C, StaticGenericMatcher>(row, text_len)
+    }
+
+    pub(crate) fn matches_row_len_prechecked_with<'r, C, M>(
+        &self,
+        row: &C::Row<'r>,
+        text_len: u32,
+    ) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+        M: GenericMatcher,
     {
         match self.strategy {
             MatchStrategy::All => true,
@@ -392,68 +482,10 @@ where
             MatchStrategy::Contains { literal_idx } => {
                 self.find_literal_from::<C>(row, 0, literal_idx).is_some()
             }
-            MatchStrategy::PercentOnly => self.match_percent_only::<C>(row, text_len),
-            MatchStrategy::General => self.match_general_static_anchor::<C>(row, text_len),
-        }
-    }
-
-    fn match_percent_only<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
-    where
-        C: Column<Symbol = u8>,
-        A: RowLiteralSearch<C>,
-    {
-        let literal_count = self.literals.len();
-        if literal_count == 0 {
-            return true;
-        }
-
-        let mut from = 0u32;
-        let mut first = 0usize;
-        let mut after_last = literal_count;
-
-        if !matches!(self.tokens.first(), Some(LikeToken::Any)) {
-            let first_lit = 0;
-            if !self.literal_matches_at::<C>(row, 0, first_lit) {
-                return false;
+            MatchStrategy::PercentOnly | MatchStrategy::General => {
+                M::matches_general::<C, A>(self, row, text_len)
             }
-            from = self.literal_len(first_lit);
-            first = 1;
         }
-
-        let mut upper = text_len;
-        if !matches!(self.tokens.last(), Some(LikeToken::Any)) {
-            let last_lit = literal_count - 1;
-            let last_len = self.literal_len(last_lit);
-            if text_len < last_len {
-                return false;
-            }
-
-            let suffix_start = text_len - last_len;
-            if !self.literal_matches_at::<C>(row, suffix_start, last_lit) {
-                return false;
-            }
-
-            upper = suffix_start;
-            after_last = literal_count - 1;
-        }
-
-        for literal_idx in first..after_last {
-            let literal_len = self.literal_len(literal_idx);
-            if from > upper || literal_len > upper - from {
-                return false;
-            }
-            let max_start = upper - literal_len;
-
-            let Some(hit) = self.find_literal_from::<C>(row, from, literal_idx) else {
-                return false;
-            };
-            if hit > max_start {
-                return false;
-            }
-            from = hit + literal_len;
-        }
-
-        true
     }
 
     /// General LIKE verification using static segment anchors.
@@ -561,7 +593,7 @@ where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
     {
-        self.match_general_segments::<C>(row, text_len, false)
+        self.match_general_segments::<C, StaticSegmentAnchorMatcher>(row, text_len)
     }
 
     fn match_general_adaptive_anchor<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
@@ -569,18 +601,14 @@ where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
     {
-        self.match_general_segments::<C>(row, text_len, true)
+        self.match_general_segments::<C, AdaptiveSegmentAnchorMatcher>(row, text_len)
     }
 
-    fn match_general_segments<'r, C>(
-        &self,
-        row: &C::Row<'r>,
-        text_len: u32,
-        adaptive_anchor: bool,
-    ) -> bool
+    fn match_general_segments<'r, C, S>(&self, row: &C::Row<'r>, text_len: u32) -> bool
     where
         C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
+        S: SegmentAnchorMatcher,
     {
         if self.segments.is_empty() {
             // The length constraint has already handled `%`/`_`-only patterns.
@@ -630,17 +658,8 @@ where
         // next segment; an earlier match leaves at least as much room for the
         // remaining suffix.
         for segment_idx in first_middle..last_middle {
-            let start = if adaptive_anchor {
-                self.find_segment_from_adaptive_anchor::<C>(
-                    row,
-                    segment_idx,
-                    lower,
-                    upper,
-                    text_len,
-                )
-            } else {
-                self.find_segment_from_static_anchor::<C>(row, segment_idx, lower, upper, text_len)
-            };
+            let start =
+                S::find_segment_from::<C, A>(self, row, segment_idx, lower, upper, text_len);
 
             let Some(start) = start else {
                 return false;
@@ -932,6 +951,76 @@ where
     }
 }
 
+impl GenericMatcher for StaticGenericMatcher {
+    const NAME: &'static str = "static";
+
+    fn matches_general<'r, C, A>(pattern: &LikePattern<A>, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        pattern.match_general_static_anchor::<C>(row, text_len)
+    }
+}
+
+impl GenericMatcher for AdaptiveGenericMatcher {
+    const NAME: &'static str = "adaptive";
+
+    fn matches_general<'r, C, A>(pattern: &LikePattern<A>, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        pattern.match_general_adaptive_anchor::<C>(row, text_len)
+    }
+}
+
+impl GenericMatcher for RecursiveGenericMatcher {
+    const NAME: &'static str = "recursive";
+
+    fn matches_general<'r, C, A>(pattern: &LikePattern<A>, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        pattern.match_from::<C>(row, 0, 0, text_len)
+    }
+}
+
+impl SegmentAnchorMatcher for StaticSegmentAnchorMatcher {
+    fn find_segment_from<'r, C, A>(
+        pattern: &LikePattern<A>,
+        row: &C::Row<'r>,
+        segment_idx: usize,
+        lower: u32,
+        upper: u32,
+        text_len: u32,
+    ) -> Option<u32>
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        pattern.find_segment_from_static_anchor::<C>(row, segment_idx, lower, upper, text_len)
+    }
+}
+
+impl SegmentAnchorMatcher for AdaptiveSegmentAnchorMatcher {
+    fn find_segment_from<'r, C, A>(
+        pattern: &LikePattern<A>,
+        row: &C::Row<'r>,
+        segment_idx: usize,
+        lower: u32,
+        upper: u32,
+        text_len: u32,
+    ) -> Option<u32>
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        pattern.find_segment_from_adaptive_anchor::<C>(row, segment_idx, lower, upper, text_len)
+    }
+}
+
 impl<C, A> RowVerifier<C> for LikePattern<A>
 where
     C: Column<Symbol = u8>,
@@ -978,6 +1067,60 @@ where
         VerifyOutcome {
             len_passed: true,
             matched: self.matches_row_len_prechecked::<C>(&row, row_len),
+        }
+    }
+}
+
+impl<'p, C, A, M> RowVerifier<C> for LikePatternVerifier<'p, A, M>
+where
+    C: Column<Symbol = u8>,
+    A: RowLiteralSearch<C>,
+    M: GenericMatcher,
+{
+    fn len_constraint(&self) -> LenConstraint {
+        self.pattern.len_constraint_internal()
+    }
+
+    fn verify(&self, column: &C, row: RowId, _scratch: &mut VerifyScratch) -> bool {
+        let row = column.row(row);
+        self.pattern.matches_row_with::<C, M>(&row)
+    }
+
+    fn verify_len_prechecked(
+        &self,
+        column: &C,
+        row: RowId,
+        row_len: u32,
+        _scratch: &mut VerifyScratch,
+    ) -> bool {
+        let row = column.row(row);
+        self.pattern
+            .matches_row_len_prechecked_with::<C, M>(&row, row_len)
+    }
+
+    fn verify_candidate(
+        &self,
+        column: &C,
+        row: RowId,
+        _scratch: &mut VerifyScratch,
+    ) -> VerifyOutcome {
+        // Internal query execution trusts candidate row IDs in release; debug
+        // builds catch invalid custom providers or corrupt indexes.
+        debug_assert!(row < column.row_count(), "candidate row out of bounds");
+        let row_len = column.logical_len(row);
+        if !self.pattern.len_constraint_internal().matches(row_len) {
+            return VerifyOutcome {
+                len_passed: false,
+                matched: false,
+            };
+        }
+
+        let row = column.row(row);
+        VerifyOutcome {
+            len_passed: true,
+            matched: self
+                .pattern
+                .matches_row_len_prechecked_with::<C, M>(&row, row_len),
         }
     }
 }

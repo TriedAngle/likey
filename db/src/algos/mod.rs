@@ -18,45 +18,46 @@ pub mod std_search;
 pub mod two_way;
 pub mod two_way2;
 
-pub use bm::{bm_find, BMState, BM};
+pub use bm::{BM, BMState, bm_find};
 pub use dna2::{
-    Dna2, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle, Dna2PackedScalar, Dna2PackedState,
-    Dna2PackedVectorized, DNA_WILDCARD,
+    DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle, Dna2PackedScalar,
+    Dna2PackedState, Dna2PackedVectorized,
 };
 pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
-pub use kmp::{kmp_find, kmp_find_from, Utf8Kmp};
-pub use libc_find::{memmem_find, LibcMemmem};
+pub use kmp::{Utf8Kmp, kmp_find, kmp_find_from};
+pub use libc_find::{LibcMemmem, memmem_find};
 pub use naive::{
+    Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
+    NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
+    NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
+    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
     naive_find, naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512,
     naive_find_avx512_v2, naive_find_mixed, naive_find_scalar, naive_find_vectorized,
     naive_find_vectorized_v2, naive_find_wildcard, naive_find_wildcard_auto,
     naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512,
     naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
-    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2, Naive, NaiveAuto,
-    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
-    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
-    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
-    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
+    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
 };
 pub use std_search::StdSearch;
-pub use two_way::{two_way_find, TwoWay, TwoWayState};
-pub use two_way2::{two_way2_find, TwoWay2, TwoWay2State};
+pub use two_way::{TwoWay, TwoWayState, two_way_find};
+pub use two_way2::{TwoWay2, TwoWay2State, two_way2_find};
 pub use utf8_shared::{
-    bytes_eq_same_len, bytes_match_wildcard_same_len, eq_at_bytes, matches_at_bytes,
-    matches_at_bytes_wildcard, ByteNeedle, ByteWildcardNeedle, ByteWildcardState,
+    ByteNeedle, ByteWildcardNeedle, ByteWildcardState, bytes_eq_same_len,
+    bytes_match_wildcard_same_len, eq_at_bytes, matches_at_bytes, matches_at_bytes_wildcard,
 };
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::RowId;
     use crate::db::DbBuilder;
     use crate::like::{
-        LikeCompileOptions, LikePattern, LiteralAlgorithm, MatchStrategy, RowLiteralSearch,
+        AdaptiveGenericMatcher, GenericMatcher, LikeCompileOptions, LikePattern, LiteralAlgorithm,
+        MatchStrategy, RecursiveGenericMatcher, RowLiteralSearch, StaticGenericMatcher,
     };
-    use crate::query::{execute_like, FullScan, QueryScratch};
-    use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
+    use crate::query::{FullScan, QueryScratch, execute_like};
     use crate::storage::Column;
-    use crate::RowId;
+    use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
 
     use super::utf8_shared::expected_find_from;
 
@@ -406,6 +407,79 @@ mod tests {
                 expected,
                 "LIKE mismatch: algo={}, pattern={pattern:?}",
                 core::any::type_name::<A>()
+            );
+        }
+    }
+
+    fn collect_with_matcher<M>(col: &Utf8Column<'_>, like: &LikePattern<Utf8Kmp>) -> Vec<RowId>
+    where
+        M: GenericMatcher,
+    {
+        let verifier = like.verifier::<M>();
+        let mut scan = FullScan::new(col.row_count(), 16);
+        let mut scratch = QueryScratch::default();
+        let mut matches = Vec::<RowId>::new();
+        execute_like(col, &mut scan, &verifier, &mut scratch, &mut matches);
+        matches
+    }
+
+    #[test]
+    fn generic_matcher_variants_agree_for_general_patterns() {
+        let rows = [
+            "abc",
+            "abbc",
+            "axc",
+            "ac",
+            "abxc",
+            "The love boat",
+            "The boat of love",
+            "love movie",
+            "movie love",
+            "",
+        ];
+
+        let mut table = Utf8TableBuilder::new("docs");
+        for row in rows {
+            table.push_str(row);
+        }
+        let mut dbb = DbBuilder::new();
+        let id = dbb.add_utf8_table(table).unwrap();
+        let db = dbb.freeze();
+        let table = db.utf8_table(id).unwrap();
+        let col = table.text();
+
+        let patterns_and_expected: &[(&str, &[RowId])] = &[
+            ("a_c", &[0, 2]),
+            ("a%bc", &[0, 1]),
+            ("The%love%", &[5, 6]),
+            ("%love%movie%", &[7]),
+            ("%movie%love%", &[8]),
+            ("%_%", &[0, 1, 2, 3, 4, 5, 6, 7, 8]),
+        ];
+
+        for &(pattern, expected) in patterns_and_expected {
+            let like = LikePattern::<Utf8Kmp>::compile_with_options(
+                pattern,
+                LikeCompileOptions {
+                    pass_underscore_to_algorithm: false,
+                },
+            )
+            .expect("pattern should compile");
+
+            assert_eq!(
+                collect_with_matcher::<StaticGenericMatcher>(&col, &like),
+                expected,
+                "static matcher mismatch for pattern {pattern:?}"
+            );
+            assert_eq!(
+                collect_with_matcher::<AdaptiveGenericMatcher>(&col, &like),
+                expected,
+                "adaptive matcher mismatch for pattern {pattern:?}"
+            );
+            assert_eq!(
+                collect_with_matcher::<RecursiveGenericMatcher>(&col, &like),
+                expected,
+                "recursive matcher mismatch for pattern {pattern:?}"
             );
         }
     }

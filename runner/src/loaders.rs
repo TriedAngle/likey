@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use db::{Db, DbBuilder, Dna2TableBuilder, DnaBase, FsstTableBuilder, TableId, Utf8TableBuilder};
 
 use crate::cli::{InvalidDnaPolicy, RowOverflowPolicy, StorageKind};

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
 
 #[derive(Debug, Parser)]
@@ -16,6 +16,10 @@ pub struct Args {
     /// CSV file listing algorithms to run. Columns: algorithm\[,enabled\].
     #[arg(long)]
     pub algorithms_csv: PathBuf,
+
+    /// Generic LIKE matcher used for the complete benchmark run.
+    #[arg(long, value_enum, default_value_t = GenericMatcherKind::Static)]
+    pub generic_matcher: GenericMatcherKind,
 
     /// CSV file listing LIKE patterns. Columns: name,pattern\[,enabled\].
     #[arg(long)]
@@ -196,6 +200,13 @@ impl FromStr for IndexKind {
             other => bail!("unknown index {other:?}; supported: none/full-scan, fm, trigram"),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
+pub enum GenericMatcherKind {
+    Static,
+    Adaptive,
+    Recursive,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

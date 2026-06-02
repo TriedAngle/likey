@@ -8,23 +8,35 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
+use db::{AdaptiveGenericMatcher, GenericMatcher, RecursiveGenericMatcher, StaticGenericMatcher};
 
-use crate::cli::{Args, DataType, StorageKind};
+use crate::cli::{Args, DataType, GenericMatcherKind, StorageKind};
 use crate::loaders::{
-    load_fasta_column, load_job_csv_dataset, resolve_relative, LoadOptions, LoadedColumn,
-    LoadedDataset,
+    LoadOptions, LoadedColumn, LoadedDataset, load_fasta_column, load_job_csv_dataset,
+    resolve_relative,
 };
 use crate::runner::{
-    build_indexes, run_dna2_algorithm, run_fsst_algorithm, run_utf8_algorithm, write_row_profiles,
-    write_rows, write_summary, BenchConfig, BenchRow, RowProfileRow,
+    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_fsst_algorithm,
+    run_utf8_algorithm, write_row_profiles, write_rows, write_summary,
 };
-use crate::specs::{load_algorithms, load_data_specs, load_indexes, load_patterns, DataSpec};
+use crate::specs::{DataSpec, load_algorithms, load_data_specs, load_indexes, load_patterns};
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
+    match args.generic_matcher {
+        GenericMatcherKind::Static => run::<StaticGenericMatcher>(args),
+        GenericMatcherKind::Adaptive => run::<AdaptiveGenericMatcher>(args),
+        GenericMatcherKind::Recursive => run::<RecursiveGenericMatcher>(args),
+    }
+}
+
+fn run<M>(args: Args) -> Result<()>
+where
+    M: GenericMatcher,
+{
     if args.iterations == 0 {
         bail!("--iterations must be greater than zero");
     }
@@ -55,11 +67,12 @@ fn main() -> Result<()> {
     let indexes = load_indexes(args.indexes_csv.as_deref())?;
 
     eprintln!(
-        "benchmark inputs: data_specs={}, algorithms={}, patterns={}, indexes={}",
+        "benchmark inputs: data_specs={}, algorithms={}, patterns={}, indexes={}, generic_matcher={}",
         data_specs.len(),
         algorithms.len(),
         patterns.len(),
-        indexes.len()
+        indexes.len(),
+        M::NAME
     );
 
     let data_base = args
@@ -79,7 +92,7 @@ fn main() -> Result<()> {
     let mut bench_rows = Vec::<BenchRow>::new();
     let mut profile_rows = Vec::<RowProfileRow>::new();
 
-    run_fasta_specs(
+    run_fasta_specs::<M>(
         &args,
         &data_base,
         &data_specs,
@@ -91,7 +104,7 @@ fn main() -> Result<()> {
         &mut profile_rows,
     )?;
 
-    run_job_specs(
+    run_job_specs::<M>(
         &args,
         &data_base,
         &data_specs,
@@ -138,7 +151,7 @@ fn main() -> Result<()> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_fasta_specs(
+fn run_fasta_specs<M>(
     args: &Args,
     data_base: &Path,
     data_specs: &[DataSpec],
@@ -148,7 +161,10 @@ fn run_fasta_specs(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()> {
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
     for spec in data_specs
         .iter()
         .filter(|s| matches!(s.data_type, DataType::DnaFasta | DataType::ProteinFasta))
@@ -159,7 +175,7 @@ fn run_fasta_specs(
             let loaded =
                 load_fasta_column(&data_path, &spec.name, &spec.column, storage, load_options)?;
             let load_ns = load_start.elapsed().as_nanos();
-            run_loaded_dataset(
+            run_loaded_dataset::<M>(
                 args,
                 &spec.name,
                 spec.data_type.as_str(),
@@ -177,7 +193,7 @@ fn run_fasta_specs(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_job_specs(
+fn run_job_specs<M>(
     args: &Args,
     data_base: &Path,
     data_specs: &[DataSpec],
@@ -187,7 +203,10 @@ fn run_job_specs(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()> {
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
     let mut groups = BTreeMap::<String, Vec<DataSpec>>::new();
     for spec in data_specs
         .iter()
@@ -203,7 +222,7 @@ fn run_job_specs(
         let load_start = Instant::now();
         let loaded = load_job_csv_dataset(&dataset, &specs, data_base, load_options)?;
         let load_ns = load_start.elapsed().as_nanos();
-        run_loaded_dataset(
+        run_loaded_dataset::<M>(
             args,
             &dataset,
             DataType::JobCsv.as_str(),
@@ -220,7 +239,7 @@ fn run_job_specs(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_loaded_dataset(
+fn run_loaded_dataset<M>(
     args: &Args,
     dataset_name: &str,
     data_type: &str,
@@ -231,9 +250,12 @@ fn run_loaded_dataset(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()> {
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
     for loaded_column in &loaded.columns {
-        run_loaded_column(
+        run_loaded_column::<M>(
             args,
             dataset_name,
             data_type,
@@ -251,7 +273,7 @@ fn run_loaded_dataset(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_loaded_column(
+fn run_loaded_column<M>(
     args: &Args,
     dataset_name: &str,
     data_type: &str,
@@ -263,7 +285,10 @@ fn run_loaded_column(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()> {
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
     let storage = loaded_column.storage;
     let compatible_algorithms = algorithms
         .iter()
@@ -332,7 +357,7 @@ fn run_loaded_column(
             };
 
             for algorithm in compatible_algorithms {
-                run_utf8_algorithm(
+                run_utf8_algorithm::<M>(
                     &column,
                     algorithm,
                     &built_indexes,
@@ -371,7 +396,7 @@ fn run_loaded_column(
             };
 
             for algorithm in compatible_algorithms {
-                run_fsst_algorithm(
+                run_fsst_algorithm::<M>(
                     &column,
                     algorithm,
                     &built_indexes,
@@ -410,7 +435,7 @@ fn run_loaded_column(
             };
 
             for algorithm in compatible_algorithms {
-                run_dna2_algorithm(
+                run_dna2_algorithm::<M>(
                     &column,
                     algorithm,
                     &built_indexes,

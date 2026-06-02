@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run runner and plot results")
     p.add_argument("--data-csv", required=True, type=Path)
     p.add_argument("--algorithms-csv", required=True, type=Path)
+    p.add_argument("--generic-matcher", choices=["static", "adaptive", "recursive"], default="static")
     p.add_argument("--patterns-csv", required=True, type=Path)
     p.add_argument("--indexes-csv", type=Path)
     p.add_argument("--result-root", type=Path, default=Path("results"))
@@ -86,6 +87,8 @@ def main() -> int:
         str(args.data_csv),
         "--algorithms-csv",
         str(args.algorithms_csv),
+        "--generic-matcher",
+        args.generic_matcher,
         "--patterns-csv",
         str(args.patterns_csv),
         "--output-csv",
@@ -212,11 +215,12 @@ def percentile(values: list[float], q: float) -> float:
     return xs[idx]
 
 
-def group_key(row: dict[str, str]) -> tuple[str, str, str, str, str, str, str]:
+def group_key(row: dict[str, str]) -> tuple[str, str, str, str, str, str, str, str]:
     return (
         row["dataset"],
         row.get("column", ""),
         row["storage"],
+        row.get("generic_matcher", "static"),
         row["requested_index"],
         row["actual_index"],
         row["pattern_name"],
@@ -225,14 +229,14 @@ def group_key(row: dict[str, str]) -> tuple[str, str, str, str, str, str, str]:
 
 
 def write_python_summary(rows: list[dict[str, str]], path: Path) -> None:
-    groups: dict[tuple[str, str, str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in rows:
         key = group_key(row) + (row["algorithm"],)
         groups[key].append(row)
 
     out_rows = []
     for key, group in groups.items():
-        dataset, column, storage, requested_index, actual_index, pattern_name, pattern, algorithm = key
+        dataset, column, storage, generic_matcher, requested_index, actual_index, pattern_name, pattern, algorithm = key
         totals = [as_float(r, "query_total_ns") for r in group]
         execs = [as_float(r, "execute_ns") for r in group]
         preps = [as_float(r, "candidate_prepare_ns") for r in group]
@@ -241,6 +245,7 @@ def write_python_summary(rows: list[dict[str, str]], path: Path) -> None:
             "dataset": dataset,
             "column": column,
             "storage": storage,
+            "generic_matcher": generic_matcher,
             "requested_index": requested_index,
             "actual_index": actual_index,
             "pattern_name": pattern_name,
@@ -260,7 +265,7 @@ def write_python_summary(rows: list[dict[str, str]], path: Path) -> None:
             "candidate_rows_seen": group[0].get("candidate_rows_seen", ""),
         })
 
-    out_rows.sort(key=lambda r: (r["dataset"], r["column"], r["storage"], r["requested_index"], r["pattern_name"], r["median_query_total_ns"]))
+    out_rows.sort(key=lambda r: (r["dataset"], r["column"], r["storage"], r["generic_matcher"], r["requested_index"], r["pattern_name"], r["median_query_total_ns"]))
     with path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(out_rows[0].keys()))
         writer.writeheader()
@@ -270,18 +275,18 @@ def write_python_summary(rows: list[dict[str, str]], path: Path) -> None:
 def make_plots(rows: list[dict[str, str]], plots_dir: Path) -> None:
     import matplotlib.pyplot as plt  # type: ignore
 
-    grouped: dict[tuple[str, str, str, str, str, str, str], dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    grouped: dict[tuple[str, str, str, str, str, str, str, str], dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for row in rows:
         grouped[group_key(row)][row["algorithm"]].append(as_float(row, "query_total_ns") / 1_000_000.0)
 
     global_alg: dict[str, list[float]] = defaultdict(list)
 
     for key, alg_values in grouped.items():
-        dataset, column, storage, requested_index, actual_index, pattern_name, pattern = key
+        dataset, column, storage, generic_matcher, requested_index, actual_index, pattern_name, pattern = key
         alg_medians = [(alg, median(vals)) for alg, vals in alg_values.items()]
         alg_medians.sort(key=lambda x: x[1])
         for alg, value in alg_medians:
-            global_alg[f"{storage}/{requested_index}/{alg}"].append(value)
+            global_alg[f"{storage}/{generic_matcher}/{requested_index}/{alg}"].append(value)
 
         labels = [x[0] for x in alg_medians]
         values = [x[1] for x in alg_medians]
@@ -289,10 +294,10 @@ def make_plots(rows: list[dict[str, str]], plots_dir: Path) -> None:
         fig, ax = plt.subplots(figsize=(fig_w, 4.5))
         ax.bar(labels, values)
         ax.set_ylabel("median query_total_ns (ms)")
-        ax.set_title(f"{dataset}.{column} | {storage} | {requested_index}->{actual_index} | {pattern_name}: {pattern}")
+        ax.set_title(f"{dataset}.{column} | {storage}/{generic_matcher} | {requested_index}->{actual_index} | {pattern_name}: {pattern}")
         ax.tick_params(axis="x", rotation=35)
         fig.tight_layout()
-        filename = safe_filename("_".join([dataset, column, storage, requested_index, actual_index, pattern_name])) + ".png"
+        filename = safe_filename("_".join([dataset, column, storage, generic_matcher, requested_index, actual_index, pattern_name])) + ".png"
         fig.savefig(plots_dir / filename, dpi=160)
         plt.close(fig)
 
@@ -311,19 +316,20 @@ def make_plots(rows: list[dict[str, str]], plots_dir: Path) -> None:
         plt.close(fig)
 
 
-def profile_group_key(row: dict[str, str]) -> tuple[str, str, str, str, str, str]:
+def profile_group_key(row: dict[str, str]) -> tuple[str, str, str, str, str, str, str]:
     return (
         row["dataset"],
         row.get("column", ""),
         row["storage"],
         row["algorithm"],
+        row.get("generic_matcher", "static"),
         row["pattern_name"],
         row["pattern"],
     )
 
 
 def write_row_profile_analysis(rows: list[dict[str, str]], out_dir: Path, top_n: int) -> None:
-    groups: dict[tuple[str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in rows:
         groups[profile_group_key(row)].append(row)
 
@@ -331,7 +337,7 @@ def write_row_profile_analysis(rows: list[dict[str, str]], out_dir: Path, top_n:
     slow = []
     fast = []
     for key, group in groups.items():
-        dataset, column, storage, algorithm, pattern_name, pattern = key
+        dataset, column, storage, algorithm, generic_matcher, pattern_name, pattern = key
         values = [as_float(r, "verify_ns_per_repeat") for r in group]
         sorted_group = sorted(group, key=lambda r: as_float(r, "verify_ns_per_repeat"))
         slow_rows = list(reversed(sorted_group[-top_n:]))
@@ -345,6 +351,7 @@ def write_row_profile_analysis(rows: list[dict[str, str]], out_dir: Path, top_n:
             "column": column,
             "storage": storage,
             "algorithm": algorithm,
+            "generic_matcher": generic_matcher,
             "pattern_name": pattern_name,
             "pattern": pattern,
             "rows_profiled": len(group),
@@ -367,12 +374,12 @@ def write_row_profile_analysis(rows: list[dict[str, str]], out_dir: Path, top_n:
 def make_row_profile_plots(rows: list[dict[str, str]], plots_dir: Path, top_n: int) -> None:
     import matplotlib.pyplot as plt  # type: ignore
 
-    groups: dict[tuple[str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, str, str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in rows:
         groups[profile_group_key(row)].append(row)
 
     for key, group in groups.items():
-        dataset, column, storage, algorithm, pattern_name, pattern = key
+        dataset, column, storage, algorithm, generic_matcher, pattern_name, pattern = key
         slow = sorted(group, key=lambda r: as_float(r, "verify_ns_per_repeat"), reverse=True)[:top_n]
         if not slow:
             continue
@@ -381,10 +388,10 @@ def make_row_profile_plots(rows: list[dict[str, str]], plots_dir: Path, top_n: i
         fig, ax = plt.subplots(figsize=(max(8.0, len(labels) * 0.6), 5.0))
         ax.bar(labels, values)
         ax.set_ylabel("verify ns per repeat")
-        ax.set_title(f"Slowest rows | {dataset}.{column} | {storage}/{algorithm} | {pattern_name}: {pattern}")
+        ax.set_title(f"Slowest rows | {dataset}.{column} | {storage}/{generic_matcher}/{algorithm} | {pattern_name}: {pattern}")
         ax.tick_params(axis="x", rotation=60)
         fig.tight_layout()
-        filename = safe_filename("row_profile_" + "_".join([dataset, column, storage, algorithm, pattern_name])) + ".png"
+        filename = safe_filename("row_profile_" + "_".join([dataset, column, storage, generic_matcher, algorithm, pattern_name])) + ".png"
         fig.savefig(plots_dir / filename, dpi=160)
         plt.close(fig)
 
@@ -406,6 +413,7 @@ def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str
     datasets = sorted({r["dataset"] for r in rows})
     columns = sorted({r.get("column", "") for r in rows})
     storages = sorted({r["storage"] for r in rows})
+    generic_matchers = sorted({r.get("generic_matcher", "static") for r in rows})
     algorithms = sorted({r["algorithm"] for r in rows})
     indexes = sorted({r["requested_index"] for r in rows})
     patterns = sorted({r["pattern_name"] for r in rows})
@@ -415,11 +423,13 @@ def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str
         f"datasets: {', '.join(datasets)}",
         f"columns: {', '.join(columns)}",
         f"storages: {', '.join(storages)}",
+        f"generic_matchers: {', '.join(generic_matchers)}",
         f"algorithms: {', '.join(algorithms)}",
         f"indexes: {', '.join(indexes)}",
         f"patterns: {', '.join(patterns)}",
         f"warmups: {args.warmups}",
         f"iterations: {args.iterations}",
+        f"generic_matcher: {args.generic_matcher}",
         f"max_total_bytes: {args.max_total_bytes}",
         f"max_row_bytes: {args.max_row_bytes}",
         f"row_profile: {args.row_profile}",

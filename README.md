@@ -60,6 +60,7 @@ Run the benchmark binary directly:
 cargo run -p runner --release -- \
   --data-csv runner/examples/data_dna.csv \
   --algorithms-csv runner/examples/algorithms_all.csv \
+  --generic-matcher static \
   --patterns-csv runner/examples/patterns_dna.csv \
   --indexes-csv runner/examples/indexes.csv \
   --output-csv results/raw.csv \
@@ -121,6 +122,8 @@ Indexes   indexes.csv
 Use those file names to swap the data, algorithm, and pattern inputs in the direct or wrapper commands above.
 
 If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.csv` supports `none`/`full-scan`, `trigram`, and `fm`.
+
+Use `--generic-matcher static|adaptive|recursive` to choose the generic LIKE matcher for the complete run. The default is `static`.
 
 ## Algorithms and Semantics
 
