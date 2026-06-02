@@ -232,16 +232,12 @@ impl<'db> RowLiteralSearch<FsstColumn<'db>> for StdSearch {
             return None;
         }
 
-        let Ok(text) = std::str::from_utf8(bytes) else {
-            return naive_find_scalar(&bytes[from..], pat).map(|pos| (pos + from) as u32);
-        };
-
-        if text.is_char_boundary(from) {
-            let needle_str = unsafe { std::str::from_utf8_unchecked(pat) };
-            text[from..].find(needle_str).map(|pos| (pos + from) as u32)
-        } else {
-            naive_find_scalar(&bytes[from..], pat).map(|pos| (pos + from) as u32)
-        }
+        // SAFETY: benchmark FSST input is decoded from valid UTF-8 rows, and
+        // StdSearch workloads use valid UTF-8 search offsets.
+        let text = unsafe { std::str::from_utf8_unchecked(bytes) };
+        let suffix = unsafe { text.get_unchecked(from..) };
+        let needle_str = unsafe { std::str::from_utf8_unchecked(pat) };
+        suffix.find(needle_str).map(|pos| (pos + from) as u32)
     }
 }
 

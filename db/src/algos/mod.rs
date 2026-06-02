@@ -50,7 +50,9 @@ pub use utf8_shared::{
 mod tests {
     use super::*;
     use crate::db::DbBuilder;
-    use crate::like::{LikeCompileOptions, LikePattern, LiteralAlgorithm, RowLiteralSearch};
+    use crate::like::{
+        LikeCompileOptions, LikePattern, LiteralAlgorithm, MatchStrategy, RowLiteralSearch,
+    };
     use crate::query::{execute_like, FullScan, QueryScratch};
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
     use crate::storage::Column;
@@ -347,6 +349,10 @@ mod tests {
             "heLLo",
             "banana",
             "bandana",
+            "The love boat",
+            "The boat of love",
+            "love movie",
+            "movie love",
             "",
         ];
 
@@ -366,10 +372,13 @@ mod tests {
             ("%hello", &[0, 2]),
             ("%ell%", &[0, 1, 2]),
             ("h_llo", &[0, 3]),
-            ("%", &[0, 1, 2, 3, 4, 5, 6, 7]),
-            ("", &[7]),
+            ("%", &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]),
+            ("", &[11]),
             ("%ana%", &[5, 6]),
             ("b%a", &[5, 6]),
+            ("The%love%", &[7, 8]),
+            ("%love%movie%", &[9]),
+            ("%movie%love%", &[10]),
         ];
 
         for &(pattern, expected) in patterns_and_expected {
@@ -380,6 +389,12 @@ mod tests {
                 },
             )
             .expect("pattern should compile");
+            if matches!(
+                pattern,
+                "b%a" | "The%love%" | "%love%movie%" | "%movie%love%"
+            ) {
+                assert_eq!(like.strategy(), MatchStrategy::PercentOnly);
+            }
 
             let mut scan = FullScan::new(col.row_count(), 16);
             let mut scratch = QueryScratch::default();

@@ -32,9 +32,17 @@ pub trait Column {
     /// Logical length in this column's semantics.
     ///
     /// UTF-8 byte column: bytes. FSST column: decoded bytes. DNA2 column: bases.
+    ///
+    /// Internal callers are expected to pass valid row IDs. Implementations may
+    /// use debug assertions to catch invalid IDs during testing while keeping the
+    /// release hot path unchecked.
     fn logical_len(&self, row: RowId) -> u32;
 
     /// Borrow a row in its concrete representation.
+    ///
+    /// Internal callers are expected to pass valid row IDs. Implementations may
+    /// use debug assertions to catch invalid IDs during testing while keeping the
+    /// release hot path unchecked.
     fn row(&self, row: RowId) -> Self::Row<'_>;
 
     /// Iterate logical symbols of one row.

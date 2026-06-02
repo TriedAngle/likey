@@ -112,12 +112,18 @@ impl<'a> Dna2Column<'a> {
 
     #[inline]
     pub fn row_view(&self, row: RowId) -> Dna2Row<'a> {
-        assert!(row < self.desc.row_count, "row out of bounds");
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        let row = row as usize;
         let offsets = self.base_offsets();
+        let lens = self.logical_lens();
         Dna2Row {
             payload: self.packed_payload(),
-            start_base: offsets[row as usize],
-            len: self.logical_lens()[row as usize],
+            // SAFETY: valid row IDs and table construction guarantee valid offsets.
+            start_base: unsafe { *offsets.get_unchecked(row) },
+            // SAFETY: valid row IDs and table construction guarantee valid lengths.
+            len: unsafe { *lens.get_unchecked(row) },
         }
     }
 
@@ -316,8 +322,11 @@ impl<'a> Column for Dna2Column<'a> {
 
     #[inline]
     fn logical_len(&self, row: RowId) -> u32 {
-        assert!(row < self.desc.row_count, "row out of bounds");
-        self.logical_lens()[row as usize]
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        // SAFETY: valid row IDs and table construction guarantee valid lengths.
+        unsafe { *self.logical_lens().get_unchecked(row as usize) }
     }
 
     #[inline]

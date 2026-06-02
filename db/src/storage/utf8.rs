@@ -45,9 +45,12 @@ impl<'a> Utf8Table<'a> {
     }
 
     pub fn text(&self) -> Utf8Column<'a> {
+        let desc = &self.desc.text;
         Utf8Column {
-            arena: self.arena,
-            desc: &self.desc.text,
+            desc,
+            offsets: self.arena.slice(desc.offsets),
+            logical_lens: self.arena.slice(desc.logical_lens),
+            payload: self.arena.bytes(desc.payload),
         }
     }
 
@@ -74,8 +77,10 @@ impl std::fmt::Debug for Utf8Table<'_> {
 
 #[derive(Clone, Copy)]
 pub struct Utf8Column<'a> {
-    arena: &'a FrozenArena,
     desc: &'a Utf8ColumnDesc,
+    offsets: &'a [u64],
+    logical_lens: &'a [u32],
+    payload: &'a [u8],
 }
 
 impl<'a> Utf8Column<'a> {
@@ -85,27 +90,32 @@ impl<'a> Utf8Column<'a> {
 
     #[inline]
     pub fn offsets(&self) -> &'a [u64] {
-        self.arena.slice(self.desc.offsets)
+        self.offsets
     }
 
     #[inline]
     pub fn logical_lens(&self) -> &'a [u32] {
-        self.arena.slice(self.desc.logical_lens)
+        self.logical_lens
     }
 
     #[inline]
     pub fn payload(&self) -> &'a [u8] {
-        self.arena.bytes(self.desc.payload)
+        self.payload
     }
 
     #[inline]
     pub fn row_bytes(&self, row: RowId) -> &'a [u8] {
-        assert!(row < self.desc.row_count, "row out of bounds");
-        let offsets = self.offsets();
-        let payload = self.payload();
-        let start = offsets[row as usize] as usize;
-        let end = offsets[row as usize + 1] as usize;
-        &payload[start..end]
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        let row = row as usize;
+        // SAFETY: valid row IDs and table construction guarantee valid offsets.
+        let start = unsafe { *self.offsets.get_unchecked(row) } as usize;
+        let end = unsafe { *self.offsets.get_unchecked(row + 1) } as usize;
+        debug_assert!(start <= end);
+        debug_assert!(end <= self.payload.len());
+        // SAFETY: table construction guarantees row offsets are within payload.
+        unsafe { self.payload.get_unchecked(start..end) }
     }
 
     #[inline]
@@ -176,8 +186,11 @@ impl<'a> Column for Utf8Column<'a> {
 
     #[inline]
     fn logical_len(&self, row: RowId) -> u32 {
-        assert!(row < self.desc.row_count, "row out of bounds");
-        self.logical_lens()[row as usize]
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        // SAFETY: valid row IDs and table construction guarantee valid lengths.
+        unsafe { *self.logical_lens.get_unchecked(row as usize) }
     }
 
     #[inline]

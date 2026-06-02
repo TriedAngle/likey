@@ -168,6 +168,48 @@ pub trait RowVerifier<C: Column> {
     }
 
     fn verify(&self, column: &C, row: RowId, scratch: &mut VerifyScratch) -> bool;
+
+    fn verify_candidate(
+        &self,
+        column: &C,
+        row: RowId,
+        scratch: &mut VerifyScratch,
+    ) -> VerifyOutcome {
+        // Internal query execution trusts candidate row IDs in release; debug
+        // builds catch invalid custom providers or corrupt indexes.
+        debug_assert!(row < column.row_count(), "candidate row out of bounds");
+        let row_len = column.logical_len(row);
+        if !self.len_constraint().matches(row_len) {
+            return VerifyOutcome {
+                len_passed: false,
+                matched: false,
+            };
+        }
+
+        VerifyOutcome {
+            len_passed: true,
+            matched: self.verify_len_prechecked(column, row, row_len, scratch),
+        }
+    }
+
+    fn verify_len_prechecked(
+        &self,
+        column: &C,
+        row: RowId,
+        _row_len: u32,
+        scratch: &mut VerifyScratch,
+    ) -> bool {
+        // Internal query execution trusts candidate row IDs in release; debug
+        // builds catch invalid custom providers or corrupt indexes.
+        debug_assert!(row < column.row_count(), "candidate row out of bounds");
+        self.verify(column, row, scratch)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifyOutcome {
+    pub len_passed: bool,
+    pub matched: bool,
 }
 
 /// A verifier useful for plumbing tests and examples.
@@ -189,6 +231,29 @@ impl<C: Column> RowVerifier<C> for AcceptAll {
 
     fn verify(&self, _column: &C, _row: RowId, _scratch: &mut VerifyScratch) -> bool {
         true
+    }
+
+    fn verify_candidate(
+        &self,
+        column: &C,
+        row: RowId,
+        _scratch: &mut VerifyScratch,
+    ) -> VerifyOutcome {
+        // Internal query execution trusts candidate row IDs in release; debug
+        // builds catch invalid custom providers or corrupt indexes.
+        debug_assert!(row < column.row_count(), "candidate row out of bounds");
+        let row_len = column.logical_len(row);
+        if !self.len_constraint.matches(row_len) {
+            return VerifyOutcome {
+                len_passed: false,
+                matched: false,
+            };
+        }
+
+        VerifyOutcome {
+            len_passed: true,
+            matched: true,
+        }
     }
 }
 
@@ -274,7 +339,6 @@ where
     V: RowVerifier<C>,
     S: ResultSink,
 {
-    let len_constraint = verifier.len_constraint();
     let mut stats = QueryStats::default();
 
     candidates.reset();
@@ -286,29 +350,15 @@ where
 
         match batch {
             CandidateBatch::RowRange { start, len } => {
+                stats.candidate_rows_seen += len;
                 for row in start..start + len {
-                    verify_one(
-                        column,
-                        row,
-                        len_constraint,
-                        verifier,
-                        &mut scratch.verify,
-                        sink,
-                        &mut stats,
-                    );
+                    verify_one(column, row, verifier, &mut scratch.verify, sink, &mut stats);
                 }
             }
             CandidateBatch::SortedRows(rows) => {
+                stats.candidate_rows_seen += rows.len() as u64;
                 for &row in rows {
-                    verify_one(
-                        column,
-                        row,
-                        len_constraint,
-                        verifier,
-                        &mut scratch.verify,
-                        sink,
-                        &mut stats,
-                    );
+                    verify_one(column, row, verifier, &mut scratch.verify, sink, &mut stats);
                 }
             }
         }
@@ -321,7 +371,6 @@ where
 fn verify_one<C, V, S>(
     column: &C,
     row: RowId,
-    len_constraint: LenConstraint,
     verifier: &V,
     scratch: &mut VerifyScratch,
     sink: &mut S,
@@ -332,15 +381,14 @@ fn verify_one<C, V, S>(
     S: ResultSink,
 {
     debug_assert!(row < column.row_count(), "candidate row out of bounds");
-    stats.candidate_rows_seen += 1;
 
-    let len = column.logical_len(row);
-    if !len_constraint.matches(len) {
+    let outcome = verifier.verify_candidate(column, row, scratch);
+    if !outcome.len_passed {
         return;
     }
     stats.rows_after_len_filter += 1;
 
-    if verifier.verify(column, row, scratch) {
+    if outcome.matched {
         stats.rows_matched += 1;
         sink.push(row);
     }

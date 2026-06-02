@@ -12,7 +12,7 @@
 
 use std::marker::PhantomData;
 
-use crate::query::{RowVerifier, VerifyScratch};
+use crate::query::{RowVerifier, VerifyOutcome, VerifyScratch};
 use crate::storage::Column;
 use crate::{LenConstraint, RowId};
 
@@ -38,6 +38,8 @@ pub enum MatchStrategy {
     Suffix { literal_idx: usize },
     /// `%literal%`.
     Contains { literal_idx: usize },
+    /// Multiple literal fragments separated only by `%`.
+    PercentOnly,
     /// Everything else.
     General,
 }
@@ -280,7 +282,7 @@ where
         let has_any = tokens.iter().any(|t| matches!(t, LikeToken::Any));
         let has_skip = tokens.iter().any(|t| matches!(t, LikeToken::Skip(_)));
         let segments = build_segments::<A>(&tokens, &literals);
-        let strategy = derive_strategy(&tokens, has_skip);
+        let strategy = derive_strategy(&tokens, has_any, has_skip);
 
         Ok(Self {
             tokens: tokens.into_boxed_slice(),
@@ -364,6 +366,14 @@ where
             return false;
         }
 
+        self.matches_row_len_prechecked::<C>(row, text_len)
+    }
+
+    pub(crate) fn matches_row_len_prechecked<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
         match self.strategy {
             MatchStrategy::All => true,
             MatchStrategy::Exact { literal_idx } => match literal_idx {
@@ -382,8 +392,68 @@ where
             MatchStrategy::Contains { literal_idx } => {
                 self.find_literal_from::<C>(row, 0, literal_idx).is_some()
             }
+            MatchStrategy::PercentOnly => self.match_percent_only::<C>(row, text_len),
             MatchStrategy::General => self.match_general_static_anchor::<C>(row, text_len),
         }
+    }
+
+    fn match_percent_only<'r, C>(&self, row: &C::Row<'r>, text_len: u32) -> bool
+    where
+        C: Column<Symbol = u8>,
+        A: RowLiteralSearch<C>,
+    {
+        let literal_count = self.literals.len();
+        if literal_count == 0 {
+            return true;
+        }
+
+        let mut from = 0u32;
+        let mut first = 0usize;
+        let mut after_last = literal_count;
+
+        if !matches!(self.tokens.first(), Some(LikeToken::Any)) {
+            let first_lit = 0;
+            if !self.literal_matches_at::<C>(row, 0, first_lit) {
+                return false;
+            }
+            from = self.literal_len(first_lit);
+            first = 1;
+        }
+
+        let mut upper = text_len;
+        if !matches!(self.tokens.last(), Some(LikeToken::Any)) {
+            let last_lit = literal_count - 1;
+            let last_len = self.literal_len(last_lit);
+            if text_len < last_len {
+                return false;
+            }
+
+            let suffix_start = text_len - last_len;
+            if !self.literal_matches_at::<C>(row, suffix_start, last_lit) {
+                return false;
+            }
+
+            upper = suffix_start;
+            after_last = literal_count - 1;
+        }
+
+        for literal_idx in first..after_last {
+            let literal_len = self.literal_len(literal_idx);
+            if from > upper || literal_len > upper - from {
+                return false;
+            }
+            let max_start = upper - literal_len;
+
+            let Some(hit) = self.find_literal_from::<C>(row, from, literal_idx) else {
+                return false;
+            };
+            if hit > max_start {
+                return false;
+            }
+            from = hit + literal_len;
+        }
+
+        true
     }
 
     /// General LIKE verification using static segment anchors.
@@ -403,7 +473,9 @@ where
         }
 
         match self.strategy {
-            MatchStrategy::General => self.match_general_static_anchor::<C>(row, text_len),
+            MatchStrategy::PercentOnly | MatchStrategy::General => {
+                self.match_general_static_anchor::<C>(row, text_len)
+            }
             _ => self.matches_row::<C>(row),
         }
     }
@@ -425,7 +497,9 @@ where
         }
 
         match self.strategy {
-            MatchStrategy::General => self.match_general_adaptive_anchor::<C>(row, text_len),
+            MatchStrategy::PercentOnly | MatchStrategy::General => {
+                self.match_general_adaptive_anchor::<C>(row, text_len)
+            }
             _ => self.matches_row::<C>(row),
         }
     }
@@ -445,7 +519,9 @@ where
         }
 
         match self.strategy {
-            MatchStrategy::General => self.match_from::<C>(row, 0, 0, text_len),
+            MatchStrategy::PercentOnly | MatchStrategy::General => {
+                self.match_from::<C>(row, 0, 0, text_len)
+            }
             _ => self.matches_row::<C>(row),
         }
     }
@@ -511,13 +587,12 @@ where
             return true;
         }
 
-        let starts_with_any = matches!(self.tokens.first(), Some(LikeToken::Any));
-        let ends_with_any = matches!(self.tokens.last(), Some(LikeToken::Any));
-
         let mut first_middle = 0usize;
         let mut last_middle = self.segments.len();
         let mut lower = 0u32;
         let mut upper = text_len;
+        let starts_with_any = matches!(self.tokens.first(), Some(LikeToken::Any));
+        let ends_with_any = matches!(self.tokens.last(), Some(LikeToken::Any));
 
         // SQL LIKE is implicitly anchored at the start unless the pattern starts
         // with `%`.
@@ -870,6 +945,41 @@ where
         let row = column.row(row);
         self.matches_row::<C>(&row)
     }
+
+    fn verify_len_prechecked(
+        &self,
+        column: &C,
+        row: RowId,
+        row_len: u32,
+        _scratch: &mut VerifyScratch,
+    ) -> bool {
+        let row = column.row(row);
+        self.matches_row_len_prechecked::<C>(&row, row_len)
+    }
+
+    fn verify_candidate(
+        &self,
+        column: &C,
+        row: RowId,
+        _scratch: &mut VerifyScratch,
+    ) -> VerifyOutcome {
+        // Internal query execution trusts candidate row IDs in release; debug
+        // builds catch invalid custom providers or corrupt indexes.
+        debug_assert!(row < column.row_count(), "candidate row out of bounds");
+        let row_len = column.logical_len(row);
+        if !self.len_constraint_internal().matches(row_len) {
+            return VerifyOutcome {
+                len_passed: false,
+                matched: false,
+            };
+        }
+
+        let row = column.row(row);
+        VerifyOutcome {
+            len_passed: true,
+            matched: self.matches_row_len_prechecked::<C>(&row, row_len),
+        }
+    }
 }
 
 fn push_literal<A>(
@@ -996,7 +1106,7 @@ fn max_segment_start(lower: u32, upper: u32, segment_len: u32) -> Option<u32> {
     }
 }
 
-fn derive_strategy(tokens: &[LikeToken], has_skip: bool) -> MatchStrategy {
+fn derive_strategy(tokens: &[LikeToken], has_any: bool, has_skip: bool) -> MatchStrategy {
     if tokens.is_empty() {
         return MatchStrategy::Exact { literal_idx: None };
     }
@@ -1019,7 +1129,11 @@ fn derive_strategy(tokens: &[LikeToken], has_skip: bool) -> MatchStrategy {
         return MatchStrategy::General;
     }
     if literal_count > 1 {
-        return MatchStrategy::General;
+        return if has_any {
+            MatchStrategy::PercentOnly
+        } else {
+            MatchStrategy::General
+        };
     }
 
     let literal_idx = literal_idx.expect("literal_count is one");

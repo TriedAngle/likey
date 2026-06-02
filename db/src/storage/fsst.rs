@@ -237,12 +237,19 @@ impl<'a> FsstColumn<'a> {
     #[inline]
     /// Compressed bytes for one row.
     pub fn row_compressed_bytes(&self, row: RowId) -> &'a [u8] {
-        assert!(row < self.desc.row_count, "row out of bounds");
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        let row = row as usize;
         let offsets = self.offsets();
         let payload = self.compressed_payload();
-        let start = offsets[row as usize] as usize;
-        let end = offsets[row as usize + 1] as usize;
-        &payload[start..end]
+        // SAFETY: valid row IDs and table construction guarantee valid offsets.
+        let start = unsafe { *offsets.get_unchecked(row) } as usize;
+        let end = unsafe { *offsets.get_unchecked(row + 1) } as usize;
+        debug_assert!(start <= end);
+        debug_assert!(end <= payload.len());
+        // SAFETY: table construction guarantees row offsets are within payload.
+        unsafe { payload.get_unchecked(start..end) }
     }
 
     /// Decode one row into a new byte vector.
@@ -368,8 +375,11 @@ impl<'a> Column for FsstColumn<'a> {
 
     #[inline]
     fn logical_len(&self, row: RowId) -> u32 {
-        assert!(row < self.desc.row_count, "row out of bounds");
-        self.logical_lens()[row as usize]
+        // Internal storage access trusts row IDs in release; debug builds catch
+        // invalid candidate providers or corrupt row indexes.
+        debug_assert!(row < self.desc.row_count, "row out of bounds");
+        // SAFETY: valid row IDs and table construction guarantee valid lengths.
+        unsafe { *self.logical_lens().get_unchecked(row as usize) }
     }
 
     #[inline]

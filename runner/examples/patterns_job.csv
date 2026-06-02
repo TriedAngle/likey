@@ -3,3 +3,5 @@ contains_love,%love%,true
 contains_movie,%movie%,true
 prefix_the,The%,true
 suffix_drama,%drama,true
+contains_love_then_movie,%love%movie%,true
+prefix_the_contains_love,The%love%,true
