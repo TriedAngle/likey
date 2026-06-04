@@ -6,14 +6,13 @@ use anyhow::{Context, Result, bail};
 use db::{
     BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedNeon,
     Dna2PackedScalar, Dna2PackedVectorized, FftStr0, FftStr1, FmIndex, FmIndexBuildPhase,
-    FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex, LibcMemmem,
-    LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
-    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
-    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
-    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
-    NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats, RowId, RowLiteralSearch,
-    RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch,
-    execute_like,
+    FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, LibcMemmem, LikePattern, Naive,
+    NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard,
+    NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed,
+    NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats,
+    RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column,
+    Utf8Kmp, VerifyScratch, execute_like,
 };
 use serde::Serialize;
 
@@ -136,7 +135,7 @@ pub struct BuiltIndex<T> {
 
 pub struct BuiltIndexes<C>
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     pub fm: Option<BuiltIndex<FmIndex>>,
     pub trigram: Option<BuiltIndex<TrigramIndex<C>>>,
@@ -144,7 +143,7 @@ where
 
 impl<C> Default for BuiltIndexes<C>
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     fn default() -> Self {
         Self {
@@ -160,7 +159,7 @@ pub fn build_indexes<C>(
     fm_progress_label: Option<&str>,
 ) -> Result<BuiltIndexes<C>>
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     let mut out = BuiltIndexes::default();
 
@@ -179,7 +178,7 @@ where
 
     if requested.iter().any(|kind| *kind == IndexKind::Trigram) {
         let start = Instant::now();
-        let index = column.build_trigram_index();
+        let index = TrigramIndex::build(column);
         out.trigram = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
@@ -849,15 +848,17 @@ where
             profile_out,
             sample_dna2_row,
         ),
-        AlgorithmKind::Dna2PackedAvx512 => run_algorithm::<Dna2Column<'db>, Dna2PackedAvx512, M, _>(
-            column,
-            algorithm,
-            indexes,
-            config,
-            out,
-            profile_out,
-            sample_dna2_row,
-        ),
+        AlgorithmKind::Dna2PackedAvx512 => {
+            run_algorithm::<Dna2Column<'db>, Dna2PackedAvx512, M, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_dna2_row,
+            )
+        }
         AlgorithmKind::Dna2PackedNeon => run_algorithm::<Dna2Column<'db>, Dna2PackedNeon, M, _>(
             column,
             algorithm,
@@ -881,7 +882,7 @@ fn run_algorithm<C, A, M, F>(
     sample_row: F,
 ) -> Result<()>
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
     F: Fn(&C, RowId, usize) -> String + Copy,
@@ -1069,7 +1070,7 @@ fn execute_once<C, A, M>(
     scratch: &mut QueryScratch,
 ) -> ExecuteOnceResult
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
 {
@@ -1220,7 +1221,7 @@ where
 
 fn index_build_ns<C>(indexes: &BuiltIndexes<C>, requested: IndexKind) -> u128
 where
-    C: HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     match requested {
         IndexKind::FullScan => 0,

@@ -5,15 +5,13 @@
 //! equality index, or benchmark fixture exposes a probe object that yields row
 //! candidates for [`execute_like`](crate::execute_like).
 
+pub mod dna2_trigram;
 pub mod fm;
 pub mod trigram;
 
+pub use dna2_trigram::{Dna2FixedTrigramIndex, dna2_trigram_key};
 pub use fm::{FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmIndexError, FmProbe};
-pub use trigram::{
-    Dna2TrigramDomain, Fixed64PostingStore, FsstDecodedTrigramDomain, HasTrigramIndex,
-    HashMapPostingStore, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
-    TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key, trigram_key, trigram_keys,
-};
+pub use trigram::{TrigramIndex, TrigramProbe, trigram_key, trigram_keys};
 
 use crate::RowId;
 use crate::query::CandidateProvider;
@@ -28,7 +26,7 @@ pub trait BuildIndex<C: Column>: Sized {
 
 impl<C> BuildIndex<C> for TrigramIndex<C>
 where
-    C: trigram::HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     fn build(column: &C) -> Self {
         TrigramIndex::build(column)
@@ -139,7 +137,7 @@ mod tests {
 
     impl<C, A> IndexUnderTest<C, A> for TrigramIndexUnderTest
     where
-        C: HasTrigramIndex,
+        C: Column<Symbol = u8>,
         A: RowLiteralSearch<C>,
     {
         fn name() -> &'static str {

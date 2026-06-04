@@ -33,10 +33,8 @@ pub use crate::algos::{
 pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
-    BuildIndex, Dna2TrigramDomain, Fixed64PostingStore, FmIndex, FmIndexBuildPhase,
-    FmIndexBuildProgress, FmIndexError, FmProbe, FsstDecodedTrigramDomain, HasTrigramIndex,
-    HashMapPostingStore, IndexProbe, TrigramDomain, TrigramIndex, TrigramPostingStore,
-    TrigramProbe, TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key,
+    BuildIndex, Dna2FixedTrigramIndex, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress,
+    FmIndexError, FmProbe, IndexProbe, TrigramIndex, TrigramProbe, dna2_trigram_key,
     intersect_sorted_rowids, trigram_key, trigram_keys,
 };
 pub use crate::like::{
