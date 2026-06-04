@@ -242,10 +242,13 @@ pub enum AlgorithmKind {
     Dna2,
     Dna2PackedScalar,
     Dna2PackedVectorized,
+    Dna2PackedAvx2,
+    Dna2PackedAvx512,
+    Dna2PackedNeon,
 }
 
 impl AlgorithmKind {
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 34] = [
         Self::StdSearch,
         Self::Utf8Kmp,
         Self::Naive,
@@ -277,6 +280,9 @@ impl AlgorithmKind {
         Self::Dna2,
         Self::Dna2PackedScalar,
         Self::Dna2PackedVectorized,
+        Self::Dna2PackedAvx2,
+        Self::Dna2PackedAvx512,
+        Self::Dna2PackedNeon,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -312,6 +318,9 @@ impl AlgorithmKind {
             AlgorithmKind::Dna2 => "Dna2",
             AlgorithmKind::Dna2PackedScalar => "Dna2PackedScalar",
             AlgorithmKind::Dna2PackedVectorized => "Dna2PackedVectorized",
+            AlgorithmKind::Dna2PackedAvx2 => "Dna2PackedAvx2",
+            AlgorithmKind::Dna2PackedAvx512 => "Dna2PackedAvx512",
+            AlgorithmKind::Dna2PackedNeon => "Dna2PackedNeon",
         }
     }
 
@@ -322,6 +331,9 @@ impl AlgorithmKind {
                 AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
+                    | AlgorithmKind::Dna2PackedAvx2
+                    | AlgorithmKind::Dna2PackedAvx512
+                    | AlgorithmKind::Dna2PackedNeon
             ),
             StorageKind::Fsst => !matches!(
                 self,
@@ -330,12 +342,18 @@ impl AlgorithmKind {
                     | AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
+                    | AlgorithmKind::Dna2PackedAvx2
+                    | AlgorithmKind::Dna2PackedAvx512
+                    | AlgorithmKind::Dna2PackedNeon
             ),
             StorageKind::Dna2 => matches!(
                 self,
                 AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
+                    | AlgorithmKind::Dna2PackedAvx2
+                    | AlgorithmKind::Dna2PackedAvx512
+                    | AlgorithmKind::Dna2PackedNeon
             ),
         }
     }
@@ -438,6 +456,18 @@ mod tests {
         assert_eq!(
             "Dna2PackedScalar".parse::<AlgorithmKind>().unwrap(),
             AlgorithmKind::Dna2PackedScalar
+        );
+        assert_eq!(
+            "Dna2PackedAvx2".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::Dna2PackedAvx2
+        );
+        assert_eq!(
+            "Dna2PackedAvx512".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::Dna2PackedAvx512
+        );
+        assert_eq!(
+            "Dna2PackedNeon".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::Dna2PackedNeon
         );
 
         assert!("std".parse::<AlgorithmKind>().is_err());

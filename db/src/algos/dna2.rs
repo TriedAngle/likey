@@ -172,11 +172,23 @@ pub struct Dna2PackedScalar;
 
 /// Runtime-dispatched SIMD packed-byte DNA2 matcher.
 ///
-/// On x86-64 this uses AVX2 when available. On AArch64 it uses NEON. If the
-/// binary is compiled with AVX-512BW enabled, an AVX-512BW path is also used.
-/// All paths share the same scalar packed verifier and wildcard semantics.
+/// On x86-64 this uses AVX-512BW when the `avx512` feature is enabled and the
+/// CPU supports it, then AVX2 when available. On AArch64 it uses NEON. All
+/// paths share the same scalar packed verifier and wildcard semantics.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Dna2PackedVectorized;
+
+/// AVX2 packed-byte DNA2 matcher with scalar fallback when AVX2 is unavailable.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Dna2PackedAvx2;
+
+/// AVX-512BW packed-byte DNA2 matcher with AVX2/scalar fallback when unavailable.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Dna2PackedAvx512;
+
+/// NEON packed-byte DNA2 matcher with scalar fallback when NEON is unavailable.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Dna2PackedNeon;
 
 /// Preferred short name for the new DNA2 literal backend.
 pub type Dna2 = Dna2PackedVectorized;
@@ -223,60 +235,46 @@ macro_rules! impl_packed_literal_algorithm {
 
 impl_packed_literal_algorithm!(Dna2PackedScalar);
 impl_packed_literal_algorithm!(Dna2PackedVectorized);
+impl_packed_literal_algorithm!(Dna2PackedAvx2);
+impl_packed_literal_algorithm!(Dna2PackedAvx512);
+impl_packed_literal_algorithm!(Dna2PackedNeon);
 
-impl<'db> RowLiteralSearch<Dna2Column<'db>> for Dna2PackedScalar {
-    #[inline]
-    fn row_len<'r>(row: &Dna2Row<'r>) -> u32 {
-        row.len_bases()
-    }
+macro_rules! impl_packed_row_search {
+    ($ty:ty, $find:path) => {
+        impl<'db> RowLiteralSearch<Dna2Column<'db>> for $ty {
+            #[inline]
+            fn row_len<'r>(row: &Dna2Row<'r>) -> u32 {
+                row.len_bases()
+            }
 
-    #[inline]
-    fn matches_at<'r>(
-        row: &Dna2Row<'r>,
-        pos: u32,
-        needle: &Self::Needle,
-        _state: &Self::State,
-    ) -> bool {
-        packed_matches_at(row, pos, needle)
-    }
+            #[inline]
+            fn matches_at<'r>(
+                row: &Dna2Row<'r>,
+                pos: u32,
+                needle: &Self::Needle,
+                _state: &Self::State,
+            ) -> bool {
+                packed_matches_at(row, pos, needle)
+            }
 
-    #[inline]
-    fn find_from<'r>(
-        row: &Dna2Row<'r>,
-        from: u32,
-        needle: &Self::Needle,
-        state: &Self::State,
-    ) -> Option<u32> {
-        packed_find_from_scalar(row, from, needle, state)
-    }
+            #[inline]
+            fn find_from<'r>(
+                row: &Dna2Row<'r>,
+                from: u32,
+                needle: &Self::Needle,
+                state: &Self::State,
+            ) -> Option<u32> {
+                $find(row, from, needle, state)
+            }
+        }
+    };
 }
 
-impl<'db> RowLiteralSearch<Dna2Column<'db>> for Dna2PackedVectorized {
-    #[inline]
-    fn row_len<'r>(row: &Dna2Row<'r>) -> u32 {
-        row.len_bases()
-    }
-
-    #[inline]
-    fn matches_at<'r>(
-        row: &Dna2Row<'r>,
-        pos: u32,
-        needle: &Self::Needle,
-        _state: &Self::State,
-    ) -> bool {
-        packed_matches_at(row, pos, needle)
-    }
-
-    #[inline]
-    fn find_from<'r>(
-        row: &Dna2Row<'r>,
-        from: u32,
-        needle: &Self::Needle,
-        state: &Self::State,
-    ) -> Option<u32> {
-        packed_find_from_vectorized(row, from, needle, state)
-    }
-}
+impl_packed_row_search!(Dna2PackedScalar, packed_find_from_scalar);
+impl_packed_row_search!(Dna2PackedVectorized, packed_find_from_vectorized);
+impl_packed_row_search!(Dna2PackedAvx2, packed_find_from_avx2_runtime);
+impl_packed_row_search!(Dna2PackedAvx512, packed_find_from_avx512bw_runtime);
+impl_packed_row_search!(Dna2PackedNeon, packed_find_from_neon_runtime);
 
 #[inline]
 fn compile_symbols(src: &str) -> Option<(Box<[u8]>, bool)> {
@@ -566,13 +564,9 @@ fn packed_find_from_vectorized(
         return packed_find_from_scalar(row, from, needle, state);
     }
 
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx512f",
-        target_feature = "avx512bw"
-    ))]
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
     {
-        if std::is_x86_feature_detected!("avx512bw") {
+        if std::is_x86_feature_detected!("avx512f") && std::is_x86_feature_detected!("avx512bw") {
             return unsafe { packed_find_from_avx512bw(row, from, needle, state) };
         }
     }
@@ -585,6 +579,68 @@ fn packed_find_from_vectorized(
     }
 
     #[cfg(target_arch = "aarch64")]
+    {
+        return unsafe { packed_find_from_neon(row, from, needle, state) };
+    }
+
+    #[allow(unreachable_code)]
+    packed_find_from_scalar(row, from, needle, state)
+}
+
+#[inline]
+fn packed_find_from_avx2_runtime(
+    row: &Dna2Row<'_>,
+    from: u32,
+    needle: &Dna2PackedNeedle,
+    state: &Dna2PackedState,
+) -> Option<u32> {
+    if !state.has_fixed_bases() || needle.symbols.is_empty() {
+        return packed_find_from_scalar(row, from, needle, state);
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        if std::is_x86_feature_detected!("avx2") {
+            return unsafe { packed_find_from_avx2(row, from, needle, state) };
+        }
+    }
+
+    packed_find_from_scalar(row, from, needle, state)
+}
+
+#[inline]
+fn packed_find_from_avx512bw_runtime(
+    row: &Dna2Row<'_>,
+    from: u32,
+    needle: &Dna2PackedNeedle,
+    state: &Dna2PackedState,
+) -> Option<u32> {
+    if !state.has_fixed_bases() || needle.symbols.is_empty() {
+        return packed_find_from_scalar(row, from, needle, state);
+    }
+
+    #[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+    {
+        if std::is_x86_feature_detected!("avx512f") && std::is_x86_feature_detected!("avx512bw") {
+            return unsafe { packed_find_from_avx512bw(row, from, needle, state) };
+        }
+    }
+
+    packed_find_from_avx2_runtime(row, from, needle, state)
+}
+
+#[inline]
+fn packed_find_from_neon_runtime(
+    row: &Dna2Row<'_>,
+    from: u32,
+    needle: &Dna2PackedNeedle,
+    state: &Dna2PackedState,
+) -> Option<u32> {
+    if !state.has_fixed_bases() || needle.symbols.is_empty() {
+        return packed_find_from_scalar(row, from, needle, state);
+    }
+
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     {
         return unsafe { packed_find_from_neon(row, from, needle, state) };
     }
@@ -880,12 +936,9 @@ unsafe fn cmp_phase_anchor_avx2(ptr: *const u8, p: Dna2ByteAnchorPhase) -> u32 {
     _mm256_movemask_epi8(_mm256_cmpeq_epi8(diff, zero)) as u32
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx512f",
-    target_feature = "avx512bw"
-))]
-#[target_feature(enable = "avx512f,avx512bw")]
+#[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512bw")]
 unsafe fn packed_find_from_avx512bw(
     row: &Dna2Row<'_>,
     from: u32,
@@ -920,12 +973,9 @@ unsafe fn packed_find_from_avx512bw(
     scan_tail_scalar(row, pos, last_start, needle, state)
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx512f",
-    target_feature = "avx512bw"
-))]
-#[target_feature(enable = "avx512f,avx512bw")]
+#[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512bw")]
 unsafe fn candidate_masks_block_avx512bw(
     row: &Dna2Row<'_>,
     pos: u32,
@@ -954,12 +1004,9 @@ unsafe fn candidate_masks_block_avx512bw(
     out
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx512f",
-    target_feature = "avx512bw"
-))]
-#[target_feature(enable = "avx512f,avx512bw")]
+#[cfg(all(target_arch = "x86_64", feature = "avx512"))]
+#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512bw")]
 unsafe fn cmp_phase_anchor_avx512bw(ptr: *const u8, p: Dna2ByteAnchorPhase) -> u64 {
     use core::arch::x86_64::*;
 
@@ -1221,6 +1268,21 @@ mod tests {
     #[test]
     fn packed_vectorized_matches_reference() {
         check_algo::<Dna2PackedVectorized>();
+    }
+
+    #[test]
+    fn packed_avx2_matches_reference() {
+        check_algo::<Dna2PackedAvx2>();
+    }
+
+    #[test]
+    fn packed_avx512_matches_reference() {
+        check_algo::<Dna2PackedAvx512>();
+    }
+
+    #[test]
+    fn packed_neon_matches_reference() {
+        check_algo::<Dna2PackedNeon>();
     }
 
     #[test]

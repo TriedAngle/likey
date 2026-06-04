@@ -20,8 +20,8 @@ pub mod two_way2;
 
 pub use bm::{BM, BMState, bm_find};
 pub use dna2::{
-    DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedChunk, Dna2PackedNeedle, Dna2PackedScalar,
-    Dna2PackedState, Dna2PackedVectorized,
+    DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedChunk,
+    Dna2PackedNeedle, Dna2PackedNeon, Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized,
 };
 pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
 pub use kmp::{Utf8Kmp, kmp_find, kmp_find_from};

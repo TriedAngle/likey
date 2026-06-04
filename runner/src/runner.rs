@@ -4,10 +4,11 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use db::{
-    BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedScalar, Dna2PackedVectorized, FftStr0,
-    FftStr1, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan,
-    GenericMatcher, HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard,
-    NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
+    BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedNeon,
+    Dna2PackedScalar, Dna2PackedVectorized, FftStr0, FftStr1, FmIndex, FmIndexBuildPhase,
+    FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex, LibcMemmem,
+    LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
+    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
     NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
     NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
     NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats, RowId, RowLiteralSearch,
@@ -514,7 +515,10 @@ where
         ),
         AlgorithmKind::Dna2
         | AlgorithmKind::Dna2PackedScalar
-        | AlgorithmKind::Dna2PackedVectorized => {
+        | AlgorithmKind::Dna2PackedVectorized
+        | AlgorithmKind::Dna2PackedAvx2
+        | AlgorithmKind::Dna2PackedAvx512
+        | AlgorithmKind::Dna2PackedNeon => {
             bail!(
                 "algorithm {} cannot run on UTF-8 storage",
                 algorithm.as_str()
@@ -836,6 +840,33 @@ where
                 sample_dna2_row,
             )
         }
+        AlgorithmKind::Dna2PackedAvx2 => run_algorithm::<Dna2Column<'db>, Dna2PackedAvx2, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
+        AlgorithmKind::Dna2PackedAvx512 => run_algorithm::<Dna2Column<'db>, Dna2PackedAvx512, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
+        AlgorithmKind::Dna2PackedNeon => run_algorithm::<Dna2Column<'db>, Dna2PackedNeon, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
         other => bail!("algorithm {} cannot run on DNA2 storage", other.as_str()),
     }
 }
