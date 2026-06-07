@@ -8,41 +8,6 @@
 use crate::storage::Column;
 use crate::{LenConstraint, RowId};
 
-#[derive(Debug, Default)]
-pub struct QueryScratch {
-    pub candidates: CandidateScratch,
-    pub verify: VerifyScratch,
-}
-
-#[derive(Debug, Default)]
-pub struct CandidateScratch {
-    /// Generic row-id buffer for posting-list intersections or FM occurrence
-    /// row deduplication.
-    pub row_ids: Vec<RowId>,
-}
-
-impl CandidateScratch {
-    pub fn clear(&mut self) {
-        self.row_ids.clear();
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct VerifyScratch {
-    /// Generic byte buffer for streaming decode, encoded literal lowering, etc.
-    pub bytes: Vec<u8>,
-
-    /// Generic position buffer for algorithms that keep occurrence offsets.
-    pub positions: Vec<u32>,
-}
-
-impl VerifyScratch {
-    pub fn clear(&mut self) {
-        self.bytes.clear();
-        self.positions.clear();
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum CandidateBatch<'a> {
     /// Consecutive physical row IDs `[start, start + len)`.
@@ -68,10 +33,7 @@ impl CandidateBatch<'_> {
 pub trait CandidateProvider {
     fn reset(&mut self);
 
-    fn next_batch<'a>(
-        &'a mut self,
-        scratch: &'a mut CandidateScratch,
-    ) -> Option<CandidateBatch<'a>>;
+    fn next_batch(&mut self) -> Option<CandidateBatch<'_>>;
 }
 
 #[derive(Debug, Clone)]
@@ -103,10 +65,7 @@ impl CandidateProvider for FullScan {
         self.cursor = self.start;
     }
 
-    fn next_batch<'a>(
-        &'a mut self,
-        _scratch: &'a mut CandidateScratch,
-    ) -> Option<CandidateBatch<'a>> {
+    fn next_batch(&mut self) -> Option<CandidateBatch<'_>> {
         if self.cursor >= self.end {
             return None;
         }
@@ -144,10 +103,7 @@ impl<'p> CandidateProvider for SortedRowsProbe<'p> {
         self.cursor = 0;
     }
 
-    fn next_batch<'a>(
-        &'a mut self,
-        _scratch: &'a mut CandidateScratch,
-    ) -> Option<CandidateBatch<'a>> {
+    fn next_batch(&mut self) -> Option<CandidateBatch<'_>> {
         if self.cursor >= self.rows.len() {
             return None;
         }
@@ -167,14 +123,9 @@ pub trait RowVerifier<C: Column> {
         LenConstraint::any()
     }
 
-    fn verify(&self, column: &C, row: RowId, scratch: &mut VerifyScratch) -> bool;
+    fn verify(&self, column: &C, row: RowId) -> bool;
 
-    fn verify_candidate(
-        &self,
-        column: &C,
-        row: RowId,
-        scratch: &mut VerifyScratch,
-    ) -> VerifyOutcome {
+    fn verify_candidate(&self, column: &C, row: RowId) -> VerifyOutcome {
         // Internal query execution trusts candidate row IDs in release; debug
         // builds catch invalid custom providers or corrupt indexes.
         debug_assert!(row < column.row_count(), "candidate row out of bounds");
@@ -188,21 +139,15 @@ pub trait RowVerifier<C: Column> {
 
         VerifyOutcome {
             len_passed: true,
-            matched: self.verify_len_prechecked(column, row, row_len, scratch),
+            matched: self.verify_len_prechecked(column, row, row_len),
         }
     }
 
-    fn verify_len_prechecked(
-        &self,
-        column: &C,
-        row: RowId,
-        _row_len: u32,
-        scratch: &mut VerifyScratch,
-    ) -> bool {
+    fn verify_len_prechecked(&self, column: &C, row: RowId, _row_len: u32) -> bool {
         // Internal query execution trusts candidate row IDs in release; debug
         // builds catch invalid custom providers or corrupt indexes.
         debug_assert!(row < column.row_count(), "candidate row out of bounds");
-        self.verify(column, row, scratch)
+        self.verify(column, row)
     }
 }
 
@@ -229,16 +174,11 @@ impl<C: Column> RowVerifier<C> for AcceptAll {
         self.len_constraint
     }
 
-    fn verify(&self, _column: &C, _row: RowId, _scratch: &mut VerifyScratch) -> bool {
+    fn verify(&self, _column: &C, _row: RowId) -> bool {
         true
     }
 
-    fn verify_candidate(
-        &self,
-        column: &C,
-        row: RowId,
-        _scratch: &mut VerifyScratch,
-    ) -> VerifyOutcome {
+    fn verify_candidate(&self, column: &C, row: RowId) -> VerifyOutcome {
         // Internal query execution trusts candidate row IDs in release; debug
         // builds catch invalid custom providers or corrupt indexes.
         debug_assert!(row < column.row_count(), "candidate row out of bounds");
@@ -330,7 +270,6 @@ pub fn execute_like<C, P, V, S>(
     column: &C,
     candidates: &mut P,
     verifier: &V,
-    scratch: &mut QueryScratch,
     sink: &mut S,
 ) -> QueryStats
 where
@@ -344,7 +283,7 @@ where
     candidates.reset();
 
     loop {
-        let Some(batch) = candidates.next_batch(&mut scratch.candidates) else {
+        let Some(batch) = candidates.next_batch() else {
             break;
         };
 
@@ -352,13 +291,13 @@ where
             CandidateBatch::RowRange { start, len } => {
                 stats.candidate_rows_seen += len;
                 for row in start..start + len {
-                    verify_one(column, row, verifier, &mut scratch.verify, sink, &mut stats);
+                    verify_one(column, row, verifier, sink, &mut stats);
                 }
             }
             CandidateBatch::SortedRows(rows) => {
                 stats.candidate_rows_seen += rows.len() as u64;
                 for &row in rows {
-                    verify_one(column, row, verifier, &mut scratch.verify, sink, &mut stats);
+                    verify_one(column, row, verifier, sink, &mut stats);
                 }
             }
         }
@@ -368,21 +307,15 @@ where
 }
 
 #[inline]
-fn verify_one<C, V, S>(
-    column: &C,
-    row: RowId,
-    verifier: &V,
-    scratch: &mut VerifyScratch,
-    sink: &mut S,
-    stats: &mut QueryStats,
-) where
+fn verify_one<C, V, S>(column: &C, row: RowId, verifier: &V, sink: &mut S, stats: &mut QueryStats)
+where
     C: Column,
     V: RowVerifier<C>,
     S: ResultSink,
 {
     debug_assert!(row < column.row_count(), "candidate row out of bounds");
 
-    let outcome = verifier.verify_candidate(column, row, scratch);
+    let outcome = verifier.verify_candidate(column, row);
     if !outcome.len_passed {
         return;
     }

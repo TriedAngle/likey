@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use db::{
-    Column, DbBuilder, Dna2, Dna2TableBuilder, FullScan, LikeCompileOptions, LikePattern,
-    QueryScratch, RowId, SortedRowsProbe, Utf8Kmp, Utf8TableBuilder, execute_like,
+    Column, DbBuilder, Dna2, Dna2TableBuilder, FullScan, LikeCompileOptions, LikePattern, RowId,
+    SortedRowsProbe, Utf8Kmp, Utf8TableBuilder, execute_like,
 };
 
 /// Toy trigram index for demonstrating candidate generation.
@@ -78,10 +78,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pattern = LikePattern::<Utf8Kmp>::compile("%ACG%")?;
 
     let mut scan = FullScan::new(text.row_count(), 1024);
-    let mut scratch = QueryScratch::default();
     let mut matches = Vec::<RowId>::new();
 
-    let stats = execute_like(&text, &mut scan, &pattern, &mut scratch, &mut matches);
+    let stats = execute_like(&text, &mut scan, &pattern, &mut matches);
     println!("full scan matches: {matches:?}, stats: {stats:?}");
 
     // Same verifier, but candidates come from a toy trigram index.
@@ -90,13 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let rows = trigram.postings(gram);
         let mut probe = SortedRowsProbe::new(rows, 1024);
         let mut indexed_matches = Vec::<RowId>::new();
-        let stats = execute_like(
-            &text,
-            &mut probe,
-            &pattern,
-            &mut scratch,
-            &mut indexed_matches,
-        );
+        let stats = execute_like(&text, &mut probe, &pattern, &mut indexed_matches);
         println!("trigram matches: {indexed_matches:?}, stats: {stats:?}");
     }
 
@@ -118,16 +111,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let dna_pattern = LikePattern::<Dna2>::compile("A_G%")?;
     let mut scan = FullScan::new(seq.row_count(), 1024);
-    let mut scratch = QueryScratch::default();
     let mut dna_matches = Vec::<RowId>::new();
 
-    let stats = execute_like(
-        &seq,
-        &mut scan,
-        &dna_pattern,
-        &mut scratch,
-        &mut dna_matches,
-    );
+    let stats = execute_like(&seq, &mut scan, &dna_pattern, &mut dna_matches);
     println!("dna direct-wildcard matches: {dna_matches:?}, stats: {stats:?}");
 
     // If you want `_` to become Skip(1) even for a wildcard-capable algorithm,

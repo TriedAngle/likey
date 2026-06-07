@@ -1,7 +1,7 @@
 //! Minimal full-scan query over both storage types.
 
 use db::{
-    AcceptAll, Column, DbBuilder, Dna2TableBuilder, FullScan, LenConstraint, QueryScratch, RowId,
+    AcceptAll, Column, DbBuilder, Dna2TableBuilder, FullScan, LenConstraint, RowId,
     Utf8TableBuilder, execute_like,
 };
 
@@ -22,30 +22,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let db = dbb.freeze();
     let verifier = AcceptAll::new(LenConstraint::between(2, 4));
-    let mut scratch = QueryScratch::default();
 
     let docs_col = db.utf8_table(docs_id)?.text();
     let mut docs_scan = FullScan::new(docs_col.row_count(), 1024);
     let mut docs_rows = Vec::<RowId>::new();
-    execute_like(
-        &docs_col,
-        &mut docs_scan,
-        &verifier,
-        &mut scratch,
-        &mut docs_rows,
-    );
+    execute_like(&docs_col, &mut docs_scan, &verifier, &mut docs_rows);
     println!("docs rows with length 2..=4: {:?}", docs_rows);
 
     let dna_col = db.dna2_table(dna_id)?.sequence();
     let mut dna_scan = FullScan::new(dna_col.row_count(), 1024);
     let mut dna_rows = Vec::<RowId>::new();
-    execute_like(
-        &dna_col,
-        &mut dna_scan,
-        &verifier,
-        &mut scratch,
-        &mut dna_rows,
-    );
+    execute_like(&dna_col, &mut dna_scan, &verifier, &mut dna_rows);
     println!("dna rows with length 2..=4: {:?}", dna_rows);
 
     Ok(())

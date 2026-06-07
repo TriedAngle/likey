@@ -1,6 +1,6 @@
 use db::{
     AcceptAll, Column, DbBuilder, Dna2TableBuilder, DnaBase, FsstTableBuilder, FullScan,
-    LenConstraint, QueryScratch, RowId, SortedRowsProbe, Utf8TableBuilder, execute_like,
+    LenConstraint, RowId, SortedRowsProbe, Utf8TableBuilder, execute_like,
 };
 
 #[test]
@@ -68,9 +68,8 @@ fn execute_full_scan_with_length_filter() {
     let col = db.utf8_table(id).unwrap().text();
     let verifier = AcceptAll::new(LenConstraint::between(2, 4));
     let mut scan = FullScan::new(col.row_count(), 2);
-    let mut scratch = QueryScratch::default();
     let mut rows = Vec::<RowId>::new();
-    let stats = execute_like(&col, &mut scan, &verifier, &mut scratch, &mut rows);
+    let stats = execute_like(&col, &mut scan, &verifier, &mut rows);
 
     assert_eq!(rows, vec![1]);
     assert_eq!(stats.candidate_rows_seen, 3);
@@ -92,9 +91,8 @@ fn execute_sorted_rows_probe() {
     let candidates = [0, 2];
     let mut probe = SortedRowsProbe::new(&candidates, 1);
     let verifier = AcceptAll::default();
-    let mut scratch = QueryScratch::default();
     let mut rows = Vec::<RowId>::new();
-    execute_like(&col, &mut probe, &verifier, &mut scratch, &mut rows);
+    execute_like(&col, &mut probe, &verifier, &mut rows);
 
     assert_eq!(rows, vec![0, 2]);
 }

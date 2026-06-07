@@ -917,7 +917,7 @@ mod tests {
     use crate::RowId;
     use crate::db::DbBuilder;
     use crate::like::LikePattern;
-    use crate::query::{FullScan, QueryScratch, execute_like};
+    use crate::query::{FullScan, execute_like};
     use crate::storage::Column;
     use crate::storage::utf8::Utf8TableBuilder;
 
@@ -970,9 +970,8 @@ mod tests {
 
         let like = LikePattern::<FftStr1>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, vec![0, 1]);
     }
 }

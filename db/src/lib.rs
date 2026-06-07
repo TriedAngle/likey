@@ -45,9 +45,8 @@ pub use crate::like::{
     RowLiteralSearch, StaticGenericMatcher,
 };
 pub use crate::query::{
-    AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CandidateScratch, CountSink,
-    FullScan, QueryScratch, QueryStats, ResultSink, RowVerifier, SortedRowsProbe, VerifyScratch,
-    execute_like,
+    AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CountSink, FullScan, QueryStats,
+    ResultSink, RowVerifier, SortedRowsProbe, execute_like,
 };
 pub use crate::storage::Column;
 pub use crate::storage::dna2::{

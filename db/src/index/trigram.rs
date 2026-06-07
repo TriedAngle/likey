@@ -17,7 +17,7 @@ use std::marker::PhantomData;
 
 use crate::RowId;
 use crate::like::{LikePattern, LiteralAlgorithm};
-use crate::query::{CandidateBatch, CandidateProvider, CandidateScratch};
+use crate::query::{CandidateBatch, CandidateProvider};
 use crate::storage::Column;
 use crate::storage::dna2::{Dna2Column, Dna2Row};
 use crate::storage::fsst::FsstColumn;
@@ -590,10 +590,7 @@ impl CandidateProvider for TrigramProbe {
         self.cursor = 0;
     }
 
-    fn next_batch<'a>(
-        &'a mut self,
-        _scratch: &'a mut CandidateScratch,
-    ) -> Option<CandidateBatch<'a>> {
+    fn next_batch(&mut self) -> Option<CandidateBatch<'_>> {
         if self.cursor >= self.rows.len() {
             return None;
         }

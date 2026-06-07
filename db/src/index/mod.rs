@@ -72,8 +72,7 @@ mod tests {
     use crate::storage::dna2::{Dna2Column, Dna2TableBuilder};
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
     use crate::{
-        DbBuilder, Dna2, FullScan, LikePattern, QueryScratch, RowLiteralSearch, StdSearch,
-        execute_like,
+        DbBuilder, Dna2, FullScan, LikePattern, RowLiteralSearch, StdSearch, execute_like,
     };
 
     macro_rules! index_suites {
@@ -275,9 +274,8 @@ mod tests {
         A: RowLiteralSearch<C>,
         P: CandidateProvider,
     {
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(column, &mut probe, pattern, &mut scratch, &mut matches);
+        execute_like(column, &mut probe, pattern, &mut matches);
         matches
     }
 

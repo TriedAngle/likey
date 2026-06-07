@@ -1,6 +1,6 @@
 use db::{
-    BM, Column, DbBuilder, FftStr1, FullScan, LikePattern, NaiveMixed, QueryScratch, RowId,
-    StdSearch, TwoWay2, Utf8TableBuilder, execute_like,
+    BM, Column, DbBuilder, FftStr1, FullScan, LikePattern, NaiveMixed, RowId, StdSearch, TwoWay2,
+    Utf8TableBuilder, execute_like,
 };
 
 fn run<A>(name: &str, pattern: &str, text: db::Utf8Column<'_>)
@@ -10,10 +10,9 @@ where
 {
     let like = LikePattern::<A>::compile(pattern).unwrap();
     let mut scan = FullScan::new(text.row_count(), 1024);
-    let mut scratch = QueryScratch::default();
     let mut matches = Vec::<RowId>::new();
 
-    execute_like(&text, &mut scan, &like, &mut scratch, &mut matches);
+    execute_like(&text, &mut scan, &like, &mut matches);
     println!("{name:>10}: {matches:?}");
 }
 

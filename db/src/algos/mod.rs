@@ -55,7 +55,7 @@ mod tests {
         AdaptiveGenericMatcher, GenericMatcher, LikeCompileOptions, LikePattern, LiteralAlgorithm,
         MatchStrategy, RecursiveGenericMatcher, RowLiteralSearch, StaticGenericMatcher,
     };
-    use crate::query::{FullScan, QueryScratch, execute_like};
+    use crate::query::{FullScan, execute_like};
     use crate::storage::Column;
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
 
@@ -325,9 +325,8 @@ mod tests {
             )
             .expect("pattern should compile");
             let mut scan = FullScan::new(col.row_count(), 16);
-            let mut scratch = QueryScratch::default();
             let mut matches = Vec::<RowId>::new();
-            execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+            execute_like(&col, &mut scan, &like, &mut matches);
             assert_eq!(
                 matches.as_slice(),
                 expected,
@@ -398,9 +397,8 @@ mod tests {
             }
 
             let mut scan = FullScan::new(col.row_count(), 16);
-            let mut scratch = QueryScratch::default();
             let mut matches = Vec::<RowId>::new();
-            execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+            execute_like(&col, &mut scan, &like, &mut matches);
 
             assert_eq!(
                 matches.as_slice(),
@@ -417,9 +415,8 @@ mod tests {
     {
         let verifier = like.verifier::<M>();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(col, &mut scan, &verifier, &mut scratch, &mut matches);
+        execute_like(col, &mut scan, &verifier, &mut matches);
         matches
     }
 
@@ -502,9 +499,8 @@ mod tests {
 
         let like = LikePattern::<Dna2>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, vec![0, 1]);
     }
 
@@ -526,9 +522,8 @@ mod tests {
 
         let like = LikePattern::<Dna2PackedScalar>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, vec![0, 1]);
     }
     #[test]
@@ -549,9 +544,8 @@ mod tests {
 
         let like = LikePattern::<Dna2PackedVectorized>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, vec![0, 1]);
     }
 
@@ -576,21 +570,20 @@ mod tests {
 
         let like = LikePattern::<NaiveMixed>::compile("%ana%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, vec![0, 1, 3]);
 
         let trigram = TrigramIndex::build(&col);
         let mut tri_probe = trigram.probe(*b"ana");
         let mut tri_matches = Vec::<RowId>::new();
-        execute_like(&col, &mut tri_probe, &like, &mut scratch, &mut tri_matches);
+        execute_like(&col, &mut tri_probe, &like, &mut tri_matches);
         assert_eq!(tri_matches, vec![0, 1, 3]);
 
         let fm = FmIndex::build(&col).unwrap();
         let mut fm_probe = fm.probe(b"ana", 16);
         let mut fm_matches = Vec::<RowId>::new();
-        execute_like(&col, &mut fm_probe, &like, &mut scratch, &mut fm_matches);
+        execute_like(&col, &mut fm_probe, &like, &mut fm_matches);
         assert_eq!(fm_matches, vec![0, 1, 3]);
     }
 }

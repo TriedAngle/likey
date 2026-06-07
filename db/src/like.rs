@@ -12,7 +12,7 @@
 
 use std::marker::PhantomData;
 
-use crate::query::{RowVerifier, VerifyOutcome, VerifyScratch};
+use crate::query::{RowVerifier, VerifyOutcome};
 use crate::storage::Column;
 use crate::{LenConstraint, RowId};
 
@@ -1030,28 +1030,17 @@ where
         self.len_constraint_internal()
     }
 
-    fn verify(&self, column: &C, row: RowId, _scratch: &mut VerifyScratch) -> bool {
+    fn verify(&self, column: &C, row: RowId) -> bool {
         let row = column.row(row);
         self.matches_row::<C>(&row)
     }
 
-    fn verify_len_prechecked(
-        &self,
-        column: &C,
-        row: RowId,
-        row_len: u32,
-        _scratch: &mut VerifyScratch,
-    ) -> bool {
+    fn verify_len_prechecked(&self, column: &C, row: RowId, row_len: u32) -> bool {
         let row = column.row(row);
         self.matches_row_len_prechecked::<C>(&row, row_len)
     }
 
-    fn verify_candidate(
-        &self,
-        column: &C,
-        row: RowId,
-        _scratch: &mut VerifyScratch,
-    ) -> VerifyOutcome {
+    fn verify_candidate(&self, column: &C, row: RowId) -> VerifyOutcome {
         // Internal query execution trusts candidate row IDs in release; debug
         // builds catch invalid custom providers or corrupt indexes.
         debug_assert!(row < column.row_count(), "candidate row out of bounds");
@@ -1081,29 +1070,18 @@ where
         self.pattern.len_constraint_internal()
     }
 
-    fn verify(&self, column: &C, row: RowId, _scratch: &mut VerifyScratch) -> bool {
+    fn verify(&self, column: &C, row: RowId) -> bool {
         let row = column.row(row);
         self.pattern.matches_row_with::<C, M>(&row)
     }
 
-    fn verify_len_prechecked(
-        &self,
-        column: &C,
-        row: RowId,
-        row_len: u32,
-        _scratch: &mut VerifyScratch,
-    ) -> bool {
+    fn verify_len_prechecked(&self, column: &C, row: RowId, row_len: u32) -> bool {
         let row = column.row(row);
         self.pattern
             .matches_row_len_prechecked_with::<C, M>(&row, row_len)
     }
 
-    fn verify_candidate(
-        &self,
-        column: &C,
-        row: RowId,
-        _scratch: &mut VerifyScratch,
-    ) -> VerifyOutcome {
+    fn verify_candidate(&self, column: &C, row: RowId) -> VerifyOutcome {
         // Internal query execution trusts candidate row IDs in release; debug
         // builds catch invalid custom providers or corrupt indexes.
         debug_assert!(row < column.row_count(), "candidate row out of bounds");

@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 
 use db::{
-    AcceptAll, Column, DbBuilder, Dna2TableBuilder, DnaBase, LenConstraint, QueryScratch, RowId,
-    SortedRowsProbe, Utf8TableBuilder, execute_like,
+    AcceptAll, Column, DbBuilder, Dna2TableBuilder, DnaBase, LenConstraint, RowId, SortedRowsProbe,
+    Utf8TableBuilder, execute_like,
 };
 
 /// A toy trigram index usable on both Utf8Column and Dna2Column because both
@@ -83,15 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // verifier. Because the index has already filtered by one trigram, AcceptAll
     // returns the rows containing that gram.
     let verifier = AcceptAll::new(LenConstraint::at_least(3));
-    let mut scratch = QueryScratch::default();
     let mut docs_matches = Vec::<RowId>::new();
-    let docs_stats = execute_like(
-        &docs_col,
-        &mut docs_probe,
-        &verifier,
-        &mut scratch,
-        &mut docs_matches,
-    );
+    let docs_stats = execute_like(&docs_col, &mut docs_probe, &verifier, &mut docs_matches);
 
     println!(
         "UTF8 candidate/matches: {:?}, stats: {:?}",
@@ -106,13 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut dna_probe = dna_index.probe(acg);
 
     let mut dna_matches = Vec::<RowId>::new();
-    let dna_stats = execute_like(
-        &dna_col,
-        &mut dna_probe,
-        &verifier,
-        &mut scratch,
-        &mut dna_matches,
-    );
+    let dna_stats = execute_like(&dna_col, &mut dna_probe, &verifier, &mut dna_matches);
 
     println!(
         "DNA2 candidate/matches: {:?}, stats: {:?}",

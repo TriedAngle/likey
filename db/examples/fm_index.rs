@@ -1,6 +1,4 @@
-use db::{
-    DbBuilder, FmIndex, LikePattern, QueryScratch, RowId, Utf8Kmp, Utf8TableBuilder, execute_like,
-};
+use db::{DbBuilder, FmIndex, LikePattern, RowId, Utf8Kmp, Utf8TableBuilder, execute_like};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut docs = Utf8TableBuilder::new("docs");
@@ -27,9 +25,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .probe_longest_like_literal(&like, 1024)
         .expect("%ana% has one exact literal fragment");
 
-    let mut scratch = QueryScratch::default();
     let mut matches = Vec::<RowId>::new();
-    let stats = execute_like(&text, &mut candidates, &like, &mut scratch, &mut matches);
+    let stats = execute_like(&text, &mut candidates, &like, &mut matches);
 
     println!("matching row ids: {matches:?}");
     for row in &matches {

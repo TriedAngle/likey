@@ -1148,7 +1148,7 @@ mod tests {
     use crate::like::{LikePattern, RowLiteralSearch};
     use crate::storage::Column;
     use crate::storage::dna2::Dna2TableBuilder;
-    use crate::{DbBuilder, FullScan, QueryScratch, RowId, execute_like};
+    use crate::{DbBuilder, FullScan, RowId, execute_like};
 
     fn one_row(seq: &str) -> (crate::Db, crate::TableId) {
         let mut table = Dna2TableBuilder::new("dna");
@@ -1399,16 +1399,14 @@ mod tests {
 
         let like = LikePattern::<Dna2PackedVectorized>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, expected);
 
         let like = LikePattern::<Dna2PackedScalar>::compile("A_G%").unwrap();
         let mut scan = FullScan::new(col.row_count(), 16);
-        let mut scratch = QueryScratch::default();
         let mut matches = Vec::<RowId>::new();
-        execute_like(&col, &mut scan, &like, &mut scratch, &mut matches);
+        execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, expected);
     }
 }

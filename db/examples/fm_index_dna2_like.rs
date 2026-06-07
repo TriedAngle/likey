@@ -1,6 +1,4 @@
-use db::{
-    DbBuilder, Dna2, Dna2TableBuilder, FmIndex, LikePattern, QueryScratch, RowId, execute_like,
-};
+use db::{DbBuilder, Dna2, Dna2TableBuilder, FmIndex, LikePattern, RowId, execute_like};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut reads = Dna2TableBuilder::new("reads");
@@ -25,9 +23,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .probe_longest_like_literal(&like, 1024)
         .expect("%ACG% has one exact DNA literal fragment");
 
-    let mut scratch = QueryScratch::default();
     let mut matches = Vec::<RowId>::new();
-    let stats = execute_like(&seq, &mut candidates, &like, &mut scratch, &mut matches);
+    let stats = execute_like(&seq, &mut candidates, &like, &mut matches);
 
     println!("matching row ids: {matches:?}");
     for row in &matches {

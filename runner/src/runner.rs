@@ -11,8 +11,8 @@ use db::{
     NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
     NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
     NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
-    QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex,
-    TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch, execute_like,
+    QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2,
+    Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -909,34 +909,26 @@ where
 
         for &requested_index in &config.indexes {
             let index_build_ns = index_build_ns(indexes, requested_index);
-            let mut scratch = QueryScratch::default();
 
             for _ in 0..config.warmups {
-                scratch.candidates.clear();
-                scratch.verify.clear();
                 let exec = execute_once::<C, A, M>(
                     column,
                     &pattern,
                     requested_index,
                     indexes,
                     config.batch_rows,
-                    &mut scratch,
                 );
                 std::hint::black_box(exec.stats.rows_matched);
                 std::hint::black_box(exec.count);
             }
 
             for iteration in 0..config.iterations {
-                scratch.candidates.clear();
-                scratch.verify.clear();
-
                 let exec = execute_once::<C, A, M>(
                     column,
                     &pattern,
                     requested_index,
                     indexes,
                     config.batch_rows,
-                    &mut scratch,
                 );
 
                 std::hint::black_box(exec.stats.rows_matched);
@@ -1011,7 +1003,6 @@ fn profile_algorithm_rows<C, A, M, F>(
     let repeats = config.row_profile_repeats.max(1);
     let verifier = pattern.verifier::<M>();
     let len_constraint = verifier.len_constraint();
-    let mut scratch = VerifyScratch::default();
 
     for row in 0..rows_to_profile {
         let row_len = column.logical_len(row);
@@ -1019,8 +1010,7 @@ fn profile_algorithm_rows<C, A, M, F>(
         let mut matched = false;
         let start = Instant::now();
         for _ in 0..repeats {
-            scratch.clear();
-            matched = len_ok && verifier.verify(column, row, &mut scratch);
+            matched = len_ok && verifier.verify(column, row);
             std::hint::black_box(matched);
         }
         let ns_total = start.elapsed().as_nanos();
@@ -1067,7 +1057,6 @@ fn execute_once<C, A, M>(
     requested_index: IndexKind,
     indexes: &BuiltIndexes<C>,
     batch_rows: usize,
-    scratch: &mut QueryScratch,
 ) -> ExecuteOnceResult
 where
     C: HasTrigramIndex,
@@ -1076,7 +1065,7 @@ where
 {
     match requested_index {
         IndexKind::FullScan => {
-            execute_full_scan::<C, A, M>(column, pattern, batch_rows, scratch, "", "full-scan")
+            execute_full_scan::<C, A, M>(column, pattern, batch_rows, "", "full-scan")
         }
         IndexKind::Fm => {
             if let Some(fm) = indexes.fm.as_ref() {
@@ -1087,7 +1076,7 @@ where
                     let mut sink = CountSink::default();
                     let verifier = pattern.verifier::<M>();
                     let execute_start = Instant::now();
-                    let stats = execute_like(column, &mut probe, &verifier, scratch, &mut sink);
+                    let stats = execute_like(column, &mut probe, &verifier, &mut sink);
                     let execute_ns = execute_start.elapsed().as_nanos();
                     ExecuteOnceResult {
                         stats,
@@ -1102,7 +1091,6 @@ where
                         column,
                         pattern,
                         batch_rows,
-                        scratch,
                         "no-indexable-literal",
                         "full-scan",
                     );
@@ -1114,7 +1102,6 @@ where
                     column,
                     pattern,
                     batch_rows,
-                    scratch,
                     "fm-not-built",
                     "full-scan",
                 )
@@ -1131,8 +1118,7 @@ where
                             let mut sink = CountSink::default();
                             let verifier = pattern.verifier::<M>();
                             let execute_start = Instant::now();
-                            let stats =
-                                execute_like(column, &mut probe, &verifier, scratch, &mut sink);
+                            let stats = execute_like(column, &mut probe, &verifier, &mut sink);
                             let execute_ns = execute_start.elapsed().as_nanos();
                             ExecuteOnceResult {
                                 stats,
@@ -1147,7 +1133,6 @@ where
                                 column,
                                 pattern,
                                 batch_rows,
-                                scratch,
                                 "literal-not-valid-for-trigram",
                                 "full-scan",
                             );
@@ -1159,7 +1144,6 @@ where
                             column,
                             pattern,
                             batch_rows,
-                            scratch,
                             "literal-shorter-than-trigram",
                             "full-scan",
                         )
@@ -1169,7 +1153,6 @@ where
                         column,
                         pattern,
                         batch_rows,
-                        scratch,
                         "no-indexable-literal",
                         "full-scan",
                     )
@@ -1179,7 +1162,6 @@ where
                     column,
                     pattern,
                     batch_rows,
-                    scratch,
                     "trigram-not-built",
                     "full-scan",
                 )
@@ -1192,7 +1174,6 @@ fn execute_full_scan<C, A, M>(
     column: &C,
     pattern: &LikePattern<A>,
     batch_rows: usize,
-    scratch: &mut QueryScratch,
     fallback_reason: &'static str,
     actual_index: &'static str,
 ) -> ExecuteOnceResult
@@ -1207,7 +1188,7 @@ where
     let mut sink = CountSink::default();
     let verifier = pattern.verifier::<M>();
     let execute_start = Instant::now();
-    let stats = execute_like(column, &mut probe, &verifier, scratch, &mut sink);
+    let stats = execute_like(column, &mut probe, &verifier, &mut sink);
     let execute_ns = execute_start.elapsed().as_nanos();
     ExecuteOnceResult {
         stats,
