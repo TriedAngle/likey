@@ -5,12 +5,15 @@ Input layout:
   data/raw/tpch/...   DuckDB TPC-H export
   data/raw/tpcds/...  DuckDB TPC-DS export
   data/raw/job/...    JOB/IMDB export
+  data/raw/other/...  Headered CSV datasets
   data/fasta/...      FASTA files, already runner-readable
 
 Output layout:
   data/tpch/*.csv     one headered key,value file per selected text column
   data/tpcds/*.csv
   data/job/*.csv
+  data/quotes/*.csv
+  data/spam/*.csv
   data/<dataset>/data.csv runner manifest for that dataset
   data/data_all.csv combined manifest
 """
@@ -27,6 +30,7 @@ from pathlib import Path
 
 
 STRING_TYPE_RE = re.compile(r"\b(character varying|varchar|char|text|string)\b", re.IGNORECASE)
+RAW_DELIMITER = "|"
 
 DEFAULT_COLUMNS: dict[str, set[str]] = {
     "tpch": {
@@ -57,6 +61,8 @@ DEFAULT_COLUMNS: dict[str, set[str]] = {
         "job.name.name",
         "job.title.title",
     },
+    "quotes": {"quotes.quote"},
+    "spam": {"spam.v2"},
 }
 
 
@@ -85,6 +91,47 @@ class ManifestRow:
     enabled: str = "true"
 
 
+@dataclass(frozen=True)
+class HeaderedCsvSpec:
+    dataset: str
+    raw_path: str
+    encoding: str
+    delimiter: str
+    source_column: str
+    output_file: str
+    column: str
+
+
+HEADERED_CSV_SPECS = {
+    "quotes": HeaderedCsvSpec(
+        dataset="quotes",
+        raw_path="other/Quotes.csv",
+        encoding="utf-8-sig",
+        delimiter=";",
+        source_column="QUOTE",
+        output_file="quotes__quote.csv",
+        column="quotes.quote",
+    ),
+    "spam": HeaderedCsvSpec(
+        dataset="spam",
+        raw_path="other/spam.csv",
+        encoding="latin-1",
+        delimiter=",",
+        source_column="v2",
+        output_file="spam__v2.csv",
+        column="spam.v2",
+    ),
+}
+
+FASTA_SPECS = [
+    ("Ensembl human cDNA", "ensembl_human_cdna.fna", "dna-fasta", "sequence"),
+    ("GENCODE human transcripts", "gencode_human_transcripts.fna", "dna-fasta", "sequence"),
+    ("NCBI RefSeq viral genomic", "refseq_viral_genomic.fna", "dna-fasta", "sequence"),
+    ("UniProt Swiss-Prot protein", "uniprot_sprot.faa", "protein-fasta", "sequence"),
+    ("UniProt TrEMBL protein", "uniprot_trembl.faa", "protein-fasta", "sequence"),
+]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Prepare benchmark data for likey2")
     parser.add_argument("--raw-root", type=Path, default=Path("data/raw"))
@@ -92,7 +139,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fasta-dir", type=Path, default=Path("data/fasta"))
     parser.add_argument(
         "--datasets",
-        default="tpch,tpcds,job,dna,protein",
+        default="tpch,tpcds,job,quotes,spam,dna,protein",
         help="Comma-separated datasets to prepare",
     )
     parser.add_argument("--storage", default="all", help="Storage value for generated runner rows")
@@ -197,15 +244,6 @@ def find_table_file(dataset_dir: Path, table: str) -> Path | None:
     return None
 
 
-def detect_delimiter(path: Path) -> str:
-    with path.open("r", encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            line = line.rstrip("\n")
-            if line:
-                return "|" if line.count("|") >= line.count(",") else ","
-    return "|"
-
-
 def parse_column_filter(raw: str | None) -> set[str] | None:
     if raw is None:
         return None
@@ -246,9 +284,8 @@ def extract_column(
         return manifest_row(dataset, schema.name, column.name, out_path, manifest_dir, storage)
 
     written = 0
-    delimiter = detect_delimiter(source_path)
     with source_path.open("r", encoding="utf-8", errors="replace", newline="") as src:
-        reader = csv.reader(src, delimiter=delimiter, quoting=csv.QUOTE_MINIMAL)
+        reader = csv.reader(src, delimiter=RAW_DELIMITER)
         with out_path.open("w", encoding="utf-8", newline="") as dst:
             writer = csv.writer(dst)
             writer.writerow(["key", "value"])
@@ -320,14 +357,56 @@ def prepare_relational_dataset(dataset: str, args: argparse.Namespace) -> list[M
     return rows
 
 
-def prepare_fasta_manifests(args: argparse.Namespace) -> list[ManifestRow]:
-    specs = [
-        ("dna", "dna_benchmark.fna", "dna-fasta", "sequence"),
-        ("protein", "protein_benchmark.faa", "protein-fasta", "sequence"),
+def prepare_headered_csv_dataset(dataset: str, args: argparse.Namespace) -> list[ManifestRow]:
+    spec = HEADERED_CSV_SPECS[dataset]
+    wanted = selected_columns(dataset, args)
+    if wanted is not None and spec.column not in wanted:
+        return []
+
+    source_path = args.raw_root / spec.raw_path
+    if not source_path.exists():
+        print(f"skipping {dataset}: missing {source_path}")
+        return []
+
+    out_dir = args.data_root / dataset
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / spec.output_file
+    if not out_path.exists() or args.force:
+        written = 0
+        with source_path.open("r", encoding=spec.encoding, errors="replace", newline="") as src:
+            reader = csv.DictReader(src, delimiter=spec.delimiter)
+            if reader.fieldnames is None or spec.source_column not in reader.fieldnames:
+                raise RuntimeError(
+                    f"{source_path} must contain column {spec.source_column!r}; "
+                    f"headers are {reader.fieldnames!r}"
+                )
+            with out_path.open("w", encoding="utf-8", newline="") as dst:
+                writer = csv.writer(dst)
+                writer.writerow(["key", "value"])
+                for row_idx, row in enumerate(reader):
+                    if args.max_rows is not None and written >= args.max_rows:
+                        break
+                    writer.writerow([row_idx, row.get(spec.source_column, "")])
+                    written += 1
+        print(f"extracted {dataset}.{spec.source_column}: {written} rows -> {out_path}")
+
+    rows = [
+        ManifestRow(
+            name=spec.dataset,
+            path=relpath(out_path, out_dir),
+            data_type="job-csv",
+            storage=args.storage,
+            column=spec.column,
+        )
     ]
+    write_manifest(out_dir / "data.csv", rows)
+    return rows
+
+
+def prepare_fasta_manifests(args: argparse.Namespace) -> list[ManifestRow]:
     rows: list[ManifestRow] = []
     local_rows: list[ManifestRow] = []
-    for dataset, filename, data_type, column in specs:
+    for dataset, filename, data_type, column in FASTA_SPECS:
         path = args.fasta_dir / filename
         if not path.exists():
             continue
@@ -353,8 +432,12 @@ def prepare_fasta_manifests(args: argparse.Namespace) -> list[ManifestRow]:
                 value_column="",
             )
         )
+    local_manifest = args.fasta_dir / "data.csv"
     if local_rows:
-        write_manifest(args.fasta_dir / "data.csv", local_rows)
+        write_manifest(local_manifest, local_rows)
+    elif local_manifest.exists():
+        local_manifest.unlink()
+        print(f"removed stale manifest: {local_manifest}")
     return rows
 
 
@@ -393,6 +476,21 @@ def main() -> None:
     for dataset in datasets:
         if dataset in {"tpch", "tpcds", "job"}:
             rows = prepare_relational_dataset(dataset, args)
+            all_rows.extend(
+                ManifestRow(
+                    name=row.name,
+                    path=relpath((args.data_root / dataset / row.path).resolve(), args.data_root.resolve()),
+                    data_type=row.data_type,
+                    storage=row.storage,
+                    column=row.column,
+                    key_column=row.key_column,
+                    value_column=row.value_column,
+                    enabled=row.enabled,
+                )
+                for row in rows
+            )
+        elif dataset in HEADERED_CSV_SPECS:
+            rows = prepare_headered_csv_dataset(dataset, args)
             all_rows.extend(
                 ManifestRow(
                     name=row.name,

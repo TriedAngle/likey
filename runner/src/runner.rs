@@ -7,13 +7,12 @@ use db::{
     BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedNeon,
     Dna2PackedScalar, Dna2PackedVectorized, FftStr0, FftStr1, FmIndex, FmIndexBuildPhase,
     FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex, LibcMemmem,
-    LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
-    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
-    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
-    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
-    NaiveVectorizedWildcard, NaiveWildcard, QueryScratch, QueryStats, RowId, RowLiteralSearch,
-    RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch,
-    execute_like,
+    LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
+    NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
+    NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
+    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
+    QueryScratch, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex,
+    TwoWay, TwoWay2, Utf8Column, Utf8Kmp, VerifyScratch, execute_like,
 };
 use serde::Serialize;
 
@@ -849,15 +848,17 @@ where
             profile_out,
             sample_dna2_row,
         ),
-        AlgorithmKind::Dna2PackedAvx512 => run_algorithm::<Dna2Column<'db>, Dna2PackedAvx512, M, _>(
-            column,
-            algorithm,
-            indexes,
-            config,
-            out,
-            profile_out,
-            sample_dna2_row,
-        ),
+        AlgorithmKind::Dna2PackedAvx512 => {
+            run_algorithm::<Dna2Column<'db>, Dna2PackedAvx512, M, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_dna2_row,
+            )
+        }
         AlgorithmKind::Dna2PackedNeon => run_algorithm::<Dna2Column<'db>, Dna2PackedNeon, M, _>(
             column,
             algorithm,

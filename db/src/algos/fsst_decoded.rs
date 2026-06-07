@@ -26,9 +26,7 @@ use super::naive::{
 use super::std_search::StdSearch;
 use super::two_way::{TwoWay, two_way_find};
 use super::two_way2::{TwoWay2, two_way2_find};
-use super::utf8_shared::{
-    ByteNeedle, ByteWildcardNeedle, bytes_match_wildcard_same_len, eq_at_bytes,
-};
+use super::utf8_shared::{ByteNeedle, bytes_match_wildcard_same_len, eq_at_bytes};
 
 #[inline(always)]
 fn fsst_row_len(row: &FsstRow) -> u32 {
@@ -41,11 +39,7 @@ fn matches_at_decoded_bytes(row: &FsstRow, pos: u32, needle: &ByteNeedle) -> boo
 }
 
 #[inline(always)]
-fn matches_at_decoded_wildcard(row: &FsstRow, pos: u32, needle: &ByteWildcardNeedle) -> bool {
-    if !needle.has_wildcard() {
-        return eq_at_bytes(row.bytes(), pos, needle.bytes());
-    }
-
+fn matches_at_decoded_wildcard(row: &FsstRow, pos: u32, needle: &ByteNeedle) -> bool {
     let pos = pos as usize;
     let len = needle.bytes().len();
     let Some(end) = pos.checked_add(len) else {
@@ -130,7 +124,7 @@ macro_rules! impl_fsst_exact_with_state {
 }
 
 macro_rules! impl_fsst_wildcard {
-    ($ty:ty, $exact_find:path, $wild_find:path) => {
+    ($ty:ty, $wild_find:path) => {
         impl<'db> RowLiteralSearch<FsstColumn<'db>> for $ty {
             #[inline]
             fn row_len<'r>(row: &FsstRow) -> u32 {
@@ -159,11 +153,7 @@ macro_rules! impl_fsst_wildcard {
                 if from > text.len() {
                     return None;
                 }
-                if needle.has_wildcard() {
-                    $wild_find(&text[from..], needle.bytes(), state).map(|pos| (pos + from) as u32)
-                } else {
-                    $exact_find(&text[from..], needle.bytes()).map(|pos| (pos + from) as u32)
-                }
+                $wild_find(&text[from..], needle.bytes(), state).map(|pos| (pos + from) as u32)
             }
         }
     };
@@ -257,41 +247,13 @@ impl_fsst_exact_with_state!(TwoWay, two_way_find);
 impl_fsst_exact_with_state!(TwoWay2, two_way2_find);
 impl_fsst_exact_no_state!(LibcMemmem, memmem_find);
 
-impl_fsst_wildcard!(NaiveWildcard, naive_find, naive_find_wildcard);
-impl_fsst_wildcard!(
-    NaiveScalarWildcard,
-    naive_find_scalar,
-    naive_find_wildcard_scalar
-);
-impl_fsst_wildcard!(
-    NaiveVectorizedWildcard,
-    naive_find_vectorized,
-    naive_find_wildcard_vectorized
-);
-impl_fsst_wildcard!(
-    NaiveVectorizedV2Wildcard,
-    naive_find_vectorized_v2,
-    naive_find_wildcard_vectorized_v2
-);
-impl_fsst_wildcard!(NaiveAvx2Wildcard, naive_find_avx2, naive_find_wildcard_avx2);
-impl_fsst_wildcard!(
-    NaiveAvx2V2Wildcard,
-    naive_find_avx2_v2,
-    naive_find_wildcard_avx2_v2
-);
-impl_fsst_wildcard!(
-    NaiveAvx512Wildcard,
-    naive_find_avx512,
-    naive_find_wildcard_avx512
-);
-impl_fsst_wildcard!(
-    NaiveAvx512V2Wildcard,
-    naive_find_avx512_v2,
-    naive_find_wildcard_avx512_v2
-);
-impl_fsst_wildcard!(NaiveAutoWildcard, naive_find_auto, naive_find_wildcard_auto);
-impl_fsst_wildcard!(
-    NaiveMixedWildcard,
-    naive_find_mixed,
-    naive_find_wildcard_mixed
-);
+impl_fsst_wildcard!(NaiveWildcard, naive_find_wildcard);
+impl_fsst_wildcard!(NaiveScalarWildcard, naive_find_wildcard_scalar);
+impl_fsst_wildcard!(NaiveVectorizedWildcard, naive_find_wildcard_vectorized);
+impl_fsst_wildcard!(NaiveVectorizedV2Wildcard, naive_find_wildcard_vectorized_v2);
+impl_fsst_wildcard!(NaiveAvx2Wildcard, naive_find_wildcard_avx2);
+impl_fsst_wildcard!(NaiveAvx2V2Wildcard, naive_find_wildcard_avx2_v2);
+impl_fsst_wildcard!(NaiveAvx512Wildcard, naive_find_wildcard_avx512);
+impl_fsst_wildcard!(NaiveAvx512V2Wildcard, naive_find_wildcard_avx512_v2);
+impl_fsst_wildcard!(NaiveAutoWildcard, naive_find_wildcard_auto);
+impl_fsst_wildcard!(NaiveMixedWildcard, naive_find_wildcard_mixed);

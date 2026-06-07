@@ -20,10 +20,16 @@ key,value
 
 ## Pipeline
 
-Download/generate raw relational exports:
+Generate TPC-H/TPC-DS raw relational exports:
 
 ```bash
-python3 scripts/download_benchmarks.py
+python3 scripts/download_tpc.py
+```
+
+Download and normalize JOB/IMDB raw data:
+
+```bash
+python3 scripts/download_job.py
 ```
 
 This writes to `data/raw/` by default:
@@ -35,18 +41,33 @@ This writes to `data/raw/` by default:
 Download FASTA data:
 
 ```bash
-python3 scripts/download_bio_benchmarks.py
+python3 scripts/download_fasta.py
 ```
 
 This writes directly to `data/fasta/`:
 
-- `dna_benchmark.fna`
-- `protein_benchmark.faa`
+- `ensembl_human_cdna.fna`
+- `gencode_human_transcripts.fna`
+- `refseq_viral_genomic.fna`
+- `uniprot_sprot.faa`
+- `uniprot_trembl.faa`
 
 Prepare relational data for the runner:
 
 ```bash
 python3 scripts/prepare_data.py
+```
+
+Validate raw and prepared CSV files:
+
+```bash
+python3 scripts/validate_csv_data.py
+```
+
+Validate that Rust parses the prepared runner CSVs:
+
+```bash
+cargo run -p runner --bin csv_validate -- --data-csv data/data_all.csv
 ```
 
 This writes curated column files and manifests:
@@ -102,7 +123,7 @@ TPC-DS has many more string columns: IDs, flags, names, addresses, categories, U
 
 Source: downloaded archive from `https://db.in.tum.de/~fent/dbgen/job/imdb.tzst` by default.
 
-Raw format: extracted CSV files plus `schematext.sql` in `data/raw/job/`. Some JOB files are pipe-delimited and some are comma-delimited, so `prepare_data.py` detects the delimiter per file.
+Raw format: extracted CSV files plus `schematext.sql` in `data/raw/job/`. The source archive uses a non-standard CSV dialect; `download_job.py` normalizes table files to headerless pipe-delimited CSV so `prepare_data.py` can read one raw dialect consistently.
 
 Useful prepared columns:
 
@@ -114,18 +135,16 @@ Useful prepared columns:
 
 Other string columns include alternate titles/names, phonetic codes, MD5 hashes, company names, role names, and notes. They are skipped by default because they are either derived identifiers or less representative text search columns.
 
-## DNA FASTA
+## FASTA
 
-Source: NCBI GRCh38 genomic FASTA gzip.
+Sources:
 
-Prepared format: direct FASTA at `data/fasta/dna_benchmark.fna`.
+- Ensembl human cDNA: `ensembl_human_cdna.fna`.
+- GENCODE human transcripts: `gencode_human_transcripts.fna`.
+- NCBI RefSeq viral genomic: `refseq_viral_genomic.fna`.
+- UniProt Swiss-Prot protein: `uniprot_sprot.faa`.
+- UniProt TrEMBL protein: `uniprot_trembl.faa`.
 
-The runner can load it as `dna-fasta` with `utf8`, `fsst`, `dna2`, or `all` storage. The current downloader preserves full FASTA records, so a small byte target may still write a large chromosome record.
+Prepared format: direct FASTA files under `data/fasta/`, plus `data/fasta/data.csv` and `data/data_all.csv` manifest entries.
 
-## Protein FASTA
-
-Source: UniProt Swiss-Prot FASTA gzip, with TrEMBL fallback if Swiss-Prot is smaller than the requested target.
-
-Prepared format: direct FASTA at `data/fasta/protein_benchmark.faa`.
-
-The runner can load it as `protein-fasta` with `utf8`, `fsst`, or `all` storage.
+The `.fna` files load as `dna-fasta` with `utf8`, `fsst`, `dna2`, or `all` storage. The `.faa` files load as `protein-fasta` with `utf8`, `fsst`, or `all` storage. The downloader preserves full FASTA records, so a small byte target may still write one large record.

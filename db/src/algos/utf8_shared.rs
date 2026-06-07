@@ -29,43 +29,6 @@ impl ByteNeedle {
     }
 }
 
-/// Byte literal that may contain `_` as an algorithm-level one-byte wildcard.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ByteWildcardNeedle {
-    bytes: Box<[u8]>,
-    has_wildcard: bool,
-}
-
-impl ByteWildcardNeedle {
-    #[inline]
-    pub fn new(bytes: Box<[u8]>, has_wildcard: bool) -> Self {
-        Self {
-            bytes,
-            has_wildcard,
-        }
-    }
-
-    #[inline]
-    pub fn from_str(src: &str) -> Self {
-        let bytes: Box<[u8]> = src.as_bytes().into();
-        let has_wildcard = bytes.iter().any(|&b| b == b'_');
-        Self {
-            bytes,
-            has_wildcard,
-        }
-    }
-
-    #[inline]
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    #[inline]
-    pub fn has_wildcard(&self) -> bool {
-        self.has_wildcard
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ByteWildcardState {
     pub(crate) first_fixed: Option<(usize, u8)>,
@@ -101,36 +64,13 @@ impl ByteWildcardState {
     }
 }
 
-#[inline(always)]
-pub fn compile_byte_wildcard_literal(src: &str) -> Option<ByteWildcardNeedle> {
-    Some(ByteWildcardNeedle::from_str(src))
-}
-
-#[inline(always)]
-pub fn byte_wildcard_literal_len(needle: &ByteWildcardNeedle) -> u32 {
-    needle.bytes().len() as u32
-}
-
-#[inline(always)]
-pub fn byte_wildcard_index_symbols(needle: &ByteWildcardNeedle) -> Option<Box<[u8]>> {
-    if needle.has_wildcard() {
-        None
-    } else {
-        Some(needle.bytes().into())
-    }
-}
-
 /// Anchored byte-wildcard equality at `pos`; `_` in the needle matches one byte.
 #[inline(always)]
 pub fn matches_at_bytes_wildcard(
     row: &crate::storage::utf8::Utf8Row<'_>,
     pos: u32,
-    needle: &ByteWildcardNeedle,
+    needle: &ByteNeedle,
 ) -> bool {
-    if !needle.has_wildcard() {
-        return eq_at_bytes(row.bytes(), pos, needle.bytes());
-    }
-
     let pos = pos as usize;
     let len = needle.bytes().len();
     let Some(end) = pos.checked_add(len) else {

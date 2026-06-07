@@ -42,8 +42,8 @@ pub use std_search::StdSearch;
 pub use two_way::{TwoWay, TwoWayState, two_way_find};
 pub use two_way2::{TwoWay2, TwoWay2State, two_way2_find};
 pub use utf8_shared::{
-    ByteNeedle, ByteWildcardNeedle, ByteWildcardState, bytes_eq_same_len,
-    bytes_match_wildcard_same_len, eq_at_bytes, matches_at_bytes, matches_at_bytes_wildcard,
+    ByteNeedle, ByteWildcardState, bytes_eq_same_len, bytes_match_wildcard_same_len, eq_at_bytes,
+    matches_at_bytes, matches_at_bytes_wildcard,
 };
 
 #[cfg(test)]
@@ -257,7 +257,7 @@ mod tests {
 
     fn wildcard_literal_search_suite<A>()
     where
-        A: LiteralAlgorithm<Needle = ByteWildcardNeedle>,
+        A: LiteralAlgorithm<Needle = ByteNeedle>,
         for<'db> A: RowLiteralSearch<Utf8Column<'db>>,
     {
         let cases: &[(&str, &str)] = &[
@@ -294,7 +294,7 @@ mod tests {
 
     fn wildcard_like_integration_suite<A>()
     where
-        A: LiteralAlgorithm<Needle = ByteWildcardNeedle>,
+        A: LiteralAlgorithm<Needle = ByteNeedle>,
         for<'db> A: RowLiteralSearch<Utf8Column<'db>>,
     {
         let rows = ["hello", "hxllo", "hallo", "heLLo", "banana", "bandana", ""];

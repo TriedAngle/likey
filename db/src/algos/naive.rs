@@ -2,9 +2,8 @@ use crate::like::{LiteralAlgorithm, RowLiteralSearch};
 use crate::storage::utf8::{Utf8Column, Utf8Row};
 
 use super::utf8_shared::{
-    ByteNeedle, ByteWildcardNeedle, ByteWildcardState, byte_index_symbols, byte_literal_len,
-    byte_wildcard_index_symbols, byte_wildcard_literal_len, bytes_match_wildcard_same_len,
-    compile_byte_literal, compile_byte_wildcard_literal, matches_at_bytes,
+    ByteNeedle, ByteWildcardState, byte_index_symbols, byte_literal_len,
+    bytes_match_wildcard_same_len, compile_byte_literal, matches_at_bytes,
     matches_at_bytes_wildcard, utf8_row_len,
 };
 
@@ -115,14 +114,14 @@ impl_naive_literal_algorithm!(NaiveMixed);
 macro_rules! impl_naive_wildcard_literal_algorithm {
     ($ty:ty) => {
         impl LiteralAlgorithm for $ty {
-            type Needle = ByteWildcardNeedle;
+            type Needle = ByteNeedle;
             type State = ByteWildcardState;
 
             const SUPPORTS_UNDERSCORE: bool = true;
 
             #[inline]
             fn compile_literal(src: &str) -> Option<Self::Needle> {
-                compile_byte_wildcard_literal(src)
+                compile_byte_literal(src)
             }
 
             #[inline]
@@ -132,12 +131,12 @@ macro_rules! impl_naive_wildcard_literal_algorithm {
 
             #[inline]
             fn literal_len(needle: &Self::Needle) -> u32 {
-                byte_wildcard_literal_len(needle)
+                byte_literal_len(needle)
             }
 
             #[inline]
-            fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-                byte_wildcard_index_symbols(needle)
+            fn index_symbols(_needle: &Self::Needle) -> Option<Box<[u8]>> {
+                None
             }
         }
     };
@@ -203,7 +202,7 @@ impl_naive_row_search!(NaiveAuto, naive_find_auto);
 impl_naive_row_search!(NaiveMixed, naive_find_mixed);
 
 macro_rules! impl_naive_wildcard_row_search {
-    ($ty:ty, $exact_find:path, $wild_find:path) => {
+    ($ty:ty, $wild_find:path) => {
         impl<'db> RowLiteralSearch<Utf8Column<'db>> for $ty {
             #[inline]
             fn row_len<'r>(row: &Utf8Row<'r>) -> u32 {
@@ -233,54 +232,22 @@ macro_rules! impl_naive_wildcard_row_search {
                 if from > text.len() {
                     return None;
                 }
-                if needle.has_wildcard() {
-                    $wild_find(&text[from..], pat, state).map(|pos| (pos + from) as u32)
-                } else {
-                    $exact_find(&text[from..], pat).map(|pos| (pos + from) as u32)
-                }
+                $wild_find(&text[from..], pat, state).map(|pos| (pos + from) as u32)
             }
         }
     };
 }
 
-impl_naive_wildcard_row_search!(NaiveWildcard, naive_find, naive_find_wildcard);
-impl_naive_wildcard_row_search!(
-    NaiveScalarWildcard,
-    naive_find_scalar,
-    naive_find_wildcard_scalar
-);
-impl_naive_wildcard_row_search!(
-    NaiveVectorizedWildcard,
-    naive_find_vectorized,
-    naive_find_wildcard_vectorized
-);
-impl_naive_wildcard_row_search!(
-    NaiveVectorizedV2Wildcard,
-    naive_find_vectorized_v2,
-    naive_find_wildcard_vectorized_v2
-);
-impl_naive_wildcard_row_search!(NaiveAvx2Wildcard, naive_find_avx2, naive_find_wildcard_avx2);
-impl_naive_wildcard_row_search!(
-    NaiveAvx2V2Wildcard,
-    naive_find_avx2_v2,
-    naive_find_wildcard_avx2_v2
-);
-impl_naive_wildcard_row_search!(
-    NaiveAvx512Wildcard,
-    naive_find_avx512,
-    naive_find_wildcard_avx512
-);
-impl_naive_wildcard_row_search!(
-    NaiveAvx512V2Wildcard,
-    naive_find_avx512_v2,
-    naive_find_wildcard_avx512_v2
-);
-impl_naive_wildcard_row_search!(NaiveAutoWildcard, naive_find_auto, naive_find_wildcard_auto);
-impl_naive_wildcard_row_search!(
-    NaiveMixedWildcard,
-    naive_find_mixed,
-    naive_find_wildcard_mixed
-);
+impl_naive_wildcard_row_search!(NaiveWildcard, naive_find_wildcard);
+impl_naive_wildcard_row_search!(NaiveScalarWildcard, naive_find_wildcard_scalar);
+impl_naive_wildcard_row_search!(NaiveVectorizedWildcard, naive_find_wildcard_vectorized);
+impl_naive_wildcard_row_search!(NaiveVectorizedV2Wildcard, naive_find_wildcard_vectorized_v2);
+impl_naive_wildcard_row_search!(NaiveAvx2Wildcard, naive_find_wildcard_avx2);
+impl_naive_wildcard_row_search!(NaiveAvx2V2Wildcard, naive_find_wildcard_avx2_v2);
+impl_naive_wildcard_row_search!(NaiveAvx512Wildcard, naive_find_wildcard_avx512);
+impl_naive_wildcard_row_search!(NaiveAvx512V2Wildcard, naive_find_wildcard_avx512_v2);
+impl_naive_wildcard_row_search!(NaiveAutoWildcard, naive_find_wildcard_auto);
+impl_naive_wildcard_row_search!(NaiveMixedWildcard, naive_find_wildcard_mixed);
 
 #[inline]
 pub fn naive_find_scalar(text: &[u8], pattern: &[u8]) -> Option<usize> {

@@ -22,9 +22,6 @@ Run checks and a few library examples from the workspace root:
 cargo test
 cargo run -p db --example full_scan
 cargo run -p db --example like_matching
-cargo run -p db --example fm_index_utf8_like
-cargo run -p db --example like_with_trigram_candidates
-cargo run -p db --example fsst_table
 ```
 
 ## Python Setup
@@ -40,16 +37,22 @@ python -m pip install duckdb zstandard
 
 `duckdb` is needed for TPC-H/TPC-DS generation. `zstandard` is needed to extract the JOB `.tzst` archive.
 
-Download raw relational benchmark data into `data/raw/`:
+Generate TPC-H/TPC-DS raw relational benchmark data into `data/raw/`:
 
 ```bash
-python scripts/download_benchmarks.py
+python scripts/download_tpc.py
 ```
 
-To download only JOB, run:
+Download and normalize JOB/IMDB raw data:
 
 ```bash
-python scripts/download_benchmarks.py --skip-tpch --skip-tpcds
+python scripts/download_job.py
+```
+
+Other datasets useful for testing:
+```
+https://www.kaggle.com/datasets/uciml/sms-spam-collection-dataset
+https://github.com/akhiltak/inspirational-quotes/blob/master/Quotes.csv
 ```
 
 `--force` deletes/replaces existing generated or downloaded data for the requested datasets. Omit it to reuse data that is already present.
