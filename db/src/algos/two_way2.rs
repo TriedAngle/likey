@@ -224,6 +224,21 @@ fn prefilter_delta(text: &[u8], state: &TwoWay2State, pos: usize, chunk: usize) 
     debug_assert!(chunk > 0);
     debug_assert!(chunk <= 16);
 
+    #[cfg(target_arch = "x86_64")]
+    if chunk == 16 {
+        // SAFETY: caller ensures at least 16 candidate starts are in-bounds.
+        unsafe {
+            return x86::prefilter_delta_sse2(
+                text,
+                pos,
+                state.pair_index1,
+                state.pair_index2,
+                state.pair_byte1,
+                state.pair_byte2,
+            );
+        }
+    }
+
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     if chunk == 16 {
         // SAFETY: caller ensures at least 16 candidate starts are in-bounds.
@@ -385,6 +400,36 @@ pub fn two_way2_find(text: &[u8], pattern: &[u8], state: &TwoWay2State) -> Optio
     }
 
     None
+}
+
+#[cfg(target_arch = "x86_64")]
+mod x86 {
+    use core::arch::x86_64::*;
+
+    #[target_feature(enable = "sse2")]
+    pub unsafe fn prefilter_delta_sse2(
+        text: &[u8],
+        pos: usize,
+        pair_index1: usize,
+        pair_index2: usize,
+        pair_byte1: u8,
+        pair_byte2: u8,
+    ) -> Option<usize> {
+        let v1 = _mm_set1_epi8(pair_byte1 as i8);
+        let v2 = _mm_set1_epi8(pair_byte2 as i8);
+        let chunk1 =
+            unsafe { _mm_loadu_si128(text.as_ptr().add(pos + pair_index1).cast::<__m128i>()) };
+        let chunk2 =
+            unsafe { _mm_loadu_si128(text.as_ptr().add(pos + pair_index2).cast::<__m128i>()) };
+        let eq = _mm_and_si128(_mm_cmpeq_epi8(chunk1, v1), _mm_cmpeq_epi8(chunk2, v2));
+        let mask = _mm_movemask_epi8(eq) as u32;
+
+        if mask == 0 {
+            None
+        } else {
+            Some(mask.trailing_zeros() as usize)
+        }
+    }
 }
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]

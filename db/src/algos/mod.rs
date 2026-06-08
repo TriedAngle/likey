@@ -11,13 +11,16 @@ pub mod bm;
 pub mod dna2;
 pub mod dna2_two_way;
 pub mod fftstr;
+pub mod fftstrv2;
 pub mod fsst_decoded;
 pub mod kmp;
 pub mod libc_find;
 pub mod naive;
+pub mod pair_horspool;
 pub mod std_search;
 pub mod two_way;
 pub mod two_way2;
+pub mod two_way3;
 
 pub use bm::{BM, BMState, bm_find};
 pub use dna2::{
@@ -28,6 +31,7 @@ pub use dna2_two_way::{
     Dna2TwoWay, Dna2TwoWayNeedle, Dna2TwoWayState, dna2_exact_matches_at, dna2_two_way_find,
 };
 pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
+pub use fftstrv2::{FftstrV2, FftstrV2State};
 pub use kmp::{Utf8Kmp, kmp_find, kmp_find_from};
 pub use libc_find::{LibcMemmem, memmem_find};
 pub use naive::{
@@ -42,9 +46,11 @@ pub use naive::{
     naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
     naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
 };
+pub use pair_horspool::{PairHorspool, PairHorspoolState, pair_horspool_find};
 pub use std_search::StdSearch;
 pub use two_way::{TwoWay, TwoWayState, two_way_find};
 pub use two_way2::{TwoWay2, TwoWay2State, two_way2_find};
+pub use two_way3::{TwoWay3, TwoWay3State, two_way3_find};
 pub use utf8_shared::{
     ByteNeedle, ByteWildcardState, bytes_eq_same_len, bytes_match_wildcard_same_len, eq_at_bytes,
     matches_at_bytes, matches_at_bytes_wildcard,
@@ -93,6 +99,8 @@ mod tests {
         utf8_bm_suite => BM,
         utf8_two_way_suite => TwoWay,
         utf8_two_way2_suite => TwoWay2,
+        utf8_two_way3_suite => TwoWay3,
+        utf8_pair_horspool_suite => PairHorspool,
         utf8_libc_memmem_suite => LibcMemmem,
     }
 

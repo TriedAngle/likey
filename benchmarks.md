@@ -54,7 +54,7 @@ cargo run -p runner --bin runner --release -- \
   --summary-csv results/quotes_algos_summary.csv
 ```
 
-Run the quote-specific algorithm stress cases for BM, TwoWay, TwoWay2, and the Naive V2 prefilter variants:
+Run the quote-specific algorithm stress cases for BM, TwoWay, TwoWay2, TwoWay3, PairHorspool, and the Naive V2 prefilter variants:
 
 ```bash
 cargo run -p runner --bin runner --release -- \
@@ -87,3 +87,27 @@ cargo run -p runner --bin runner --release -- \
 ```
 
 For matcher-engine comparisons, patterns with multiple `%`-separated fragments are the most useful for wildcard-capable algorithms, because `_` remains inside their literal fragments by default.
+
+## FFTSTR Benchmark
+
+Generate the artificial `abab...` benchmark table and pattern CSV. The default table has 1000 rows, each with length 512, and patterns include `%aa%`, `%a_b%`, then wildcard cores from length 4 to 512 in steps of 4.
+
+```bash
+python3 scripts/generate_fftstr_benchmark.py
+```
+
+Run the benchmark comparing `TwoWay2`, `TwoWay3`, `FftStr1`, and `FftstrV2`:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/fftstr/data_fftstr_abab.csv \
+  --algorithms-csv benchmarks/fftstr/algorithms_twoway2_fftstr.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/fftstr/patterns_abab_wildcards.csv \
+  --indexes-csv benchmarks/fftstr/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/fftstr_abab_raw.csv \
+  --summary-csv results/fftstr_abab_summary.csv
+```

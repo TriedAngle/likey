@@ -23,9 +23,11 @@ use super::naive::{
     naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
     naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
 };
+use super::pair_horspool::{PairHorspool, pair_horspool_find};
 use super::std_search::StdSearch;
 use super::two_way::{TwoWay, two_way_find};
 use super::two_way2::{TwoWay2, two_way2_find};
+use super::two_way3::{TwoWay3, two_way3_find};
 use super::utf8_shared::{ByteNeedle, bytes_match_wildcard_same_len, eq_at_bytes};
 
 #[inline(always)]
@@ -245,6 +247,8 @@ impl_fsst_exact_no_state!(NaiveMixed, naive_find_mixed);
 impl_fsst_exact_with_state!(BM, bm_find);
 impl_fsst_exact_with_state!(TwoWay, two_way_find);
 impl_fsst_exact_with_state!(TwoWay2, two_way2_find);
+impl_fsst_exact_with_state!(TwoWay3, two_way3_find);
+impl_fsst_exact_with_state!(PairHorspool, pair_horspool_find);
 impl_fsst_exact_no_state!(LibcMemmem, memmem_find);
 
 impl_fsst_wildcard!(NaiveWildcard, naive_find_wildcard);

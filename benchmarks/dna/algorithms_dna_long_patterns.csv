@@ -14,6 +14,8 @@ NaiveMixed,true
 BM,true
 TwoWay,true
 TwoWay2,true
+TwoWay3,true
+PairHorspool,true
 LibcMemmem,true
 FftStr0,false
 FftStr1,true

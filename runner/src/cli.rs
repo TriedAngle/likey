@@ -252,9 +252,12 @@ pub enum AlgorithmKind {
     BM,
     TwoWay,
     TwoWay2,
+    TwoWay3,
+    PairHorspool,
     LibcMemmem,
     FftStr0,
     FftStr1,
+    FftstrV2,
     Dna2TwoWay,
     Dna2,
     Dna2PackedScalar,
@@ -265,7 +268,7 @@ pub enum AlgorithmKind {
 }
 
 impl AlgorithmKind {
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 38] = [
         Self::StdSearch,
         Self::Utf8Kmp,
         Self::Naive,
@@ -291,9 +294,12 @@ impl AlgorithmKind {
         Self::BM,
         Self::TwoWay,
         Self::TwoWay2,
+        Self::TwoWay3,
+        Self::PairHorspool,
         Self::LibcMemmem,
         Self::FftStr0,
         Self::FftStr1,
+        Self::FftstrV2,
         Self::Dna2TwoWay,
         Self::Dna2,
         Self::Dna2PackedScalar,
@@ -330,9 +336,12 @@ impl AlgorithmKind {
             AlgorithmKind::BM => "BM",
             AlgorithmKind::TwoWay => "TwoWay",
             AlgorithmKind::TwoWay2 => "TwoWay2",
+            AlgorithmKind::TwoWay3 => "TwoWay3",
+            AlgorithmKind::PairHorspool => "PairHorspool",
             AlgorithmKind::LibcMemmem => "LibcMemmem",
             AlgorithmKind::FftStr0 => "FftStr0",
             AlgorithmKind::FftStr1 => "FftStr1",
+            AlgorithmKind::FftstrV2 => "FftstrV2",
             AlgorithmKind::Dna2TwoWay => "Dna2TwoWay",
             AlgorithmKind::Dna2 => "Dna2",
             AlgorithmKind::Dna2PackedScalar => "Dna2PackedScalar",
@@ -359,6 +368,7 @@ impl AlgorithmKind {
                 self,
                 AlgorithmKind::FftStr0
                     | AlgorithmKind::FftStr1
+                    | AlgorithmKind::FftstrV2
                     | AlgorithmKind::Dna2
                     | AlgorithmKind::Dna2TwoWay
                     | AlgorithmKind::Dna2PackedScalar
@@ -475,6 +485,18 @@ mod tests {
             AlgorithmKind::Utf8Kmp
         );
         assert_eq!("BM".parse::<AlgorithmKind>().unwrap(), AlgorithmKind::BM);
+        assert_eq!(
+            "TwoWay3".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::TwoWay3
+        );
+        assert_eq!(
+            "PairHorspool".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::PairHorspool
+        );
+        assert_eq!(
+            "FftstrV2".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::FftstrV2
+        );
         assert_eq!(
             "Dna2TwoWay".parse::<AlgorithmKind>().unwrap(),
             AlgorithmKind::Dna2TwoWay

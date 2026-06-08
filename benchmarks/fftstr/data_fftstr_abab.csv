@@ -1,0 +1,2 @@
+name,path,type,storage,column,key_column,value_column,enabled
+fftstr_abab_512_x1000,../../data/fftstr/abab_512_x1000.csv,job-csv,utf8,value,key,value,true
