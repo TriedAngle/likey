@@ -7,14 +7,13 @@ use db::{
     BM, BMBoundless, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512,
     Dna2PackedNeon, Dna2PackedScalar, Dna2PackedVectorized, Dna2TwoWay, FftStr0, FftStr1, FftstrV2,
     FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmProbeOutcome, FsstColumn, FullScan,
-    GenericMatcher, HasPrefixBtreeIndex, HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto,
-    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
-    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
-    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
-    NaiveVectorizedV2Wildcard, NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard,
-    NaiveWildcard, PairHorspool, PrefixBtreeIndex, QueryStats, RowId, RowLiteralSearch,
-    RowVerifier, StdSearch, TrigramIndex, TrigramProbeOutcome, TwoWay, TwoWay2, TwoWay3,
-    Utf8Column, Utf8Kmp, execute_like,
+    GenericMatcher, LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2,
+    NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
+    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
+    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
+    NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard, NaiveWildcard, PairHorspool,
+    PrefixBtreeIndex, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex,
+    TrigramProbeOutcome, TwoWay, TwoWay2, TwoWay3, Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -137,7 +136,7 @@ pub struct BuiltIndex<T> {
 
 pub struct BuiltIndexes<C>
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     pub fm: Option<BuiltIndex<FmIndex>>,
     pub prefix_btree: Option<BuiltIndex<PrefixBtreeIndex<C>>>,
@@ -146,7 +145,7 @@ where
 
 impl<C> Default for BuiltIndexes<C>
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     fn default() -> Self {
         Self {
@@ -163,7 +162,7 @@ pub fn build_indexes<C>(
     fm_progress_label: Option<&str>,
 ) -> Result<BuiltIndexes<C>>
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     let mut out = BuiltIndexes::default();
 
@@ -182,7 +181,7 @@ where
 
     if requested.iter().any(|kind| *kind == IndexKind::Trigram) {
         let start = Instant::now();
-        let index = column.build_trigram_index();
+        let index = TrigramIndex::build(column);
         out.trigram = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
@@ -191,7 +190,7 @@ where
 
     if requested.iter().any(|kind| *kind == IndexKind::PrefixBtree) {
         let start = Instant::now();
-        let index = column.build_prefix_btree_index();
+        let index = PrefixBtreeIndex::build(column);
         out.prefix_btree = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
@@ -990,7 +989,7 @@ fn run_algorithm<C, A, M, F>(
     sample_row: F,
 ) -> Result<()>
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
     F: Fn(&C, RowId, usize) -> String + Copy,
@@ -1167,7 +1166,7 @@ fn execute_once<C, A, M>(
     batch_rows: usize,
 ) -> ExecuteOnceResult
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
 {
@@ -1273,7 +1272,8 @@ where
         }
         IndexKind::Trigram => {
             if let Some(trigram) = indexes.trigram.as_ref() {
-                if let Some(literal) = pattern.longest_indexable_literal() {
+                if let Some(literal) = pattern.longest_fixed_source_fragment() {
+                    let literal = literal.as_bytes();
                     if literal.len() >= 3 {
                         let prepare_start = Instant::now();
                         let probe = trigram.index.probe_literal_selective(literal, batch_rows);
@@ -1380,7 +1380,7 @@ where
 
 fn index_build_ns<C>(indexes: &BuiltIndexes<C>, requested: IndexKind) -> u128
 where
-    C: HasPrefixBtreeIndex + HasTrigramIndex,
+    C: Column<Symbol = u8>,
 {
     match requested {
         IndexKind::FullScan => 0,

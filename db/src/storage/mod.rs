@@ -1,9 +1,9 @@
 //! Storage abstractions and concrete dense column implementations.
 //!
-//! The central abstraction is a dense logical-symbol column. UTF-8 byte columns
-//! expose symbols as bytes. FSST columns expose decoded bytes. DNA2 columns
-//! expose symbols as base codes 0..=3.
-//! Generic indexes can be written over `Column<Symbol = u8>`.
+//! The central abstraction exposes concrete row views for matchers plus a plain
+//! byte stream for generic candidate indexes. UTF-8 columns expose row bytes,
+//! FSST columns expose decoded bytes, and DNA2 columns expose ASCII DNA bytes
+//! (`A/C/G/T/N`) rather than packed base codes.
 
 use crate::RowId;
 
@@ -45,10 +45,10 @@ pub trait Column {
     /// release hot path unchecked.
     fn row(&self, row: RowId) -> Self::Row<'_>;
 
-    /// Iterate logical symbols of one row.
+    /// Iterate index bytes of one row.
     ///
-    /// This is intended for generic index construction. Optimized algorithms can
-    /// use the concrete row/column methods instead.
+    /// This is intended for generic candidate-index construction. Optimized
+    /// algorithms should use the concrete row/column methods instead.
     fn symbols(&self, row: RowId) -> Self::SymbolIter<'_>;
 
     fn is_empty(&self) -> bool {

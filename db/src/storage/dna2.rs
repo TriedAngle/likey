@@ -1,7 +1,8 @@
 //! Dense DNA 2-bit table.
 //!
-//! Logical symbols are base codes: A=0, C=1, G=2, T=3. Rows are packed into a
-//! single continuous 2-bit stream, so there is no per-row byte padding.
+//! Row matchers use packed base codes: A=0, C=1, G=2, T=3. Generic candidate
+//! indexes see ASCII DNA bytes (`A/C/G/T/N`) so they can operate like ordinary
+//! byte indexes while the verifier remains the correctness gate.
 
 use std::fmt;
 use std::iter::FusedIterator;
@@ -264,6 +265,14 @@ impl<'a> Dna2Row<'a> {
         }
     }
 
+    pub fn ascii_iter(&self) -> Dna2AsciiIter<'a> {
+        Dna2AsciiIter {
+            row: *self,
+            pos: 0,
+            range_idx: 0,
+        }
+    }
+
     pub fn copy_ascii_to(&self, out: &mut Vec<u8>) {
         out.reserve(self.len as usize);
         if let Some(n_ranges) = self.n_ranges {
@@ -425,6 +434,55 @@ impl<'a> ExactSizeIterator for Dna2Iter<'a> {
 
 impl<'a> FusedIterator for Dna2Iter<'a> {}
 
+pub struct Dna2AsciiIter<'a> {
+    row: Dna2Row<'a>,
+    pos: u32,
+    range_idx: usize,
+}
+
+impl Iterator for Dna2AsciiIter<'_> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.row.len {
+            return None;
+        }
+
+        let pos = self.pos;
+        self.pos += 1;
+
+        if let Some(n_ranges) = self.row.n_ranges {
+            let ranges = n_ranges.as_slice();
+            while self.range_idx < ranges.len() && ranges[self.range_idx].end <= pos {
+                self.range_idx += 1;
+            }
+            if self.range_idx < ranges.len() && ranges[self.range_idx].start <= pos {
+                return Some(b'N');
+            }
+        }
+
+        let code = self.row.base_code_at(pos);
+        Some(
+            DnaBase::from_code(code)
+                .expect("stored DNA2 code must be valid")
+                .ascii(),
+        )
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (self.row.len - self.pos) as usize;
+        (remaining, Some(remaining))
+    }
+}
+
+impl ExactSizeIterator for Dna2AsciiIter<'_> {
+    fn len(&self) -> usize {
+        (self.row.len - self.pos) as usize
+    }
+}
+
+impl FusedIterator for Dna2AsciiIter<'_> {}
+
 impl<'a> Column for Dna2Column<'a> {
     type Row<'r>
         = Dna2Row<'r>
@@ -432,7 +490,7 @@ impl<'a> Column for Dna2Column<'a> {
         Self: 'r;
     type Symbol = u8;
     type SymbolIter<'r>
-        = Dna2Iter<'r>
+        = Dna2AsciiIter<'r>
     where
         Self: 'r;
 
@@ -456,7 +514,7 @@ impl<'a> Column for Dna2Column<'a> {
 
     #[inline]
     fn symbols(&self, row: RowId) -> Self::SymbolIter<'_> {
-        self.row_view(row).iter()
+        self.row_view(row).ascii_iter()
     }
 }
 

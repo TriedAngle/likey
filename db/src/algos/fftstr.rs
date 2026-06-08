@@ -85,14 +85,6 @@ impl LiteralAlgorithm for FftStr0 {
     fn literal_len(needle: &Self::Needle) -> u32 {
         needle.bytes().len() as u32
     }
-
-    fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-        if needle.has_wildcard() {
-            None
-        } else {
-            Some(needle.bytes().into())
-        }
-    }
 }
 
 impl LiteralAlgorithm for FftStr1 {
@@ -122,14 +114,6 @@ impl LiteralAlgorithm for FftStr1 {
 
     fn literal_len(needle: &Self::Needle) -> u32 {
         needle.bytes().len() as u32
-    }
-
-    fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-        if needle.has_wildcard() {
-            None
-        } else {
-            Some(needle.bytes().into())
-        }
     }
 }
 

@@ -16,8 +16,7 @@ use crate::storage::utf8::{Utf8Column, Utf8Row};
 
 use super::two_way2::{TwoWay2, TwoWay2State, two_way2_find};
 use super::utf8_shared::{
-    ByteNeedle, byte_index_symbols, byte_literal_len, compile_byte_literal, matches_at_bytes,
-    utf8_row_len,
+    ByteNeedle, byte_literal_len, compile_byte_literal, matches_at_bytes, utf8_row_len,
 };
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "android"))]
@@ -54,11 +53,6 @@ impl LiteralAlgorithm for PairHorspool {
     #[inline]
     fn literal_len(needle: &Self::Needle) -> u32 {
         byte_literal_len(needle)
-    }
-
-    #[inline]
-    fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-        byte_index_symbols(needle)
     }
 }
 

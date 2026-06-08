@@ -2,9 +2,8 @@ use crate::like::{LiteralAlgorithm, RowLiteralSearch};
 use crate::storage::utf8::{Utf8Column, Utf8Row};
 
 use super::utf8_shared::{
-    ByteNeedle, ByteWildcardState, byte_index_symbols, byte_literal_len,
-    bytes_match_wildcard_same_len, compile_byte_literal, matches_at_bytes,
-    matches_at_bytes_wildcard, utf8_row_len,
+    ByteNeedle, ByteWildcardState, byte_literal_len, bytes_match_wildcard_same_len,
+    compile_byte_literal, matches_at_bytes, matches_at_bytes_wildcard, utf8_row_len,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -94,11 +93,6 @@ macro_rules! impl_naive_literal_algorithm {
             fn literal_len(needle: &Self::Needle) -> u32 {
                 byte_literal_len(needle)
             }
-
-            #[inline]
-            fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-                byte_index_symbols(needle)
-            }
         }
     };
 }
@@ -135,11 +129,6 @@ macro_rules! impl_naive_wildcard_literal_algorithm {
             #[inline]
             fn literal_len(needle: &Self::Needle) -> u32 {
                 byte_literal_len(needle)
-            }
-
-            #[inline]
-            fn index_symbols(_needle: &Self::Needle) -> Option<Box<[u8]>> {
-                None
             }
         }
     };

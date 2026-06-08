@@ -102,16 +102,6 @@ pub trait LiteralAlgorithm {
     fn compile_literal(src: &str) -> Option<Self::Needle>;
     fn build_state(needle: &Self::Needle) -> Self::State;
     fn literal_len(needle: &Self::Needle) -> u32;
-
-    /// Exact logical symbols usable by an index, if this literal has no
-    /// algorithm-level wildcard characters.
-    ///
-    /// For UTF-8 byte KMP this is the literal bytes. For a DNA wildcard literal
-    /// such as `A_G`, this returns `None` because the middle position is not an
-    /// exact symbol.
-    fn index_symbols(_needle: &Self::Needle) -> Option<Box<[u8]>> {
-        None
-    }
 }
 
 /// Row-level operations for a literal algorithm on one concrete dense column.
@@ -181,7 +171,6 @@ struct CompiledLiteral<A: LiteralAlgorithm> {
     needle: A::Needle,
     state: A::State,
     len: u32,
-    index_symbols: Option<Box<[u8]>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -236,8 +225,9 @@ struct AdaptiveSegmentAnchorMatcher;
 /// rows and implements [`RowVerifier`](crate::RowVerifier) for every column type
 /// supported by `A`.
 ///
-/// Matching is over the column's logical `u8` symbols. For UTF-8 and FSST
-/// columns this means bytes; for DNA2 columns this means packed-base codes.
+/// Matching is over each column's concrete row representation. Generic indexes
+/// use fixed source fragments as byte candidate hints and the verifier remains
+/// the correctness gate.
 pub struct LikePattern<A: LiteralAlgorithm> {
     tokens: Box<[LikeToken]>,
     literals: Box<[CompiledLiteral<A>]>,
@@ -382,39 +372,49 @@ where
         self.literals.len()
     }
 
-    /// Original source text for one compiled literal fragment.
-    pub fn literal_source(&self, literal_idx: usize) -> &str {
-        &self.literals[literal_idx].source
-    }
-
-    /// Exact literal fragments that an index may use for candidate generation.
-    pub fn indexable_literals(&self) -> impl Iterator<Item = &[u8]> + '_ {
+    /// Fixed source fragments that byte candidate indexes may use.
+    ///
+    /// `%` and `_` are treated as index wildcards regardless of whether the
+    /// selected matcher can consume `_` inside a compiled literal. Indexes use
+    /// these fragments only to generate candidates; verification is still done
+    /// by the compiled pattern.
+    pub fn fixed_source_fragments(&self) -> impl Iterator<Item = &str> + '_ {
         self.literals
             .iter()
-            .filter_map(|lit| lit.index_symbols.as_deref())
+            .flat_map(|lit| lit.source.split('_'))
+            .filter(|fragment| !fragment.is_empty())
     }
 
-    /// A convenient simple index hint: usually the longest exact fragment gives
-    /// the most selective trigrams/FM-index probes.
-    pub fn longest_indexable_literal(&self) -> Option<&[u8]> {
-        self.indexable_literals().max_by_key(|lit| lit.len())
+    /// A convenient simple index hint: usually the longest fixed source fragment
+    /// gives the most selective trigram/FM-index probes.
+    pub fn longest_fixed_source_fragment(&self) -> Option<&str> {
+        self.fixed_source_fragments()
+            .max_by_key(|fragment| fragment.len())
+    }
+
+    /// Exact full-pattern source usable by equality indexes.
+    pub fn exact_source(&self) -> Option<&str> {
+        let MatchStrategy::Exact {
+            literal_idx: Some(literal_idx),
+        } = self.strategy
+        else {
+            return None;
+        };
+
+        let source = &self.literals[literal_idx].source;
+        (!source.is_empty() && !source.contains('_')).then_some(source)
     }
 
     /// Fixed leading LIKE pattern source before the first wildcard position.
     ///
-    /// This is storage-independent source text. Prefix indexes should translate
-    /// it to their logical symbol domain before probing.
-    pub fn leading_fixed_prefix_source(&self) -> Option<&str> {
+    /// `%` and `_` both terminate the indexable prefix.
+    pub fn leading_fixed_source_prefix(&self) -> Option<&str> {
         let LikeToken::Literal(literal_idx) = self.tokens.first().copied()? else {
             return None;
         };
 
         let source = &self.literals[literal_idx].source;
-        let prefix = if A::SUPPORTS_UNDERSCORE {
-            source.split('_').next().unwrap_or("")
-        } else {
-            source
-        };
+        let prefix = source.split('_').next().unwrap_or("");
         (!prefix.is_empty()).then_some(prefix)
     }
 
@@ -1137,7 +1137,6 @@ where
     };
     let len = A::literal_len(&needle);
     let state = A::build_state(&needle);
-    let index_symbols = A::index_symbols(&needle);
     let idx = literals.len();
     *min_len = min_len
         .checked_add(len)
@@ -1148,7 +1147,6 @@ where
         needle,
         state,
         len,
-        index_symbols,
     });
     tokens.push(LikeToken::Literal(idx));
     Ok(())
@@ -1192,7 +1190,7 @@ where
     let mut len = 0u32;
     let mut first_anchor = None;
     let mut best_anchor = None;
-    let mut best_score = (0u32, false);
+    let mut best_score = 0u32;
 
     for token in &tokens[token_start..token_end] {
         match *token {
@@ -1204,8 +1202,7 @@ where
                 first_anchor.get_or_insert(anchor);
 
                 let literal = &literals[literal_idx];
-                let exact = literal.index_symbols.is_some();
-                let score = (literal.len, exact);
+                let score = literal.len;
                 if best_anchor.is_none() || score > best_score {
                     best_anchor = Some(anchor);
                     best_score = score;

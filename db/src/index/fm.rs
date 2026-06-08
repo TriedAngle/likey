@@ -1,7 +1,8 @@
-//! Baseline FM-index over dense logical-symbol columns.
+//! Baseline FM-index over dense index-byte columns.
 //!
-//! This index builds over any `Column<Symbol = u8>`. UTF-8 columns
-//! contribute byte symbols; DNA2 columns contribute base-code symbols `0..=3`.
+//! This index builds over any `Column<Symbol = u8>`. UTF-8 columns contribute
+//! byte symbols, FSST contributes decoded bytes, and DNA2 contributes ASCII DNA
+//! bytes (`A/C/G/T/N`).
 //! The FM-index uses private internal symbols for row separators and the final
 //! sentinel, so literal matches cannot cross row boundaries.
 
@@ -350,10 +351,11 @@ impl FmIndex {
         ))
     }
 
-    /// Use the longest exact literal exported by a compiled LIKE pattern.
+    /// Use the longest fixed source fragment from a compiled LIKE pattern.
     ///
-    /// If the pattern has no exact literal fragment, return `None`; call a full
-    /// scan or another index in that case.
+    /// If the pattern has no fixed source fragment, return `None`; call a full
+    /// scan or another index in that case. The verifier remains the correctness
+    /// gate for every candidate row.
     pub fn probe_longest_like_literal<A>(
         &self,
         pattern: &LikePattern<A>,
@@ -363,8 +365,8 @@ impl FmIndex {
         A: LiteralAlgorithm,
     {
         pattern
-            .longest_indexable_literal()
-            .map(|lit| self.probe(lit, batch_rows))
+            .longest_fixed_source_fragment()
+            .map(|lit| self.probe(lit.as_bytes(), batch_rows))
     }
 
     pub fn probe_selective_longest_like_literal<A>(
@@ -376,8 +378,8 @@ impl FmIndex {
         A: LiteralAlgorithm,
     {
         pattern
-            .longest_indexable_literal()
-            .map(|lit| self.probe_selective(lit, batch_rows))
+            .longest_fixed_source_fragment()
+            .map(|lit| self.probe_selective(lit.as_bytes(), batch_rows))
     }
 
     pub fn broad_interval_limit(&self) -> usize {
@@ -690,6 +692,7 @@ mod tests {
         reads.push_str("TTACG").unwrap();
         reads.push_str("AGGT").unwrap();
         reads.push_str("CCCCC").unwrap();
+        reads.push_str("AANT").unwrap();
 
         let mut dbb = DbBuilder::new();
         let id = dbb.add_dna2_table(reads).unwrap();
@@ -697,6 +700,7 @@ mod tests {
         let col = db.dna2_table(id).unwrap().sequence();
 
         let fm = FmIndex::build(&col).unwrap();
-        assert_eq!(fm.search_rows(&[0, 1, 2]), vec![0, 1]);
+        assert_eq!(fm.search_rows(b"ACG"), vec![0, 1]);
+        assert_eq!(fm.search_rows(b"ANT"), vec![4]);
     }
 }

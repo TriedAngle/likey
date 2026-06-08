@@ -8,49 +8,10 @@
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
-use crate::like::{LikePattern, LiteralAlgorithm, MatchStrategy};
+use crate::like::{LikePattern, LiteralAlgorithm};
 use crate::query::{CandidateBatch, CandidateProvider};
 use crate::storage::Column;
-use crate::storage::dna2::{Dna2Column, DnaBase};
-use crate::storage::fsst::FsstColumn;
-use crate::storage::utf8::Utf8Column;
 use crate::{BuildIndex, RowId};
-
-/// Columns whose LIKE pattern source prefixes can be converted to indexed
-/// logical symbols.
-pub trait HasPrefixBtreeIndex: Column<Symbol = u8> + Sized {
-    fn like_prefix_symbols(prefix: &str) -> Option<Box<[u8]>>;
-
-    fn build_prefix_btree_index(&self) -> PrefixBtreeIndex<Self> {
-        PrefixBtreeIndex::build(self)
-    }
-}
-
-impl HasPrefixBtreeIndex for Utf8Column<'_> {
-    fn like_prefix_symbols(prefix: &str) -> Option<Box<[u8]>> {
-        (!prefix.is_empty()).then(|| prefix.as_bytes().into())
-    }
-}
-
-impl HasPrefixBtreeIndex for FsstColumn<'_> {
-    fn like_prefix_symbols(prefix: &str) -> Option<Box<[u8]>> {
-        (!prefix.is_empty()).then(|| prefix.as_bytes().into())
-    }
-}
-
-impl HasPrefixBtreeIndex for Dna2Column<'_> {
-    fn like_prefix_symbols(prefix: &str) -> Option<Box<[u8]>> {
-        if prefix.is_empty() {
-            return None;
-        }
-
-        let mut out = Vec::with_capacity(prefix.len());
-        for &b in prefix.as_bytes() {
-            out.push(DnaBase::from_ascii(b).ok()?.code());
-        }
-        Some(out.into_boxed_slice())
-    }
-}
 
 #[derive(Clone)]
 pub struct PrefixBtreeIndex<C>
@@ -158,36 +119,15 @@ where
         batch_rows: usize,
     ) -> Option<PrefixBtreeProbe>
     where
-        C: HasPrefixBtreeIndex,
         A: LiteralAlgorithm,
     {
-        if let Some(exact_source) = exact_match_source::<A>(pattern) {
-            let exact = C::like_prefix_symbols(exact_source)?;
-            return Some(self.probe_exact(&exact, batch_rows));
+        if let Some(exact_source) = pattern.exact_source() {
+            return Some(self.probe_exact(exact_source.as_bytes(), batch_rows));
         }
 
-        let prefix_source = pattern.leading_fixed_prefix_source()?;
-        let prefix = C::like_prefix_symbols(prefix_source)?;
-        self.probe_prefix(&prefix, batch_rows)
+        let prefix_source = pattern.leading_fixed_source_prefix()?;
+        self.probe_prefix(prefix_source.as_bytes(), batch_rows)
     }
-}
-
-fn exact_match_source<A>(pattern: &LikePattern<A>) -> Option<&str>
-where
-    A: LiteralAlgorithm,
-{
-    let MatchStrategy::Exact {
-        literal_idx: Some(literal_idx),
-    } = pattern.strategy()
-    else {
-        return None;
-    };
-
-    let source = pattern.literal_source(literal_idx);
-    if A::SUPPORTS_UNDERSCORE && source.contains('_') {
-        return None;
-    }
-    (!source.is_empty()).then_some(source)
 }
 
 fn prefix_successor(prefix: &[u8]) -> Option<Box<[u8]>> {
@@ -294,12 +234,11 @@ mod tests {
         let col = table.text();
 
         let like = LikePattern::<StdSearch>::compile("app%tion").unwrap();
-        let prefix =
-            Utf8Column::like_prefix_symbols(like.leading_fixed_prefix_source().unwrap()).unwrap();
-        assert_eq!(&*prefix, b"app");
+        let prefix = like.leading_fixed_source_prefix().unwrap().as_bytes();
+        assert_eq!(prefix, b"app");
 
         let idx = PrefixBtreeIndex::build(&col);
-        let mut probe = idx.probe_prefix(&prefix, 2).unwrap();
+        let mut probe = idx.probe_prefix(prefix, 2).unwrap();
         let mut indexed = Vec::<RowId>::new();
         execute_like(&col, &mut probe, &like, &mut indexed);
 
@@ -360,10 +299,9 @@ mod tests {
     #[test]
     fn leading_prefix_stops_before_algorithm_level_underscore() {
         let like = LikePattern::<NaiveWildcard>::compile("app_e%").unwrap();
-        assert_eq!(like.leading_fixed_prefix_source().unwrap(), "app");
-        let prefix =
-            Utf8Column::like_prefix_symbols(like.leading_fixed_prefix_source().unwrap()).unwrap();
-        assert_eq!(&*prefix, b"app");
+        let prefix = like.leading_fixed_source_prefix().unwrap();
+        assert_eq!(prefix, "app");
+        assert_eq!(prefix.as_bytes(), b"app");
     }
 
     #[test]
@@ -380,11 +318,10 @@ mod tests {
         let col = table.sequence();
 
         let like = LikePattern::<Dna2>::compile("AC_T%").unwrap();
-        let prefix =
-            Dna2Column::like_prefix_symbols(like.leading_fixed_prefix_source().unwrap()).unwrap();
-        assert_eq!(&*prefix, &[0, 1]);
+        let prefix = like.leading_fixed_source_prefix().unwrap().as_bytes();
+        assert_eq!(prefix, b"AC");
 
         let idx = PrefixBtreeIndex::build(&col);
-        assert_eq!(idx.search_prefix(&prefix).unwrap(), vec![0, 1]);
+        assert_eq!(idx.search_prefix(prefix).unwrap(), vec![0, 1]);
     }
 }

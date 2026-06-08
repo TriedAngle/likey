@@ -43,11 +43,6 @@ impl LiteralAlgorithm for FftstrV2 {
     fn literal_len(needle: &Self::Needle) -> u32 {
         FftStr1::literal_len(needle)
     }
-
-    #[inline]
-    fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-        FftStr1::index_symbols(needle)
-    }
 }
 
 impl<'db> RowLiteralSearch<Utf8Column<'db>> for FftstrV2 {

@@ -85,7 +85,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Same verifier, but candidates come from a toy trigram index.
     let trigram = TrigramIndex::build(&text);
-    if let Some(gram) = pattern.longest_indexable_literal().and_then(first_trigram) {
+    if let Some(gram) = pattern
+        .longest_fixed_source_fragment()
+        .and_then(|fragment| first_trigram(fragment.as_bytes()))
+    {
         let rows = trigram.postings(gram);
         let mut probe = SortedRowsProbe::new(rows, 1024);
         let mut indexed_matches = Vec::<RowId>::new();

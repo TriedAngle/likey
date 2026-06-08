@@ -107,11 +107,6 @@ pub fn byte_literal_len(needle: &ByteNeedle) -> u32 {
 }
 
 #[inline(always)]
-pub fn byte_index_symbols(needle: &ByteNeedle) -> Option<Box<[u8]>> {
-    Some(needle.bytes().into())
-}
-
-#[inline(always)]
 pub fn utf8_row_len(row: &crate::storage::utf8::Utf8Row<'_>) -> u32 {
     row.logical_len()
 }

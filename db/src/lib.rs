@@ -37,12 +37,10 @@ pub use crate::algos::{
 pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
-    BuildIndex, Dna2TrigramDomain, Fixed64PostingStore, FmIndex, FmIndexBuildPhase,
-    FmIndexBuildProgress, FmIndexError, FmProbe, FmProbeOutcome, FsstDecodedTrigramDomain,
-    HasPrefixBtreeIndex, HasTrigramIndex, HashMapPostingStore, IndexProbe, PrefixBtreeIndex,
-    PrefixBtreeProbe, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
-    TrigramProbeOutcome, TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key,
-    intersect_sorted_rowids, trigram_key, trigram_keys,
+    BuildIndex, Dna2FixedTrigramIndex, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress,
+    FmIndexError, FmProbe, FmProbeOutcome, IndexProbe, PrefixBtreeIndex, PrefixBtreeProbe,
+    TrigramIndex, TrigramProbe, TrigramProbeOutcome, dna2_trigram_key, intersect_sorted_rowids,
+    trigram_key, trigram_keys,
 };
 pub use crate::like::{
     AdaptiveGenericMatcher, GenericMatcher, LikeCompileError, LikeCompileOptions, LikePattern,
@@ -55,8 +53,9 @@ pub use crate::query::{
 };
 pub use crate::storage::Column;
 pub use crate::storage::dna2::{
-    Dna2Column, Dna2ColumnBuilder, Dna2ColumnDesc, Dna2Iter, Dna2NRange, Dna2NRanges, Dna2Row,
-    Dna2RowEntry, Dna2Table, Dna2TableBuilder, Dna2TableDesc, DnaBase, DnaError,
+    Dna2AsciiIter, Dna2Column, Dna2ColumnBuilder, Dna2ColumnDesc, Dna2Iter, Dna2NRange,
+    Dna2NRanges, Dna2Row, Dna2RowEntry, Dna2Table, Dna2TableBuilder, Dna2TableDesc, DnaBase,
+    DnaError,
 };
 pub use crate::storage::fsst::{
     FsstCodec, FsstColumn, FsstColumnBuilder, FsstColumnDesc, FsstRow, FsstRowEntry, FsstTable,

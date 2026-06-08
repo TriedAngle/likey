@@ -60,15 +60,6 @@ impl LiteralAlgorithm for Dna2TwoWay {
     fn literal_len(needle: &Self::Needle) -> u32 {
         needle.symbols().len() as u32
     }
-
-    #[inline]
-    fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-        if pattern_has_n(needle.symbols()) {
-            None
-        } else {
-            Some(needle.symbols.clone())
-        }
-    }
 }
 
 impl<'db> RowLiteralSearch<Dna2Column<'db>> for Dna2TwoWay {

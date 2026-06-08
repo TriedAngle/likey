@@ -234,15 +234,6 @@ macro_rules! impl_packed_literal_algorithm {
             fn literal_len(needle: &Self::Needle) -> u32 {
                 needle.symbols.len() as u32
             }
-
-            #[inline]
-            fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-                if needle.has_wildcard || needle.has_n() {
-                    None
-                } else {
-                    Some(needle.symbols.clone())
-                }
-            }
         }
     };
 }
