@@ -26,16 +26,22 @@ fn dna2_storage_roundtrip() {
     let mut t = Dna2TableBuilder::new("reads");
     t.push_str("ACGT").unwrap();
     t.push_str("TTAA").unwrap();
+    t.push_str("ACNNNT").unwrap();
     let id = dbb.add_dna2_table(t).unwrap();
     let db = dbb.freeze();
 
     let table = db.dna2_table(id).unwrap();
     let col = table.sequence();
-    assert_eq!(col.row_count(), 2);
+    assert_eq!(col.row_count(), 3);
     assert_eq!(col.row_to_ascii_string(0), "ACGT");
     assert_eq!(col.row_to_ascii_string(1), "TTAA");
+    assert_eq!(col.row_to_ascii_string(2), "ACNNNT");
     assert_eq!(col.base_code_at(0, 0), DnaBase::A.code());
     assert_eq!(col.base_code_at(0, 3), DnaBase::T.code());
+    assert_eq!(col.base_code_at(2, 2), DnaBase::A.code());
+    assert!(col.row_view(2).is_n_at(2));
+    assert!(col.row_view(2).is_n_at(4));
+    assert!(!col.row_view(2).is_n_at(5));
 }
 
 #[test]

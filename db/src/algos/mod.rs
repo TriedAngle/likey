@@ -9,6 +9,7 @@ pub mod utf8_shared;
 
 pub mod bm;
 pub mod dna2;
+pub mod dna2_two_way;
 pub mod fftstr;
 pub mod fsst_decoded;
 pub mod kmp;
@@ -22,6 +23,9 @@ pub use bm::{BM, BMState, bm_find};
 pub use dna2::{
     DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedChunk,
     Dna2PackedNeedle, Dna2PackedNeon, Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized,
+};
+pub use dna2_two_way::{
+    Dna2TwoWay, Dna2TwoWayNeedle, Dna2TwoWayState, dna2_exact_matches_at, dna2_two_way_find,
 };
 pub use fftstr::{FftNeedle, FftState0, FftState1, FftStr0, FftStr1};
 pub use kmp::{Utf8Kmp, kmp_find, kmp_find_from};

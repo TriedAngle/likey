@@ -10,7 +10,10 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use db::{AdaptiveGenericMatcher, GenericMatcher, RecursiveGenericMatcher, StaticGenericMatcher};
+use db::{
+    AdaptiveGenericMatcher, Dna2Column, FsstColumn, GenericMatcher, RecursiveGenericMatcher,
+    StaticGenericMatcher, Utf8Column,
+};
 
 use crate::cli::{Args, DataType, GenericMatcherKind, StorageKind};
 use crate::loaders::{
@@ -18,25 +21,17 @@ use crate::loaders::{
     resolve_relative,
 };
 use crate::runner::{
-    BenchConfig, BenchRow, RowProfileRow, build_indexes, run_dna2_algorithm, run_fsst_algorithm,
-    run_utf8_algorithm, write_row_profiles, write_rows, write_summary,
+    BenchConfig, BenchRow, BuiltIndexes, RowProfileRow, build_indexes, run_dna2_algorithm,
+    run_fsst_algorithm, run_utf8_algorithm, write_row_profiles, write_rows, write_summary,
 };
 use crate::specs::{DataSpec, load_algorithms, load_data_specs, load_indexes, load_patterns};
 
 fn main() -> Result<()> {
     let args = Args::parse();
-
-    match args.generic_matcher {
-        GenericMatcherKind::Static => run::<StaticGenericMatcher>(args),
-        GenericMatcherKind::Adaptive => run::<AdaptiveGenericMatcher>(args),
-        GenericMatcherKind::Recursive => run::<RecursiveGenericMatcher>(args),
-    }
+    run(args)
 }
 
-fn run<M>(args: Args) -> Result<()>
-where
-    M: GenericMatcher,
-{
+fn run(args: Args) -> Result<()> {
     if args.iterations == 0 {
         bail!("--iterations must be greater than zero");
     }
@@ -67,12 +62,16 @@ where
     let indexes = load_indexes(args.indexes_csv.as_deref())?;
 
     eprintln!(
-        "benchmark inputs: data_specs={}, algorithms={}, patterns={}, indexes={}, generic_matcher={}",
+        "benchmark inputs: data_specs={}, algorithms={}, patterns={}, indexes={}, generic_matchers={}",
         data_specs.len(),
         algorithms.len(),
         patterns.len(),
         indexes.len(),
-        M::NAME
+        args.generic_matchers
+            .iter()
+            .map(|matcher| matcher.as_str())
+            .collect::<Vec<_>>()
+            .join("|")
     );
 
     let data_base = args
@@ -92,7 +91,7 @@ where
     let mut bench_rows = Vec::<BenchRow>::new();
     let mut profile_rows = Vec::<RowProfileRow>::new();
 
-    run_fasta_specs::<M>(
+    run_fasta_specs(
         &args,
         &data_base,
         &data_specs,
@@ -104,7 +103,7 @@ where
         &mut profile_rows,
     )?;
 
-    run_job_specs::<M>(
+    run_job_specs(
         &args,
         &data_base,
         &data_specs,
@@ -151,7 +150,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_fasta_specs<M>(
+fn run_fasta_specs(
     args: &Args,
     data_base: &Path,
     data_specs: &[DataSpec],
@@ -161,10 +160,7 @@ fn run_fasta_specs<M>(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()>
-where
-    M: GenericMatcher,
-{
+) -> Result<()> {
     for spec in data_specs
         .iter()
         .filter(|s| matches!(s.data_type, DataType::DnaFasta | DataType::ProteinFasta))
@@ -175,7 +171,7 @@ where
             let loaded =
                 load_fasta_column(&data_path, &spec.name, &spec.column, storage, load_options)?;
             let load_ns = load_start.elapsed().as_nanos();
-            run_loaded_dataset::<M>(
+            run_loaded_dataset(
                 args,
                 &spec.name,
                 spec.data_type.as_str(),
@@ -193,7 +189,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_job_specs<M>(
+fn run_job_specs(
     args: &Args,
     data_base: &Path,
     data_specs: &[DataSpec],
@@ -203,10 +199,7 @@ fn run_job_specs<M>(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()>
-where
-    M: GenericMatcher,
-{
+) -> Result<()> {
     let mut groups = BTreeMap::<String, Vec<DataSpec>>::new();
     for spec in data_specs
         .iter()
@@ -222,7 +215,7 @@ where
         let load_start = Instant::now();
         let loaded = load_job_csv_dataset(&dataset, &specs, data_base, load_options)?;
         let load_ns = load_start.elapsed().as_nanos();
-        run_loaded_dataset::<M>(
+        run_loaded_dataset(
             args,
             &dataset,
             DataType::JobCsv.as_str(),
@@ -239,7 +232,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_loaded_dataset<M>(
+fn run_loaded_dataset(
     args: &Args,
     dataset_name: &str,
     data_type: &str,
@@ -250,12 +243,9 @@ fn run_loaded_dataset<M>(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()>
-where
-    M: GenericMatcher,
-{
+) -> Result<()> {
     for loaded_column in &loaded.columns {
-        run_loaded_column::<M>(
+        run_loaded_column(
             args,
             dataset_name,
             data_type,
@@ -273,7 +263,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn run_loaded_column<M>(
+fn run_loaded_column(
     args: &Args,
     dataset_name: &str,
     data_type: &str,
@@ -285,10 +275,7 @@ fn run_loaded_column<M>(
     indexes: &[crate::cli::IndexKind],
     bench_rows: &mut Vec<BenchRow>,
     profile_rows: &mut Vec<RowProfileRow>,
-) -> Result<()>
-where
-    M: GenericMatcher,
-{
+) -> Result<()> {
     let storage = loaded_column.storage;
     let compatible_algorithms = algorithms
         .iter()
@@ -356,16 +343,39 @@ where
                 row_profile_sample_bytes: args.row_profile_sample_bytes,
             };
 
-            for algorithm in compatible_algorithms {
-                run_utf8_algorithm::<M>(
-                    &column,
-                    algorithm,
-                    &built_indexes,
-                    &config,
-                    bench_rows,
-                    args.row_profile_csv.as_ref().map(|_| &mut *profile_rows),
-                )
-                .with_context(|| format!("run UTF-8 algorithm {}", algorithm.as_str()))?;
+            for &matcher in &args.generic_matchers {
+                match matcher {
+                    GenericMatcherKind::Static => {
+                        run_utf8_algorithms_for_matcher::<StaticGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Adaptive => {
+                        run_utf8_algorithms_for_matcher::<AdaptiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Recursive => {
+                        run_utf8_algorithms_for_matcher::<RecursiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                }
             }
         }
         StorageKind::Fsst => {
@@ -395,16 +405,39 @@ where
                 row_profile_sample_bytes: args.row_profile_sample_bytes,
             };
 
-            for algorithm in compatible_algorithms {
-                run_fsst_algorithm::<M>(
-                    &column,
-                    algorithm,
-                    &built_indexes,
-                    &config,
-                    bench_rows,
-                    args.row_profile_csv.as_ref().map(|_| &mut *profile_rows),
-                )
-                .with_context(|| format!("run FSST algorithm {}", algorithm.as_str()))?;
+            for &matcher in &args.generic_matchers {
+                match matcher {
+                    GenericMatcherKind::Static => {
+                        run_fsst_algorithms_for_matcher::<StaticGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Adaptive => {
+                        run_fsst_algorithms_for_matcher::<AdaptiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Recursive => {
+                        run_fsst_algorithms_for_matcher::<RecursiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                }
             }
         }
         StorageKind::Dna2 => {
@@ -434,20 +467,118 @@ where
                 row_profile_sample_bytes: args.row_profile_sample_bytes,
             };
 
-            for algorithm in compatible_algorithms {
-                run_dna2_algorithm::<M>(
-                    &column,
-                    algorithm,
-                    &built_indexes,
-                    &config,
-                    bench_rows,
-                    args.row_profile_csv.as_ref().map(|_| &mut *profile_rows),
-                )
-                .with_context(|| format!("run DNA2 algorithm {}", algorithm.as_str()))?;
+            for &matcher in &args.generic_matchers {
+                match matcher {
+                    GenericMatcherKind::Static => {
+                        run_dna2_algorithms_for_matcher::<StaticGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Adaptive => {
+                        run_dna2_algorithms_for_matcher::<AdaptiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                    GenericMatcherKind::Recursive => {
+                        run_dna2_algorithms_for_matcher::<RecursiveGenericMatcher>(
+                            &column,
+                            &compatible_algorithms,
+                            &built_indexes,
+                            &config,
+                            bench_rows,
+                            profile_rows,
+                        )?
+                    }
+                }
             }
         }
     }
 
+    Ok(())
+}
+
+fn run_utf8_algorithms_for_matcher<'db, M>(
+    column: &Utf8Column<'db>,
+    algorithms: &[crate::cli::AlgorithmKind],
+    indexes: &BuiltIndexes<Utf8Column<'db>>,
+    config: &BenchConfig<'_>,
+    bench_rows: &mut Vec<BenchRow>,
+    profile_rows: &mut Vec<RowProfileRow>,
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
+    for &algorithm in algorithms {
+        run_utf8_algorithm::<M>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            bench_rows,
+            config.row_profile_enabled.then_some(&mut *profile_rows),
+        )
+        .with_context(|| format!("run UTF-8 algorithm {}", algorithm.as_str()))?;
+    }
+    Ok(())
+}
+
+fn run_fsst_algorithms_for_matcher<'db, M>(
+    column: &FsstColumn<'db>,
+    algorithms: &[crate::cli::AlgorithmKind],
+    indexes: &BuiltIndexes<FsstColumn<'db>>,
+    config: &BenchConfig<'_>,
+    bench_rows: &mut Vec<BenchRow>,
+    profile_rows: &mut Vec<RowProfileRow>,
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
+    for &algorithm in algorithms {
+        run_fsst_algorithm::<M>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            bench_rows,
+            config.row_profile_enabled.then_some(&mut *profile_rows),
+        )
+        .with_context(|| format!("run FSST algorithm {}", algorithm.as_str()))?;
+    }
+    Ok(())
+}
+
+fn run_dna2_algorithms_for_matcher<'db, M>(
+    column: &Dna2Column<'db>,
+    algorithms: &[crate::cli::AlgorithmKind],
+    indexes: &BuiltIndexes<Dna2Column<'db>>,
+    config: &BenchConfig<'_>,
+    bench_rows: &mut Vec<BenchRow>,
+    profile_rows: &mut Vec<RowProfileRow>,
+) -> Result<()>
+where
+    M: GenericMatcher,
+{
+    for &algorithm in algorithms {
+        run_dna2_algorithm::<M>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            bench_rows,
+            config.row_profile_enabled.then_some(&mut *profile_rows),
+        )
+        .with_context(|| format!("run DNA2 algorithm {}", algorithm.as_str()))?;
+    }
     Ok(())
 }
 

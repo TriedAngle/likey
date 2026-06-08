@@ -7,6 +7,8 @@ use crate::storage::dna2::{Dna2Column, Dna2Row, DnaBase};
 ///
 /// Pattern byte `_` compiles to this symbol and matches any DNA base.
 pub const DNA_WILDCARD: u8 = 0xFF;
+/// Algorithm-level ambiguous DNA symbol. It matches only stored `N` bases.
+pub const DNA_N: u8 = 0xFE;
 
 const MAX_BYTE_ANCHORS: usize = 6;
 const TARGET_FIXED_BASES: usize = 8;
@@ -36,6 +38,7 @@ pub struct Dna2PackedNeedle {
     symbols: Box<[u8]>,
     chunks: Box<[Dna2PackedChunk]>,
     has_wildcard: bool,
+    n_positions: Box<[u32]>,
 }
 
 /// Backwards-compatible needle name for DNA2 literal matching.
@@ -55,6 +58,16 @@ impl Dna2PackedNeedle {
     #[inline]
     pub fn has_wildcard(&self) -> bool {
         self.has_wildcard
+    }
+
+    #[inline]
+    pub fn has_n(&self) -> bool {
+        !self.n_positions.is_empty()
+    }
+
+    #[inline]
+    pub fn n_positions(&self) -> &[u32] {
+        &self.n_positions
     }
 }
 
@@ -202,12 +215,13 @@ macro_rules! impl_packed_literal_algorithm {
             const SUPPORTS_UNDERSCORE: bool = true;
 
             fn compile_literal(src: &str) -> Option<Self::Needle> {
-                let (symbols, has_wildcard) = compile_symbols(src)?;
+                let (symbols, has_wildcard, n_positions) = compile_symbols(src)?;
                 let chunks = build_packed_chunks(&symbols);
                 Some(Dna2PackedNeedle {
                     symbols,
                     chunks,
                     has_wildcard,
+                    n_positions,
                 })
             }
 
@@ -223,7 +237,7 @@ macro_rules! impl_packed_literal_algorithm {
 
             #[inline]
             fn index_symbols(needle: &Self::Needle) -> Option<Box<[u8]>> {
-                if needle.has_wildcard {
+                if needle.has_wildcard || needle.has_n() {
                     None
                 } else {
                     Some(needle.symbols.clone())
@@ -277,20 +291,28 @@ impl_packed_row_search!(Dna2PackedAvx512, packed_find_from_avx512bw_runtime);
 impl_packed_row_search!(Dna2PackedNeon, packed_find_from_neon_runtime);
 
 #[inline]
-fn compile_symbols(src: &str) -> Option<(Box<[u8]>, bool)> {
+fn compile_symbols(src: &str) -> Option<(Box<[u8]>, bool, Box<[u32]>)> {
     let mut symbols = Vec::with_capacity(src.len());
     let mut has_wildcard = false;
+    let mut n_positions = Vec::new();
 
-    for &b in src.as_bytes() {
+    for (idx, &b) in src.as_bytes().iter().enumerate() {
         if b == b'_' {
             symbols.push(DNA_WILDCARD);
             has_wildcard = true;
+        } else if matches!(b, b'N' | b'n') {
+            symbols.push(DNA_N);
+            n_positions.push(u32::try_from(idx).ok()?);
         } else {
             symbols.push(DnaBase::from_ascii(b).ok()?.code());
         }
     }
 
-    Some((symbols.into_boxed_slice(), has_wildcard))
+    Some((
+        symbols.into_boxed_slice(),
+        has_wildcard,
+        n_positions.into_boxed_slice(),
+    ))
 }
 
 #[inline]
@@ -307,8 +329,7 @@ fn build_packed_chunks(symbols: &[u8]) -> Box<[Dna2PackedChunk]> {
         for &sym in chunk {
             bits <<= 2;
             care_mask <<= 2;
-            if sym != DNA_WILDCARD {
-                debug_assert!(sym < 4);
+            if sym < 4 {
                 bits |= u64::from(sym);
                 care_mask |= 0b11;
             }
@@ -330,7 +351,7 @@ fn build_packed_state(symbols: &[u8]) -> Dna2PackedState {
         return state;
     }
 
-    let fixed_total = symbols.iter().filter(|&&sym| sym != DNA_WILDCARD).count();
+    let fixed_total = symbols.iter().filter(|&&sym| sym < 4).count();
     if fixed_total == 0 {
         return state;
     }
@@ -350,7 +371,7 @@ fn build_packed_state(symbols: &[u8]) -> Dna2PackedState {
             let mut new_fixed = 0usize;
 
             for i in 0..bases {
-                if symbols[offset + i] != DNA_WILDCARD {
+                if symbols[offset + i] < 4 {
                     fixed += 1;
                     if !covered[offset + i] {
                         new_fixed += 1;
@@ -387,7 +408,7 @@ fn build_packed_state(symbols: &[u8]) -> Dna2PackedState {
         state.fixed_base_count = state.fixed_base_count.saturating_add(anchor.fixed_count);
 
         for i in 0..best_bases {
-            if symbols[best_offset + i] != DNA_WILDCARD && !covered[best_offset + i] {
+            if symbols[best_offset + i] < 4 && !covered[best_offset + i] {
                 covered[best_offset + i] = true;
                 selected_fixed += 1;
             }
@@ -431,7 +452,7 @@ fn build_byte_anchor(symbols: &[u8], offset: usize, bases: usize) -> Dna2ByteAnc
         let first_slot = (abs_start_phase + offset) & 3;
         for i in 0..bases {
             let sym = symbols[offset + i];
-            if sym == DNA_WILDCARD {
+            if sym >= 4 {
                 continue;
             }
 
@@ -495,6 +516,19 @@ fn has_full_block(pos: u32, last_start: u32, block_bases: u32) -> bool {
 
 #[inline]
 fn packed_matches_at(row: &Dna2Row<'_>, pos: u32, needle: &Dna2PackedNeedle) -> bool {
+    if !packed_bits_match_at(row, pos, needle) {
+        return false;
+    }
+
+    if !needle.has_n() && row.n_ranges().is_none() {
+        return true;
+    }
+
+    n_constraints_match(row, pos, needle)
+}
+
+#[inline]
+fn packed_bits_match_at(row: &Dna2Row<'_>, pos: u32, needle: &Dna2PackedNeedle) -> bool {
     let len = needle.symbols.len() as u32;
     let Some(end) = pos.checked_add(len) else {
         return false;
@@ -521,6 +555,39 @@ fn packed_matches_at(row: &Dna2Row<'_>, pos: u32, needle: &Dna2PackedNeedle) -> 
     true
 }
 
+fn n_constraints_match(row: &Dna2Row<'_>, pos: u32, needle: &Dna2PackedNeedle) -> bool {
+    let Some(n_ranges) = row.n_ranges() else {
+        return !needle.has_n();
+    };
+
+    for &n_offset in needle.n_positions() {
+        if !n_ranges.contains(pos + n_offset) {
+            return false;
+        }
+    }
+
+    let end = pos + needle.symbols.len() as u32;
+    for range in n_ranges.as_slice() {
+        if range.end <= pos {
+            continue;
+        }
+        if range.start >= end {
+            break;
+        }
+
+        let overlap_start = range.start.max(pos);
+        let overlap_end = range.end.min(end);
+        for n_pos in overlap_start..overlap_end {
+            match needle.symbols[(n_pos - pos) as usize] {
+                DNA_N | DNA_WILDCARD => {}
+                _ => return false,
+            }
+        }
+    }
+
+    true
+}
+
 fn packed_find_from_scalar(
     row: &Dna2Row<'_>,
     from: u32,
@@ -532,6 +599,9 @@ fn packed_find_from_scalar(
         return Some(from);
     }
     if !state.has_fixed_bases() {
+        if needle.has_n() {
+            return n_aware_find_from(row, from, needle);
+        }
         return Some(from);
     }
 
@@ -551,6 +621,21 @@ fn packed_find_from_scalar(
     }
 
     scan_tail_scalar(row, pos, last_start, needle, state)
+}
+
+fn n_aware_find_from(row: &Dna2Row<'_>, from: u32, needle: &Dna2PackedNeedle) -> Option<u32> {
+    let (_, _, last_start) = checked_search_bounds(row, from, needle.symbols.len())?;
+    let mut pos = from;
+    while pos <= last_start {
+        if packed_matches_at(row, pos, needle) {
+            return Some(pos);
+        }
+        if pos == last_start {
+            break;
+        }
+        pos += 1;
+    }
+    None
 }
 
 #[inline]
@@ -1171,7 +1256,13 @@ mod tests {
             if want == DNA_WILDCARD {
                 continue;
             }
-            if row.base_code_at(pos + idx as u32) != want {
+            let row_pos = pos + idx as u32;
+            let row_is_n = row.is_n_at(row_pos);
+            if want == DNA_N {
+                if !row_is_n {
+                    return false;
+                }
+            } else if row_is_n || row.base_code_at(row_pos) != want {
                 return false;
             }
         }
@@ -1226,6 +1317,14 @@ mod tests {
             ("ACGTACGTACGTACGT", "ACGTACGT"),
             ("ACGTACGTACGTACGT", "A___A___"),
             ("TTTTACGTAAAA", "ACGT"),
+            ("ACNNNT", "N"),
+            ("ACNNNT", "NNN"),
+            ("ACNNNT", "A_N"),
+            ("ACNNNT", "AC___T"),
+            ("ACNNNT", "ACAAAT"),
+            ("NNNN", "____"),
+            ("NNNN", "AN"),
+            ("AANT", "AAN"),
         ];
 
         for (text, pat) in cases {
@@ -1299,7 +1398,7 @@ mod tests {
         let table = db.dna2_table(id).unwrap();
         let col = table.sequence();
 
-        let patterns = ["ACGT", "A__T", "_CG_", "TTTA", "AAAAC", "GGG_T"];
+        let patterns = ["ACGT", "A__T", "_CG_", "TTTA", "AAAAC", "GGG_T", "N", "A_N"];
         for row_id in 0..col.row_count() {
             let row = col.row_view(row_id);
             for pat in patterns {
@@ -1345,12 +1444,20 @@ mod tests {
 
             let mut text = Vec::with_capacity(text_len);
             for _ in 0..text_len {
-                text.push(base(&mut seed));
+                if next(&mut seed) % 19 == 0 {
+                    text.push(b'N');
+                } else {
+                    text.push(base(&mut seed));
+                }
             }
 
             let mut pat = Vec::with_capacity(pat_len);
             for _ in 0..pat_len {
-                pat.push(pat_byte(&mut seed));
+                if next(&mut seed) % 11 == 0 {
+                    pat.push(b'N');
+                } else {
+                    pat.push(pat_byte(&mut seed));
+                }
             }
 
             let text_s = std::str::from_utf8(&text).unwrap();
@@ -1408,5 +1515,38 @@ mod tests {
         let mut matches = Vec::<RowId>::new();
         execute_like(&col, &mut scan, &like, &mut matches);
         assert_eq!(matches, expected);
+    }
+
+    #[test]
+    fn like_integration_with_n() {
+        let mut reads = Dna2TableBuilder::new("reads");
+        reads.push_str("ACGT").unwrap();
+        reads.push_str("ANNT").unwrap();
+        reads.push_str("AAAT").unwrap();
+        reads.push_str("NNNN").unwrap();
+
+        let mut dbb = DbBuilder::new();
+        let id = dbb.add_dna2_table(reads).unwrap();
+        let db = dbb.freeze();
+        let table = db.dna2_table(id).unwrap();
+        let col = table.sequence();
+
+        let like = LikePattern::<Dna2PackedVectorized>::compile("%N%").unwrap();
+        let mut scan = FullScan::new(col.row_count(), 16);
+        let mut matches = Vec::<RowId>::new();
+        execute_like(&col, &mut scan, &like, &mut matches);
+        assert_eq!(matches, vec![1, 3]);
+
+        let like = LikePattern::<Dna2PackedVectorized>::compile("AAAT").unwrap();
+        let mut scan = FullScan::new(col.row_count(), 16);
+        let mut matches = Vec::<RowId>::new();
+        execute_like(&col, &mut scan, &like, &mut matches);
+        assert_eq!(matches, vec![2]);
+
+        let like = LikePattern::<Dna2PackedVectorized>::compile("A__T").unwrap();
+        let mut scan = FullScan::new(col.row_count(), 16);
+        let mut matches = Vec::<RowId>::new();
+        execute_like(&col, &mut scan, &like, &mut matches);
+        assert_eq!(matches, vec![0, 1, 2]);
     }
 }

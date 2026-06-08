@@ -7,7 +7,7 @@ use std::fmt;
 use std::iter::FusedIterator;
 
 use crate::RowId;
-use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
+use crate::arena::{ArenaBuilder, FrozenArena, Pod, RelSlice};
 use crate::storage::Column;
 
 #[derive(Debug, Clone)]
@@ -24,6 +24,12 @@ pub struct Dna2ColumnDesc {
     pub base_offsets: RelSlice<u64>,
     /// Base length per row. Stored separately for cheap length filters.
     pub logical_lens: RelSlice<u32>,
+    /// Optional per-row offsets into `n_ranges`. Present only when the column
+    /// contains at least one ambiguous `N` base.
+    pub n_range_offsets: Option<RelSlice<u32>>,
+    /// Contiguous local row ranges that are logically `N`. The packed payload
+    /// stores these positions as `A` to preserve the 2-bit representation.
+    pub n_ranges: RelSlice<Dna2NRange>,
     /// Continuous 2-bit stream. Four bases per byte, most significant pair first.
     pub payload: RelSlice<u8>,
 }
@@ -101,6 +107,18 @@ impl<'a> Dna2Column<'a> {
         self.arena.bytes(self.desc.payload)
     }
 
+    #[inline]
+    pub fn n_range_offsets(&self) -> Option<&'a [u32]> {
+        self.desc
+            .n_range_offsets
+            .map(|offsets| self.arena.slice(offsets))
+    }
+
+    #[inline]
+    pub fn n_ranges(&self) -> &'a [Dna2NRange] {
+        self.arena.slice(self.desc.n_ranges)
+    }
+
     pub fn total_bases(&self) -> u64 {
         self.desc.total_bases
     }
@@ -118,13 +136,29 @@ impl<'a> Dna2Column<'a> {
         let row = row as usize;
         let offsets = self.base_offsets();
         let lens = self.logical_lens();
+        let n_ranges = self.row_n_ranges(row);
         Dna2Row {
             payload: self.packed_payload(),
             // SAFETY: valid row IDs and table construction guarantee valid offsets.
             start_base: unsafe { *offsets.get_unchecked(row) },
             // SAFETY: valid row IDs and table construction guarantee valid lengths.
             len: unsafe { *lens.get_unchecked(row) },
+            n_ranges,
         }
+    }
+
+    #[inline]
+    fn row_n_ranges(&self, row: usize) -> Option<Dna2NRanges<'a>> {
+        let offsets = self.n_range_offsets()?;
+        // SAFETY: valid row IDs and table construction guarantee row + 1 offsets.
+        let start = unsafe { *offsets.get_unchecked(row) } as usize;
+        let end = unsafe { *offsets.get_unchecked(row + 1) } as usize;
+        if start == end {
+            return None;
+        }
+        Some(Dna2NRanges {
+            ranges: &self.n_ranges()[start..end],
+        })
     }
 
     pub fn row_to_ascii_string(&self, row: RowId) -> String {
@@ -153,6 +187,7 @@ pub struct Dna2Row<'a> {
     payload: &'a [u8],
     start_base: u64,
     len: u32,
+    n_ranges: Option<Dna2NRanges<'a>>,
 }
 
 impl<'a> Dna2Row<'a> {
@@ -175,6 +210,23 @@ impl<'a> Dna2Row<'a> {
     #[inline]
     pub fn packed_payload(&self) -> &'a [u8] {
         self.payload
+    }
+
+    #[inline]
+    pub fn n_ranges(&self) -> Option<Dna2NRanges<'a>> {
+        self.n_ranges
+    }
+
+    #[inline]
+    pub fn has_n(&self) -> bool {
+        self.n_ranges.is_some()
+    }
+
+    #[inline]
+    pub fn is_n_at(&self, local_base_idx: u32) -> bool {
+        assert!(local_base_idx < self.len, "base index out of bounds");
+        self.n_ranges
+            .is_some_and(|ranges| ranges.contains(local_base_idx))
     }
 
     #[inline]
@@ -214,12 +266,32 @@ impl<'a> Dna2Row<'a> {
 
     pub fn copy_ascii_to(&self, out: &mut Vec<u8>) {
         out.reserve(self.len as usize);
-        for code in self.iter() {
-            out.push(
-                DnaBase::from_code(code)
-                    .expect("stored DNA2 code must be valid")
-                    .ascii(),
-            );
+        if let Some(n_ranges) = self.n_ranges {
+            let mut range_idx = 0usize;
+            let ranges = n_ranges.as_slice();
+            for pos in 0..self.len {
+                while range_idx < ranges.len() && ranges[range_idx].end <= pos {
+                    range_idx += 1;
+                }
+                if range_idx < ranges.len() && ranges[range_idx].start <= pos {
+                    out.push(b'N');
+                } else {
+                    let code = self.base_code_at(pos);
+                    out.push(
+                        DnaBase::from_code(code)
+                            .expect("stored DNA2 code must be valid")
+                            .ascii(),
+                    );
+                }
+            }
+        } else {
+            for code in self.iter() {
+                out.push(
+                    DnaBase::from_code(code)
+                        .expect("stored DNA2 code must be valid")
+                        .ascii(),
+                );
+            }
         }
     }
 
@@ -235,7 +307,55 @@ impl fmt::Debug for Dna2Row<'_> {
         f.debug_struct("Dna2Row")
             .field("start_base", &self.start_base)
             .field("len", &self.len)
+            .field("has_n", &self.has_n())
             .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+pub struct Dna2NRange {
+    pub start: u32,
+    pub end: u32,
+}
+
+unsafe impl Pod for Dna2NRange {}
+
+#[derive(Clone, Copy)]
+pub struct Dna2NRanges<'a> {
+    ranges: &'a [Dna2NRange],
+}
+
+impl<'a> Dna2NRanges<'a> {
+    #[inline]
+    pub fn as_slice(self) -> &'a [Dna2NRange] {
+        self.ranges
+    }
+
+    #[inline]
+    pub fn is_empty(self) -> bool {
+        self.ranges.is_empty()
+    }
+
+    #[inline]
+    pub fn contains(self, local_base_idx: u32) -> bool {
+        self.ranges
+            .iter()
+            .any(|range| range.start <= local_base_idx && local_base_idx < range.end)
+    }
+
+    #[inline]
+    pub fn intersects(self, start: u32, end: u32) -> bool {
+        debug_assert!(start <= end);
+        self.ranges
+            .iter()
+            .any(|range| range.start < end && start < range.end)
+    }
+}
+
+impl fmt::Debug for Dna2NRanges<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Dna2NRanges").field(&self.ranges).finish()
     }
 }
 
@@ -405,6 +525,8 @@ impl std::error::Error for DnaError {}
 pub struct Dna2ColumnBuilder {
     base_offsets: Vec<u64>,
     logical_lens: Vec<u32>,
+    n_range_offsets: Vec<u32>,
+    n_ranges: Vec<Dna2NRange>,
     payload: Vec<u8>,
     total_bases: u64,
 }
@@ -414,6 +536,8 @@ impl Dna2ColumnBuilder {
         Self {
             base_offsets: vec![0],
             logical_lens: Vec::new(),
+            n_range_offsets: vec![0],
+            n_ranges: Vec::new(),
             payload: Vec::new(),
             total_bases: 0,
         }
@@ -425,6 +549,12 @@ impl Dna2ColumnBuilder {
         Self {
             base_offsets,
             logical_lens: Vec::with_capacity(rows),
+            n_range_offsets: {
+                let mut offsets = Vec::with_capacity(rows.saturating_add(1));
+                offsets.push(0);
+                offsets
+            },
+            n_ranges: Vec::new(),
             payload: Vec::with_capacity((bases + 3) / 4),
             total_bases: 0,
         }
@@ -433,10 +563,34 @@ impl Dna2ColumnBuilder {
     pub fn push_ascii(&mut self, seq: &[u8]) -> Result<(), DnaError> {
         let len = u32::try_from(seq.len()).expect("row exceeds u32 logical length");
         self.logical_lens.push(len);
-        for &b in seq {
-            let code = DnaBase::from_ascii(b)?.code();
+        let mut open_n_start = None::<u32>;
+        for (idx, &b) in seq.iter().enumerate() {
+            let pos = idx as u32;
+            let code = match b {
+                b'A' | b'a' => DnaBase::A.code(),
+                b'C' | b'c' => DnaBase::C.code(),
+                b'G' | b'g' => DnaBase::G.code(),
+                b'T' | b't' => DnaBase::T.code(),
+                b'N' | b'n' => {
+                    if open_n_start.is_none() {
+                        open_n_start = Some(pos);
+                    }
+                    DnaBase::A.code()
+                }
+                other => return Err(DnaError::InvalidBase(other)),
+            };
+            if !matches!(b, b'N' | b'n') {
+                if let Some(start) = open_n_start.take() {
+                    self.n_ranges.push(Dna2NRange { start, end: pos });
+                }
+            }
             self.push_code_unchecked(code);
         }
+        if let Some(start) = open_n_start {
+            self.n_ranges.push(Dna2NRange { start, end: len });
+        }
+        self.n_range_offsets
+            .push(u32::try_from(self.n_ranges.len()).expect("DNA2 N range count exceeds u32"));
         self.base_offsets.push(self.total_bases);
         Ok(())
     }
@@ -452,6 +606,8 @@ impl Dna2ColumnBuilder {
             DnaBase::from_code(code)?;
             self.push_code_unchecked(code);
         }
+        self.n_range_offsets
+            .push(u32::try_from(self.n_ranges.len()).expect("DNA2 N range count exceeds u32"));
         self.base_offsets.push(self.total_bases);
         Ok(())
     }
@@ -476,10 +632,17 @@ impl Dna2ColumnBuilder {
         let row_count = self.row_count();
         debug_assert_eq!(self.base_offsets.len(), row_count as usize + 1);
         debug_assert_eq!(self.logical_lens.len(), row_count as usize);
+        debug_assert_eq!(self.n_range_offsets.len(), row_count as usize + 1);
         debug_assert_eq!(self.payload.len(), ((self.total_bases + 3) / 4) as usize);
 
         let base_offsets = arena.append_slice(&self.base_offsets);
         let logical_lens = arena.append_slice(&self.logical_lens);
+        let n_range_offsets = if self.n_ranges.is_empty() {
+            None
+        } else {
+            Some(arena.append_slice(&self.n_range_offsets))
+        };
+        let n_ranges = arena.append_slice(&self.n_ranges);
         let payload = arena.append_bytes_aligned(&self.payload, 64);
 
         Dna2ColumnDesc {
@@ -487,6 +650,8 @@ impl Dna2ColumnBuilder {
             total_bases: self.total_bases,
             base_offsets,
             logical_lens,
+            n_range_offsets,
+            n_ranges,
             payload,
         }
     }

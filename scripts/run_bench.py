@@ -25,7 +25,11 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run runner and plot results")
     p.add_argument("--data-csv", required=True, type=Path)
     p.add_argument("--algorithms-csv", required=True, type=Path)
-    p.add_argument("--generic-matcher", choices=["static", "adaptive", "recursive"], default="static")
+    p.add_argument(
+        "--generic-matcher",
+        default="static",
+        help="Generic matcher or comma-separated list: static, adaptive, recursive",
+    )
     p.add_argument("--patterns-csv", required=True, type=Path)
     p.add_argument("--indexes-csv", type=Path)
     p.add_argument("--result-root", type=Path, default=Path("results"))

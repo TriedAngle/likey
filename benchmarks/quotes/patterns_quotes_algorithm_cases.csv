@@ -1,0 +1,13 @@
+name,pattern,enabled
+bm_good_rare_nohit,%QZXJQZXJ%,true
+bm_good_real_mixed,%extraordinary%,true
+bm_bad_repeated_e_rare_tail,%eeeeeeeeeeez%,true
+bm_bad_repeated_a_rare_tail,%aaaaaaaaaaat%,true
+naivev2_good_selective_ends,%zest for life%,true
+naivev2_bad_common_ends_real,%elationship with%,true
+naivev2_bad_common_ends_nohit,%eqqqqqqqqqqe%,true
+twoway_normal_mixed,%relationship with%,true
+twoway_common_phrase,%the United States%,true
+twoway_periodic_words,%the the%,true
+twoway_periodic_synthetic,%abababab%,true
+twoway2_bad_common_bytes,%eeeeeeeeeeee%,true

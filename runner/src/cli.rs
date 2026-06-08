@@ -17,9 +17,15 @@ pub struct Args {
     #[arg(long)]
     pub algorithms_csv: PathBuf,
 
-    /// Generic LIKE matcher used for the complete benchmark run.
-    #[arg(long, value_enum, default_value_t = GenericMatcherKind::Static)]
-    pub generic_matcher: GenericMatcherKind,
+    /// Generic LIKE matcher(s) used for the benchmark run. Accepts one value or
+    /// a comma-separated list, e.g. static,adaptive,recursive.
+    #[arg(
+        long = "generic-matcher",
+        value_enum,
+        value_delimiter = ',',
+        default_value = "static"
+    )]
+    pub generic_matchers: Vec<GenericMatcherKind>,
 
     /// CSV file listing LIKE patterns. Columns: name,pattern\[,enabled\].
     #[arg(long)]
@@ -209,6 +215,16 @@ pub enum GenericMatcherKind {
     Recursive,
 }
 
+impl GenericMatcherKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Static => "static",
+            Self::Adaptive => "adaptive",
+            Self::Recursive => "recursive",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AlgorithmKind {
     StdSearch,
@@ -239,6 +255,7 @@ pub enum AlgorithmKind {
     LibcMemmem,
     FftStr0,
     FftStr1,
+    Dna2TwoWay,
     Dna2,
     Dna2PackedScalar,
     Dna2PackedVectorized,
@@ -248,7 +265,7 @@ pub enum AlgorithmKind {
 }
 
 impl AlgorithmKind {
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 35] = [
         Self::StdSearch,
         Self::Utf8Kmp,
         Self::Naive,
@@ -277,6 +294,7 @@ impl AlgorithmKind {
         Self::LibcMemmem,
         Self::FftStr0,
         Self::FftStr1,
+        Self::Dna2TwoWay,
         Self::Dna2,
         Self::Dna2PackedScalar,
         Self::Dna2PackedVectorized,
@@ -315,6 +333,7 @@ impl AlgorithmKind {
             AlgorithmKind::LibcMemmem => "LibcMemmem",
             AlgorithmKind::FftStr0 => "FftStr0",
             AlgorithmKind::FftStr1 => "FftStr1",
+            AlgorithmKind::Dna2TwoWay => "Dna2TwoWay",
             AlgorithmKind::Dna2 => "Dna2",
             AlgorithmKind::Dna2PackedScalar => "Dna2PackedScalar",
             AlgorithmKind::Dna2PackedVectorized => "Dna2PackedVectorized",
@@ -329,6 +348,7 @@ impl AlgorithmKind {
             StorageKind::Utf8 => !matches!(
                 self,
                 AlgorithmKind::Dna2
+                    | AlgorithmKind::Dna2TwoWay
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
                     | AlgorithmKind::Dna2PackedAvx2
@@ -340,6 +360,7 @@ impl AlgorithmKind {
                 AlgorithmKind::FftStr0
                     | AlgorithmKind::FftStr1
                     | AlgorithmKind::Dna2
+                    | AlgorithmKind::Dna2TwoWay
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
                     | AlgorithmKind::Dna2PackedAvx2
@@ -349,6 +370,7 @@ impl AlgorithmKind {
             StorageKind::Dna2 => matches!(
                 self,
                 AlgorithmKind::Dna2
+                    | AlgorithmKind::Dna2TwoWay
                     | AlgorithmKind::Dna2PackedScalar
                     | AlgorithmKind::Dna2PackedVectorized
                     | AlgorithmKind::Dna2PackedAvx2
@@ -453,6 +475,10 @@ mod tests {
             AlgorithmKind::Utf8Kmp
         );
         assert_eq!("BM".parse::<AlgorithmKind>().unwrap(), AlgorithmKind::BM);
+        assert_eq!(
+            "Dna2TwoWay".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::Dna2TwoWay
+        );
         assert_eq!(
             "Dna2PackedScalar".parse::<AlgorithmKind>().unwrap(),
             AlgorithmKind::Dna2PackedScalar

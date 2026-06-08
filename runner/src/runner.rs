@@ -5,14 +5,14 @@ use std::time::Instant;
 use anyhow::{Context, Result, bail};
 use db::{
     BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedNeon,
-    Dna2PackedScalar, Dna2PackedVectorized, FftStr0, FftStr1, FmIndex, FmIndexBuildPhase,
-    FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex, LibcMemmem,
-    LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
-    NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
-    NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
-    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
-    QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2,
-    Utf8Column, Utf8Kmp, execute_like,
+    Dna2PackedScalar, Dna2PackedVectorized, Dna2TwoWay, FftStr0, FftStr1, FmIndex,
+    FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex,
+    LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
+    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard,
+    NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard,
+    NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard,
+    NaiveWildcard, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex,
+    TwoWay, TwoWay2, Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -513,6 +513,7 @@ where
             sample_utf8_row,
         ),
         AlgorithmKind::Dna2
+        | AlgorithmKind::Dna2TwoWay
         | AlgorithmKind::Dna2PackedScalar
         | AlgorithmKind::Dna2PackedVectorized
         | AlgorithmKind::Dna2PackedAvx2
@@ -808,6 +809,15 @@ where
     M: GenericMatcher,
 {
     match algorithm {
+        AlgorithmKind::Dna2TwoWay => run_algorithm::<Dna2Column<'db>, Dna2TwoWay, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_dna2_row,
+        ),
         AlgorithmKind::Dna2 => run_algorithm::<Dna2Column<'db>, Dna2, M, _>(
             column,
             algorithm,
