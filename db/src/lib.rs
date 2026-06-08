@@ -38,9 +38,10 @@ pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
     BuildIndex, Dna2TrigramDomain, Fixed64PostingStore, FmIndex, FmIndexBuildPhase,
-    FmIndexBuildProgress, FmIndexError, FmProbe, FsstDecodedTrigramDomain, HasTrigramIndex,
-    HashMapPostingStore, IndexProbe, TrigramDomain, TrigramIndex, TrigramPostingStore,
-    TrigramProbe, TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key,
+    FmIndexBuildProgress, FmIndexError, FmProbe, FmProbeOutcome, FsstDecodedTrigramDomain,
+    HasPrefixBtreeIndex, HasTrigramIndex, HashMapPostingStore, IndexProbe, PrefixBtreeIndex,
+    PrefixBtreeProbe, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
+    TrigramProbeOutcome, TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key,
     intersect_sorted_rowids, trigram_key, trigram_keys,
 };
 pub use crate::like::{

@@ -6,13 +6,16 @@
 //! candidates for [`execute_like`](crate::execute_like).
 
 pub mod fm;
+pub mod prefix_btree;
 pub mod trigram;
 
-pub use fm::{FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmIndexError, FmProbe};
+pub use fm::{FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmIndexError, FmProbe, FmProbeOutcome};
+pub use prefix_btree::{HasPrefixBtreeIndex, PrefixBtreeIndex, PrefixBtreeProbe};
 pub use trigram::{
     Dna2TrigramDomain, Fixed64PostingStore, FsstDecodedTrigramDomain, HasTrigramIndex,
     HashMapPostingStore, TrigramDomain, TrigramIndex, TrigramPostingStore, TrigramProbe,
-    TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key, trigram_key, trigram_keys,
+    TrigramProbeOutcome, TypedTrigramIndex, Utf8ByteTrigramDomain, dna2_trigram_key, trigram_key,
+    trigram_keys,
 };
 
 use crate::RowId;

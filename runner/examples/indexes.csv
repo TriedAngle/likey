@@ -1,4 +1,5 @@
 index,enabled
 none,true
+prefix-btree,true
 trigram,true
 fm,true

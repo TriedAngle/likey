@@ -400,6 +400,24 @@ where
         self.indexable_literals().max_by_key(|lit| lit.len())
     }
 
+    /// Fixed leading LIKE pattern source before the first wildcard position.
+    ///
+    /// This is storage-independent source text. Prefix indexes should translate
+    /// it to their logical symbol domain before probing.
+    pub fn leading_fixed_prefix_source(&self) -> Option<&str> {
+        let LikeToken::Literal(literal_idx) = self.tokens.first().copied()? else {
+            return None;
+        };
+
+        let source = &self.literals[literal_idx].source;
+        let prefix = if A::SUPPORTS_UNDERSCORE {
+            source.split('_').next().unwrap_or("")
+        } else {
+            source
+        };
+        (!prefix.is_empty()).then_some(prefix)
+    }
+
     /// Create a row verifier that uses a compile-time selected generic matcher.
     pub fn verifier<M>(&self) -> LikePatternVerifier<'_, A, M>
     where

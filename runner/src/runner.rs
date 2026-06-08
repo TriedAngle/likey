@@ -6,14 +6,15 @@ use anyhow::{Context, Result, bail};
 use db::{
     BM, BMBoundless, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512,
     Dna2PackedNeon, Dna2PackedScalar, Dna2PackedVectorized, Dna2TwoWay, FftStr0, FftStr1, FftstrV2,
-    FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher,
-    HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2,
-    NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
-    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
-    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
-    NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard, NaiveWildcard, PairHorspool,
-    QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2,
-    TwoWay3, Utf8Column, Utf8Kmp, execute_like,
+    FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmProbeOutcome, FsstColumn, FullScan,
+    GenericMatcher, HasPrefixBtreeIndex, HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto,
+    NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512,
+    NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard,
+    NaiveScalar, NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2,
+    NaiveVectorizedV2Wildcard, NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard,
+    NaiveWildcard, PairHorspool, PrefixBtreeIndex, QueryStats, RowId, RowLiteralSearch,
+    RowVerifier, StdSearch, TrigramIndex, TrigramProbeOutcome, TwoWay, TwoWay2, TwoWay3,
+    Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -136,19 +137,21 @@ pub struct BuiltIndex<T> {
 
 pub struct BuiltIndexes<C>
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
 {
     pub fm: Option<BuiltIndex<FmIndex>>,
+    pub prefix_btree: Option<BuiltIndex<PrefixBtreeIndex<C>>>,
     pub trigram: Option<BuiltIndex<TrigramIndex<C>>>,
 }
 
 impl<C> Default for BuiltIndexes<C>
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
 {
     fn default() -> Self {
         Self {
             fm: None,
+            prefix_btree: None,
             trigram: None,
         }
     }
@@ -160,7 +163,7 @@ pub fn build_indexes<C>(
     fm_progress_label: Option<&str>,
 ) -> Result<BuiltIndexes<C>>
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
 {
     let mut out = BuiltIndexes::default();
 
@@ -181,6 +184,15 @@ where
         let start = Instant::now();
         let index = column.build_trigram_index();
         out.trigram = Some(BuiltIndex {
+            index,
+            build_ns: start.elapsed().as_nanos(),
+        });
+    }
+
+    if requested.iter().any(|kind| *kind == IndexKind::PrefixBtree) {
+        let start = Instant::now();
+        let index = column.build_prefix_btree_index();
+        out.prefix_btree = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -978,7 +990,7 @@ fn run_algorithm<C, A, M, F>(
     sample_row: F,
 ) -> Result<()>
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
     F: Fn(&C, RowId, usize) -> String + Copy,
@@ -1155,7 +1167,7 @@ fn execute_once<C, A, M>(
     batch_rows: usize,
 ) -> ExecuteOnceResult
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
     A: RowLiteralSearch<C>,
     M: GenericMatcher,
 {
@@ -1166,32 +1178,48 @@ where
         IndexKind::Fm => {
             if let Some(fm) = indexes.fm.as_ref() {
                 let prepare_start = Instant::now();
-                let probe = fm.index.probe_longest_like_literal(pattern, batch_rows);
+                let probe = fm
+                    .index
+                    .probe_selective_longest_like_literal(pattern, batch_rows);
                 let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
-                if let Some(mut probe) = probe {
-                    let mut sink = CountSink::default();
-                    let verifier = pattern.verifier::<M>();
-                    let execute_start = Instant::now();
-                    let stats = execute_like(column, &mut probe, &verifier, &mut sink);
-                    let execute_ns = execute_start.elapsed().as_nanos();
-                    ExecuteOnceResult {
-                        stats,
-                        count: sink.count,
-                        actual_index: "fm",
-                        fallback_reason: "",
-                        candidate_prepare_ns,
-                        execute_ns,
+                match probe {
+                    Some(FmProbeOutcome::Probe(mut probe)) => {
+                        let mut sink = CountSink::default();
+                        let verifier = pattern.verifier::<M>();
+                        let execute_start = Instant::now();
+                        let stats = execute_like(column, &mut probe, &verifier, &mut sink);
+                        let execute_ns = execute_start.elapsed().as_nanos();
+                        ExecuteOnceResult {
+                            stats,
+                            count: sink.count,
+                            actual_index: "fm",
+                            fallback_reason: "",
+                            candidate_prepare_ns,
+                            execute_ns,
+                        }
                     }
-                } else {
-                    let mut res = execute_full_scan::<C, A, M>(
-                        column,
-                        pattern,
-                        batch_rows,
-                        "no-indexable-literal",
-                        "full-scan",
-                    );
-                    res.candidate_prepare_ns += candidate_prepare_ns;
-                    res
+                    Some(FmProbeOutcome::TooBroad) => {
+                        let mut res = execute_full_scan::<C, A, M>(
+                            column,
+                            pattern,
+                            batch_rows,
+                            "too-broad",
+                            "full-scan",
+                        );
+                        res.candidate_prepare_ns += candidate_prepare_ns;
+                        res
+                    }
+                    None => {
+                        let mut res = execute_full_scan::<C, A, M>(
+                            column,
+                            pattern,
+                            batch_rows,
+                            "no-indexable-literal",
+                            "full-scan",
+                        );
+                        res.candidate_prepare_ns += candidate_prepare_ns;
+                        res
+                    }
                 }
             } else {
                 execute_full_scan::<C, A, M>(
@@ -1203,37 +1231,91 @@ where
                 )
             }
         }
+        IndexKind::PrefixBtree => {
+            if let Some(prefix_btree) = indexes.prefix_btree.as_ref() {
+                let prepare_start = Instant::now();
+                let probe = prefix_btree.index.probe_like_prefix(pattern, batch_rows);
+                let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
+                if let Some(mut probe) = probe {
+                    let mut sink = CountSink::default();
+                    let verifier = pattern.verifier::<M>();
+                    let execute_start = Instant::now();
+                    let stats = execute_like(column, &mut probe, &verifier, &mut sink);
+                    let execute_ns = execute_start.elapsed().as_nanos();
+                    ExecuteOnceResult {
+                        stats,
+                        count: sink.count,
+                        actual_index: "prefix-btree",
+                        fallback_reason: "",
+                        candidate_prepare_ns,
+                        execute_ns,
+                    }
+                } else {
+                    let mut res = execute_full_scan::<C, A, M>(
+                        column,
+                        pattern,
+                        batch_rows,
+                        "no-indexable-prefix",
+                        "full-scan",
+                    );
+                    res.candidate_prepare_ns += candidate_prepare_ns;
+                    res
+                }
+            } else {
+                execute_full_scan::<C, A, M>(
+                    column,
+                    pattern,
+                    batch_rows,
+                    "prefix-btree-not-built",
+                    "full-scan",
+                )
+            }
+        }
         IndexKind::Trigram => {
             if let Some(trigram) = indexes.trigram.as_ref() {
                 if let Some(literal) = pattern.longest_indexable_literal() {
                     if literal.len() >= 3 {
                         let prepare_start = Instant::now();
-                        let probe = trigram.index.probe_literal(literal, batch_rows);
+                        let probe = trigram.index.probe_literal_selective(literal, batch_rows);
                         let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
-                        if let Some(mut probe) = probe {
-                            let mut sink = CountSink::default();
-                            let verifier = pattern.verifier::<M>();
-                            let execute_start = Instant::now();
-                            let stats = execute_like(column, &mut probe, &verifier, &mut sink);
-                            let execute_ns = execute_start.elapsed().as_nanos();
-                            ExecuteOnceResult {
-                                stats,
-                                count: sink.count,
-                                actual_index: "trigram",
-                                fallback_reason: "",
-                                candidate_prepare_ns,
-                                execute_ns,
+                        match probe {
+                            Some(TrigramProbeOutcome::Probe(mut probe)) => {
+                                let mut sink = CountSink::default();
+                                let verifier = pattern.verifier::<M>();
+                                let execute_start = Instant::now();
+                                let stats = execute_like(column, &mut probe, &verifier, &mut sink);
+                                let execute_ns = execute_start.elapsed().as_nanos();
+                                ExecuteOnceResult {
+                                    stats,
+                                    count: sink.count,
+                                    actual_index: "trigram",
+                                    fallback_reason: "",
+                                    candidate_prepare_ns,
+                                    execute_ns,
+                                }
                             }
-                        } else {
-                            let mut res = execute_full_scan::<C, A, M>(
-                                column,
-                                pattern,
-                                batch_rows,
-                                "literal-not-valid-for-trigram",
-                                "full-scan",
-                            );
-                            res.candidate_prepare_ns += candidate_prepare_ns;
-                            res
+                            Some(TrigramProbeOutcome::TooBroad) => {
+                                let mut res = execute_full_scan::<C, A, M>(
+                                    column,
+                                    pattern,
+                                    batch_rows,
+                                    "too-broad",
+                                    "full-scan",
+                                );
+                                res.candidate_prepare_ns += candidate_prepare_ns;
+                                res
+                            }
+                            None => {
+                                let mut res = execute_full_scan::<C, A, M>(
+                                    column,
+                                    pattern,
+                                    batch_rows,
+                                    "literal-not-valid-for-trigram",
+                                    "full-scan",
+                                );
+                                res.candidate_prepare_ns += candidate_prepare_ns;
+                                res
+                            }
                         }
                     } else {
                         execute_full_scan::<C, A, M>(
@@ -1298,11 +1380,12 @@ where
 
 fn index_build_ns<C>(indexes: &BuiltIndexes<C>, requested: IndexKind) -> u128
 where
-    C: HasTrigramIndex,
+    C: HasPrefixBtreeIndex + HasTrigramIndex,
 {
     match requested {
         IndexKind::FullScan => 0,
         IndexKind::Fm => indexes.fm.as_ref().map_or(0, |idx| idx.build_ns),
+        IndexKind::PrefixBtree => indexes.prefix_btree.as_ref().map_or(0, |idx| idx.build_ns),
         IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.build_ns),
     }
 }

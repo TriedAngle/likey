@@ -16,4 +16,5 @@ ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,true
 many_common_short_segments,%A_%C_%G_%T_%,true
 selective_spaced_segments,%TGCA_%GAGT_%GGGC%,true
 anchored_prefix_gap,AAGC________ACCG%,true
+anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,true
 anchored_suffix_gap,%GGGCAC____________________GGTGTC,true

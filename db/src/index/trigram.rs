@@ -23,6 +23,9 @@ use crate::storage::dna2::{Dna2Column, Dna2Row};
 use crate::storage::fsst::FsstColumn;
 use crate::storage::utf8::Utf8Column;
 
+const DEFAULT_ROW_POSTING_DIVISOR: usize = 4;
+const DEFAULT_MIN_BROAD_POSTING: usize = 1024;
+
 #[inline(always)]
 pub fn trigram_key(a: u8, b: u8, c: u8) -> u32 {
     ((a as u32) << 16) | ((b as u32) << 8) | (c as u32)
@@ -341,6 +344,12 @@ where
     _marker: PhantomData<fn(&C, D)>,
 }
 
+#[derive(Debug, Clone)]
+pub enum TrigramProbeOutcome {
+    Probe(TrigramProbe),
+    TooBroad,
+}
+
 impl<C, D> std::fmt::Debug for TypedTrigramIndex<C, D>
 where
     C: Column<Symbol = u8>,
@@ -417,9 +426,65 @@ where
         Some(result)
     }
 
+    pub fn search_literal_selective(&self, literal: &[u8]) -> Option<TrigramProbeOutcome> {
+        let mut grams = D::literal_trigrams(literal)?;
+        if grams.is_empty() {
+            return None;
+        }
+
+        grams.sort_unstable();
+        grams.dedup();
+
+        let mut lists = Vec::<&[RowId]>::with_capacity(grams.len());
+        for key in grams {
+            let Some(list) = self.postings_for_key(key) else {
+                return Some(TrigramProbeOutcome::Probe(TrigramProbe::new(Vec::new(), 1)));
+            };
+            lists.push(list);
+        }
+
+        lists.sort_by_key(|list| list.len());
+        if lists
+            .first()
+            .is_some_and(|list| list.len() > self.broad_posting_limit())
+        {
+            return Some(TrigramProbeOutcome::TooBroad);
+        }
+
+        let mut result = lists[0].to_vec();
+        for list in lists.into_iter().skip(1) {
+            intersect_sorted_in_place(&mut result, list);
+            if result.is_empty() {
+                break;
+            }
+        }
+
+        if result.len() > self.broad_posting_limit() {
+            return Some(TrigramProbeOutcome::TooBroad);
+        }
+
+        Some(TrigramProbeOutcome::Probe(TrigramProbe::new(result, 1)))
+    }
+
     pub fn probe_literal(&self, literal: &[u8], batch_rows: usize) -> Option<TrigramProbe> {
         let rows = self.search_literal(literal)?;
         Some(TrigramProbe::new(rows, batch_rows))
+    }
+
+    pub fn probe_literal_selective(
+        &self,
+        literal: &[u8],
+        batch_rows: usize,
+    ) -> Option<TrigramProbeOutcome> {
+        match self.search_literal_selective(literal)? {
+            TrigramProbeOutcome::Probe(probe) => {
+                Some(TrigramProbeOutcome::Probe(TrigramProbe::new(
+                    probe.into_rows(),
+                    batch_rows,
+                )))
+            }
+            TrigramProbeOutcome::TooBroad => Some(TrigramProbeOutcome::TooBroad),
+        }
     }
 
     pub fn probe_longest_like_literal<A>(
@@ -432,6 +497,25 @@ where
     {
         let literal = pattern.longest_indexable_literal()?;
         self.probe_literal(literal, batch_rows)
+    }
+
+    pub fn probe_selective_longest_like_literal<A>(
+        &self,
+        pattern: &LikePattern<A>,
+        batch_rows: usize,
+    ) -> Option<TrigramProbeOutcome>
+    where
+        A: LiteralAlgorithm,
+    {
+        let literal = pattern.longest_indexable_literal()?;
+        self.probe_literal_selective(literal, batch_rows)
+    }
+
+    pub fn broad_posting_limit(&self) -> usize {
+        let row_count = usize::try_from(self.row_count).unwrap_or(usize::MAX);
+        (row_count / DEFAULT_ROW_POSTING_DIVISOR)
+            .max(DEFAULT_MIN_BROAD_POSTING)
+            .max(1)
     }
 }
 
@@ -478,6 +562,14 @@ where
         self.inner.probe_literal(literal, batch_rows)
     }
 
+    pub fn probe_literal_selective(
+        &self,
+        literal: &[u8],
+        batch_rows: usize,
+    ) -> Option<TrigramProbeOutcome> {
+        self.inner.probe_literal_selective(literal, batch_rows)
+    }
+
     /// Compatibility helper for probing one trigram directly.
     ///
     /// For UTF-8 columns the gram is three bytes. For DNA2 columns it is three
@@ -501,6 +593,18 @@ where
         A: LiteralAlgorithm,
     {
         self.inner.probe_longest_like_literal(pattern, batch_rows)
+    }
+
+    pub fn probe_selective_longest_like_literal<A>(
+        &self,
+        pattern: &LikePattern<A>,
+        batch_rows: usize,
+    ) -> Option<TrigramProbeOutcome>
+    where
+        A: LiteralAlgorithm,
+    {
+        self.inner
+            .probe_selective_longest_like_literal(pattern, batch_rows)
     }
 }
 
@@ -580,6 +684,10 @@ impl TrigramProbe {
         &self.rows
     }
 
+    pub fn into_rows(self) -> Vec<RowId> {
+        self.rows
+    }
+
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
@@ -633,6 +741,30 @@ mod tests {
         assert_eq!(idx.search_literal(b"ana").unwrap(), vec![4, 5]);
         assert_eq!(idx.search_literal(b"pine").unwrap(), vec![2]);
         assert!(idx.search_literal(b"an").is_none());
+    }
+
+    #[test]
+    fn selective_probe_rejects_broad_postings() {
+        let mut docs = Utf8TableBuilder::new("docs");
+        for _ in 0..2000 {
+            docs.push_str("aaaa");
+        }
+
+        let mut dbb = DbBuilder::new();
+        let id = dbb.add_utf8_table(docs).unwrap();
+        let db = dbb.freeze();
+        let table = db.utf8_table(id).unwrap();
+        let col = table.text();
+
+        let idx = TrigramIndex::build(&col);
+        assert!(matches!(
+            idx.probe_literal_selective(b"aaa", 64),
+            Some(TrigramProbeOutcome::TooBroad)
+        ));
+        assert!(matches!(
+            idx.probe_literal_selective(b"zzz", 64),
+            Some(TrigramProbeOutcome::Probe(probe)) if probe.is_empty()
+        ));
     }
 
     #[test]

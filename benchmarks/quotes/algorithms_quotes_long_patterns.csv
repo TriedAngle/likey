@@ -19,6 +19,7 @@ PairHorspool,true
 LibcMemmem,true
 FftStr0,false
 FftStr1,true
+FftstrV2,true
 NaiveWildcard,true
 NaiveScalarWildcard,true
 NaiveVectorizedWildcard,true

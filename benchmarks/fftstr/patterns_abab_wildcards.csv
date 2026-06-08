@@ -1,6 +1,8 @@
 name,pattern,enabled
 exact_len002_no_wildcard,%aa%,true
+prefix_exact_len002_no_wildcard,aa%,true
 wild_len003,%a_b%,true
+prefix_wild_len016,a______________a%,true
 wild_len004,%a__a%,true
 wild_len008,%a______a%,true
 wild_len012,%a__________a%,true

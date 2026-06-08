@@ -36,6 +36,22 @@ cargo run -p runner --bin runner --release -- \
 
 Warmups are controlled separately with `--warmups`; warmup runs are not written to the output CSV.
 
+Run the index comparison on prefix/equality-friendly DNA patterns across all configured indexes, including `prefix-btree`:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/dna/data_gencode_dna_utf8_dna2.csv \
+  --algorithms-csv benchmarks/dna/algorithms_index.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/dna/patterns_gencode_indexes.csv \
+  --indexes-csv benchmarks/dna/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/gencode_indexes_raw.csv \
+  --summary-csv results/gencode_indexes_summary.csv
+```
+
 ## Quotes Benchmark
 
 Run the exact-vs-underscore-heavy algorithm comparison on the quotes dataset with three measured iterations per combination:
@@ -88,6 +104,22 @@ cargo run -p runner --bin runner --release -- \
 
 For matcher-engine comparisons, patterns with multiple `%`-separated fragments are the most useful for wildcard-capable algorithms, because `_` remains inside their literal fragments by default.
 
+Run the index comparison on prefix/equality-friendly quote patterns across all configured indexes, including `prefix-btree`:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/quotes/data_quotes_utf8.csv \
+  --algorithms-csv benchmarks/quotes/algorithms_index.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/quotes/patterns_quotes_indexes.csv \
+  --indexes-csv benchmarks/quotes/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/quotes_indexes_raw.csv \
+  --summary-csv results/quotes_indexes_summary.csv
+```
+
 ## FFTSTR Benchmark
 
 Generate the artificial `abab...` benchmark table and pattern CSV. The default table has 1000 rows, each with length 512, and patterns include `%aa%`, `%a_b%`, then wildcard cores from length 4 to 512 in steps of 4.
@@ -96,7 +128,7 @@ Generate the artificial `abab...` benchmark table and pattern CSV. The default t
 python3 scripts/generate_fftstr_benchmark.py
 ```
 
-Run the benchmark comparing `TwoWay2`, `TwoWay3`, `FftStr1`, and `FftstrV2`:
+Run the benchmark comparing scalar/SIMD literal baselines, `TwoWay` variants, glibc-style exact search, `FftStr1`, and `FftstrV2`:
 
 ```bash
 cargo run -p runner --bin runner --release -- \

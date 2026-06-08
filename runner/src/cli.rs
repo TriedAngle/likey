@@ -182,6 +182,7 @@ impl FromStr for StorageKind {
 pub enum IndexKind {
     FullScan,
     Fm,
+    PrefixBtree,
     Trigram,
 }
 
@@ -190,6 +191,7 @@ impl IndexKind {
         match self {
             IndexKind::FullScan => "full-scan",
             IndexKind::Fm => "fm",
+            IndexKind::PrefixBtree => "prefix-btree",
             IndexKind::Trigram => "trigram",
         }
     }
@@ -202,8 +204,13 @@ impl FromStr for IndexKind {
         match normalize_name(s).as_str() {
             "none" | "scan" | "fullscan" | "full-scan" | "full_scan" => Ok(Self::FullScan),
             "fm" | "fmindex" | "fm-index" | "fm_index" => Ok(Self::Fm),
+            "prefix" | "prefixbtree" | "prefix-btree" | "prefix_btree" | "btree" => {
+                Ok(Self::PrefixBtree)
+            }
             "trigram" | "tri" => Ok(Self::Trigram),
-            other => bail!("unknown index {other:?}; supported: none/full-scan, fm, trigram"),
+            other => bail!(
+                "unknown index {other:?}; supported: none/full-scan, fm, prefix-btree, trigram"
+            ),
         }
     }
 }

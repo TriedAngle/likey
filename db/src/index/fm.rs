@@ -14,6 +14,9 @@ const SENTINEL: u16 = 0;
 const SEPARATOR: u16 = 1;
 const DATA_BASE: u16 = 2;
 const NO_ROW: RowId = RowId::MAX;
+const DEFAULT_TEXT_RANGE_DIVISOR: usize = 100;
+const DEFAULT_ROW_RANGE_DIVISOR: usize = 4;
+const DEFAULT_MIN_BROAD_RANGE: usize = 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Errors returned while building an FM-index.
@@ -55,6 +58,12 @@ pub struct FmIndex {
     symbol_to_rank: Box<[i16]>,
     pos_to_row: Box<[RowId]>,
     row_count: RowId,
+}
+
+#[derive(Debug, Clone)]
+pub enum FmProbeOutcome {
+    Probe(FmProbe),
+    TooBroad,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -322,6 +331,25 @@ impl FmIndex {
         FmProbe::new(self.search_rows(needle), batch_rows)
     }
 
+    pub fn probe_selective(&self, needle: &[u8], batch_rows: usize) -> FmProbeOutcome {
+        if needle.is_empty() {
+            return FmProbeOutcome::TooBroad;
+        }
+
+        let Some((top, bottom)) = self.backward_search(needle) else {
+            return FmProbeOutcome::Probe(FmProbe::new(Vec::new(), batch_rows));
+        };
+
+        if self.interval_too_broad(top, bottom) {
+            return FmProbeOutcome::TooBroad;
+        }
+
+        FmProbeOutcome::Probe(FmProbe::new(
+            self.rows_from_interval(top, bottom),
+            batch_rows,
+        ))
+    }
+
     /// Use the longest exact literal exported by a compiled LIKE pattern.
     ///
     /// If the pattern has no exact literal fragment, return `None`; call a full
@@ -337,6 +365,31 @@ impl FmIndex {
         pattern
             .longest_indexable_literal()
             .map(|lit| self.probe(lit, batch_rows))
+    }
+
+    pub fn probe_selective_longest_like_literal<A>(
+        &self,
+        pattern: &LikePattern<A>,
+        batch_rows: usize,
+    ) -> Option<FmProbeOutcome>
+    where
+        A: LiteralAlgorithm,
+    {
+        pattern
+            .longest_indexable_literal()
+            .map(|lit| self.probe_selective(lit, batch_rows))
+    }
+
+    pub fn broad_interval_limit(&self) -> usize {
+        let text_limit = (self.text_len / DEFAULT_TEXT_RANGE_DIVISOR).max(100_000);
+        let row_count = usize::try_from(self.row_count).unwrap_or(usize::MAX);
+        let row_limit = (row_count / DEFAULT_ROW_RANGE_DIVISOR).max(DEFAULT_MIN_BROAD_RANGE);
+        text_limit.min(row_limit).max(1)
+    }
+
+    #[inline]
+    fn interval_too_broad(&self, top: usize, bottom: usize) -> bool {
+        bottom.saturating_sub(top) > self.broad_interval_limit()
     }
 
     fn rows_from_interval(&self, top: usize, bottom: usize) -> Vec<RowId> {
@@ -605,6 +658,29 @@ mod tests {
         assert_eq!(fm.search_rows(b"ana"), vec![0, 1]);
         assert_eq!(fm.search_rows(b"apple"), vec![2]);
         assert!(fm.search_rows(b"orange").is_empty());
+    }
+
+    #[test]
+    fn selective_probe_rejects_broad_intervals() {
+        let mut docs = Utf8TableBuilder::new("docs");
+        for _ in 0..2000 {
+            docs.push_str("aaaa");
+        }
+
+        let mut dbb = DbBuilder::new();
+        let id = dbb.add_utf8_table(docs).unwrap();
+        let db = dbb.freeze();
+        let col = db.utf8_table(id).unwrap().text();
+
+        let fm = FmIndex::build(&col).unwrap();
+        assert!(matches!(
+            fm.probe_selective(b"a", 64),
+            FmProbeOutcome::TooBroad
+        ));
+        assert!(matches!(
+            fm.probe_selective(b"missing", 64),
+            FmProbeOutcome::Probe(probe) if probe.is_empty()
+        ));
     }
 
     #[test]
