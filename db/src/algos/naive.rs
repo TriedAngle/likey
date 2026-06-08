@@ -51,6 +51,9 @@ pub struct NaiveVectorizedWildcard;
 /// Vectorized wildcard-aware search marker using first/last fixed-byte anchors.
 pub struct NaiveVectorizedV2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
+/// Boundless duplicate of `NaiveVectorizedV2Wildcard` for bounds-check experiments.
+pub struct NaiveVectorizedV2WildcardBoundless;
+#[derive(Debug, Clone, Copy, Default)]
 /// AVX2 wildcard-aware search marker with runtime fallback when AVX2 is unavailable.
 pub struct NaiveAvx2Wildcard;
 #[derive(Debug, Clone, Copy, Default)]
@@ -146,6 +149,7 @@ impl_naive_wildcard_literal_algorithm!(NaiveWildcard);
 impl_naive_wildcard_literal_algorithm!(NaiveScalarWildcard);
 impl_naive_wildcard_literal_algorithm!(NaiveVectorizedWildcard);
 impl_naive_wildcard_literal_algorithm!(NaiveVectorizedV2Wildcard);
+impl_naive_wildcard_literal_algorithm!(NaiveVectorizedV2WildcardBoundless);
 impl_naive_wildcard_literal_algorithm!(NaiveAvx2Wildcard);
 impl_naive_wildcard_literal_algorithm!(NaiveAvx2V2Wildcard);
 impl_naive_wildcard_literal_algorithm!(NaiveAvx512Wildcard);
@@ -242,6 +246,41 @@ impl_naive_wildcard_row_search!(NaiveWildcard, naive_find_wildcard);
 impl_naive_wildcard_row_search!(NaiveScalarWildcard, naive_find_wildcard_scalar);
 impl_naive_wildcard_row_search!(NaiveVectorizedWildcard, naive_find_wildcard_vectorized);
 impl_naive_wildcard_row_search!(NaiveVectorizedV2Wildcard, naive_find_wildcard_vectorized_v2);
+impl<'db> RowLiteralSearch<Utf8Column<'db>> for NaiveVectorizedV2WildcardBoundless {
+    #[inline]
+    fn row_len<'r>(row: &Utf8Row<'r>) -> u32 {
+        utf8_row_len(row)
+    }
+
+    #[inline(always)]
+    fn matches_at<'r>(
+        row: &Utf8Row<'r>,
+        pos: u32,
+        needle: &Self::Needle,
+        _state: &Self::State,
+    ) -> bool {
+        matches_at_bytes_wildcard(row, pos, needle)
+    }
+
+    #[inline]
+    fn find_from<'r>(
+        row: &Utf8Row<'r>,
+        from: u32,
+        needle: &Self::Needle,
+        state: &Self::State,
+    ) -> Option<u32> {
+        let text = row.bytes();
+        let pat = needle.bytes();
+        let from = from as usize;
+        if from > text.len() {
+            return None;
+        }
+        // SAFETY: checked above.
+        let suffix = unsafe { text.get_unchecked(from..) };
+        naive_find_wildcard_vectorized_v2_boundless(suffix, pat, state)
+            .map(|pos| (pos + from) as u32)
+    }
+}
 impl_naive_wildcard_row_search!(NaiveAvx2Wildcard, naive_find_wildcard_avx2);
 impl_naive_wildcard_row_search!(NaiveAvx2V2Wildcard, naive_find_wildcard_avx2_v2);
 impl_naive_wildcard_row_search!(NaiveAvx512Wildcard, naive_find_wildcard_avx512);
@@ -545,6 +584,29 @@ pub fn naive_find_wildcard_vectorized_v2(
 }
 
 #[inline]
+pub fn naive_find_wildcard_vectorized_v2_boundless(
+    text: &[u8],
+    pattern: &[u8],
+    state: &ByteWildcardState,
+) -> Option<usize> {
+    #[cfg(target_arch = "x86_64")]
+    {
+        return unsafe { x86_wildcard::find_sse2_boundless(text, pattern, state, true) };
+    }
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    {
+        return unsafe { neon_wildcard::find_neon_boundless(text, pattern, state, true) };
+    }
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        all(target_arch = "aarch64", target_feature = "neon")
+    )))]
+    {
+        wildcard_find_scalar_impl_boundless(text, pattern, state, true)
+    }
+}
+
+#[inline]
 pub fn naive_find_wildcard_avx2(
     text: &[u8],
     pattern: &[u8],
@@ -660,6 +722,43 @@ fn wildcard_find_scalar_impl(
     None
 }
 
+#[inline]
+#[cfg(not(any(
+    target_arch = "x86_64",
+    all(target_arch = "aarch64", target_feature = "neon")
+)))]
+fn wildcard_find_scalar_impl_boundless(
+    text: &[u8],
+    pattern: &[u8],
+    state: &ByteWildcardState,
+    use_last: bool,
+) -> Option<usize> {
+    let n = text.len();
+    let m = pattern.len();
+    if m == 0 {
+        return Some(0);
+    }
+    if m > n {
+        return None;
+    }
+    if state.first_fixed().is_none() {
+        return Some(0);
+    }
+
+    let last_start = n - m;
+    let mut pos = 0usize;
+    while pos <= last_start {
+        if byte_wildcard_prefilter_at(text, pos, state, use_last)
+            // SAFETY: `pos <= n - m`, so `pos..pos + m` is in-bounds.
+            && unsafe { bytes_match_wildcard_at_unchecked(text, pos, m, pattern) }
+        {
+            return Some(pos);
+        }
+        pos += 1;
+    }
+    None
+}
+
 #[inline(always)]
 fn byte_wildcard_prefilter_at(
     text: &[u8],
@@ -682,6 +781,20 @@ fn byte_wildcard_prefilter_at(
         }
     }
     true
+}
+
+#[inline(always)]
+unsafe fn bytes_match_wildcard_at_unchecked(
+    text: &[u8],
+    pos: usize,
+    len: usize,
+    pattern: &[u8],
+) -> bool {
+    debug_assert_eq!(len, pattern.len());
+    debug_assert!(pos <= text.len().saturating_sub(len));
+    // SAFETY: caller guarantees `pos..pos + len` is in-bounds.
+    let candidate = unsafe { core::slice::from_raw_parts(text.as_ptr().add(pos), len) };
+    bytes_match_wildcard_same_len(candidate, pattern)
 }
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
@@ -1076,6 +1189,59 @@ mod neon_wildcard {
         scalar_tail(text, pattern, state, use_last, pos, candidate_count)
     }
 
+    pub unsafe fn find_neon_boundless(
+        text: &[u8],
+        pattern: &[u8],
+        state: &ByteWildcardState,
+        use_last: bool,
+    ) -> Option<usize> {
+        let n = text.len();
+        let m = pattern.len();
+        if m == 0 {
+            return Some(0);
+        }
+        if m > n {
+            return None;
+        }
+        let Some((first_off, first_byte)) = state.first_fixed() else {
+            return Some(0);
+        };
+        let first_vec = unsafe { vdupq_n_u8(first_byte) };
+        let last_filter = if use_last {
+            match state.last_fixed() {
+                Some(last) if Some(last) != state.first_fixed() => {
+                    Some((last.0, unsafe { vdupq_n_u8(last.1) }))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let candidate_count = n - m + 1;
+        let mut pos = 0usize;
+        while pos + 16 <= candidate_count {
+            let first_chunk = unsafe { vld1q_u8(text.as_ptr().add(pos + first_off)) };
+            let mut cmp = unsafe { vceqq_u8(first_chunk, first_vec) };
+            if let Some((last_off, last_vec)) = last_filter {
+                let last_chunk = unsafe { vld1q_u8(text.as_ptr().add(pos + last_off)) };
+                cmp = unsafe { vandq_u8(cmp, vceqq_u8(last_chunk, last_vec)) };
+            }
+            let mut lanes = [0u8; 16];
+            unsafe { vst1q_u8(lanes.as_mut_ptr(), cmp) };
+            for (lane, &value) in lanes.iter().enumerate() {
+                if value == 0xFF {
+                    let cand = pos + lane;
+                    // SAFETY: vector loop guarantees `cand < candidate_count`.
+                    if unsafe { bytes_match_wildcard_at_unchecked(text, cand, m, pattern) } {
+                        return Some(cand);
+                    }
+                }
+            }
+            pos += 16;
+        }
+        scalar_tail_boundless(text, pattern, state, use_last, pos, candidate_count)
+    }
+
     fn scalar_tail(
         text: &[u8],
         pattern: &[u8],
@@ -1091,6 +1257,30 @@ mod neon_wildcard {
         while pos <= last_start {
             if byte_wildcard_prefilter_at(text, pos, state, use_last)
                 && bytes_match_wildcard_same_len(&text[pos..pos + pattern.len()], pattern)
+            {
+                return Some(pos);
+            }
+            pos += 1;
+        }
+        None
+    }
+
+    fn scalar_tail_boundless(
+        text: &[u8],
+        pattern: &[u8],
+        state: &ByteWildcardState,
+        use_last: bool,
+        mut pos: usize,
+        candidate_count: usize,
+    ) -> Option<usize> {
+        if candidate_count == 0 {
+            return None;
+        }
+        let last_start = candidate_count - 1;
+        while pos <= last_start {
+            if byte_wildcard_prefilter_at(text, pos, state, use_last)
+                // SAFETY: `pos < candidate_count == n - m + 1`.
+                && unsafe { bytes_match_wildcard_at_unchecked(text, pos, pattern.len(), pattern) }
             {
                 return Some(pos);
             }
@@ -1156,6 +1346,61 @@ mod x86_wildcard {
             pos += 16;
         }
         scalar_tail(text, pattern, state, use_last, pos, candidate_count)
+    }
+
+    #[target_feature(enable = "sse2")]
+    pub unsafe fn find_sse2_boundless(
+        text: &[u8],
+        pattern: &[u8],
+        state: &ByteWildcardState,
+        use_last: bool,
+    ) -> Option<usize> {
+        let n = text.len();
+        let m = pattern.len();
+        if m == 0 {
+            return Some(0);
+        }
+        if m > n {
+            return None;
+        }
+        let Some((first_off, first_byte)) = state.first_fixed() else {
+            return Some(0);
+        };
+        let first_vec = _mm_set1_epi8(first_byte as i8);
+        let last_filter = if use_last {
+            match state.last_fixed() {
+                Some(last) if Some(last) != state.first_fixed() => {
+                    Some((last.0, _mm_set1_epi8(last.1 as i8)))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let candidate_count = n - m + 1;
+        let mut pos = 0usize;
+        while pos + 16 <= candidate_count {
+            let first_chunk =
+                unsafe { _mm_loadu_si128(text.as_ptr().add(pos + first_off).cast::<__m128i>()) };
+            let mut mask = _mm_movemask_epi8(_mm_cmpeq_epi8(first_chunk, first_vec)) as u32;
+            if let Some((last_off, last_vec)) = last_filter {
+                let last_chunk =
+                    unsafe { _mm_loadu_si128(text.as_ptr().add(pos + last_off).cast::<__m128i>()) };
+                mask &= _mm_movemask_epi8(_mm_cmpeq_epi8(last_chunk, last_vec)) as u32;
+            }
+            while mask != 0 {
+                let lane = mask.trailing_zeros() as usize;
+                let cand = pos + lane;
+                // SAFETY: vector loop guarantees `cand < candidate_count`, so
+                // `cand..cand + m` is in-bounds.
+                if unsafe { bytes_match_wildcard_at_unchecked(text, cand, m, pattern) } {
+                    return Some(cand);
+                }
+                mask &= mask - 1;
+            }
+            pos += 16;
+        }
+        scalar_tail_boundless(text, pattern, state, use_last, pos, candidate_count)
     }
 
     #[target_feature(enable = "avx2")]
@@ -1283,6 +1528,31 @@ mod x86_wildcard {
         while pos <= last_start {
             if byte_wildcard_prefilter_at(text, pos, state, use_last)
                 && bytes_match_wildcard_same_len(&text[pos..pos + pattern.len()], pattern)
+            {
+                return Some(pos);
+            }
+            pos += 1;
+        }
+        None
+    }
+
+    #[inline]
+    fn scalar_tail_boundless(
+        text: &[u8],
+        pattern: &[u8],
+        state: &ByteWildcardState,
+        use_last: bool,
+        mut pos: usize,
+        candidate_count: usize,
+    ) -> Option<usize> {
+        if candidate_count == 0 {
+            return None;
+        }
+        let last_start = candidate_count - 1;
+        while pos <= last_start {
+            if byte_wildcard_prefilter_at(text, pos, state, use_last)
+                // SAFETY: `pos < candidate_count == n - m + 1`.
+                && unsafe { bytes_match_wildcard_at_unchecked(text, pos, pattern.len(), pattern) }
             {
                 return Some(pos);
             }

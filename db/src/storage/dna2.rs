@@ -231,7 +231,7 @@ impl<'a> Dna2Row<'a> {
 
     #[inline]
     pub fn base_code_at(&self, local_base_idx: u32) -> u8 {
-        assert!(local_base_idx < self.len, "base index out of bounds");
+        debug_assert!(local_base_idx < self.len, "base index out of bounds");
         get_base_code(self.payload, self.start_base + u64::from(local_base_idx))
     }
 

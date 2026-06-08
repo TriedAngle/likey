@@ -8,6 +8,7 @@
 pub mod utf8_shared;
 
 pub mod bm;
+pub mod bm_boundless;
 pub mod dna2;
 pub mod dna2_two_way;
 pub mod fftstr;
@@ -23,6 +24,7 @@ pub mod two_way2;
 pub mod two_way3;
 
 pub use bm::{BM, BMState, bm_find};
+pub use bm_boundless::{BMBoundless, BMBoundlessState, bm_boundless_find};
 pub use dna2::{
     DNA_WILDCARD, Dna2, Dna2Needle, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedChunk,
     Dna2PackedNeedle, Dna2PackedNeon, Dna2PackedScalar, Dna2PackedState, Dna2PackedVectorized,
@@ -38,13 +40,14 @@ pub use naive::{
     Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
     NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
     NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
-    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
-    naive_find, naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512,
-    naive_find_avx512_v2, naive_find_mixed, naive_find_scalar, naive_find_vectorized,
-    naive_find_vectorized_v2, naive_find_wildcard, naive_find_wildcard_auto,
-    naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512,
-    naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
-    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
+    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedV2WildcardBoundless,
+    NaiveVectorizedWildcard, NaiveWildcard, naive_find, naive_find_auto, naive_find_avx2,
+    naive_find_avx2_v2, naive_find_avx512, naive_find_avx512_v2, naive_find_mixed,
+    naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2, naive_find_wildcard,
+    naive_find_wildcard_auto, naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2,
+    naive_find_wildcard_avx512, naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed,
+    naive_find_wildcard_scalar, naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
+    naive_find_wildcard_vectorized_v2_boundless,
 };
 pub use pair_horspool::{PairHorspool, PairHorspoolState, pair_horspool_find};
 pub use std_search::StdSearch;
@@ -97,6 +100,7 @@ mod tests {
         utf8_naive_auto_suite => NaiveAuto,
         utf8_naive_mixed_suite => NaiveMixed,
         utf8_bm_suite => BM,
+        utf8_bm_boundless_suite => BMBoundless,
         utf8_two_way_suite => TwoWay,
         utf8_two_way2_suite => TwoWay2,
         utf8_two_way3_suite => TwoWay3,
@@ -121,6 +125,7 @@ mod tests {
         utf8_naive_wildcard_scalar_suite => NaiveScalarWildcard,
         utf8_naive_wildcard_vectorized_suite => NaiveVectorizedWildcard,
         utf8_naive_wildcard_vectorized_v2_suite => NaiveVectorizedV2Wildcard,
+        utf8_naive_wildcard_vectorized_v2_boundless_suite => NaiveVectorizedV2WildcardBoundless,
         utf8_naive_wildcard_avx2_suite => NaiveAvx2Wildcard,
         utf8_naive_wildcard_avx2_v2_suite => NaiveAvx2V2Wildcard,
         utf8_naive_wildcard_avx512_suite => NaiveAvx512Wildcard,

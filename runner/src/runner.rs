@@ -4,15 +4,16 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use db::{
-    BM, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512, Dna2PackedNeon,
-    Dna2PackedScalar, Dna2PackedVectorized, Dna2TwoWay, FftStr0, FftStr1, FftstrV2, FmIndex,
-    FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher, HasTrigramIndex,
-    LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2,
-    NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard,
-    NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard,
-    NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard,
-    NaiveWildcard, PairHorspool, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch,
-    TrigramIndex, TwoWay, TwoWay2, TwoWay3, Utf8Column, Utf8Kmp, execute_like,
+    BM, BMBoundless, Column, CountSink, Dna2, Dna2Column, Dna2PackedAvx2, Dna2PackedAvx512,
+    Dna2PackedNeon, Dna2PackedScalar, Dna2PackedVectorized, Dna2TwoWay, FftStr0, FftStr1, FftstrV2,
+    FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FsstColumn, FullScan, GenericMatcher,
+    HasTrigramIndex, LibcMemmem, LikePattern, Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2,
+    NaiveAvx2V2, NaiveAvx2V2Wildcard, NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2,
+    NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
+    NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
+    NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard, NaiveWildcard, PairHorspool,
+    QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex, TwoWay, TwoWay2,
+    TwoWay3, Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -392,6 +393,17 @@ where
                 sample_utf8_row,
             )
         }
+        AlgorithmKind::NaiveVectorizedV2WildcardBoundless => {
+            run_algorithm::<Utf8Column<'db>, NaiveVectorizedV2WildcardBoundless, M, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_utf8_row,
+            )
+        }
         AlgorithmKind::NaiveAvx2Wildcard => {
             run_algorithm::<Utf8Column<'db>, NaiveAvx2Wildcard, M, _>(
                 column,
@@ -459,6 +471,15 @@ where
             )
         }
         AlgorithmKind::BM => run_algorithm::<Utf8Column<'db>, BM, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_utf8_row,
+        ),
+        AlgorithmKind::BMBoundless => run_algorithm::<Utf8Column<'db>, BMBoundless, M, _>(
             column,
             algorithm,
             indexes,
@@ -718,6 +739,17 @@ where
                 sample_fsst_row,
             )
         }
+        AlgorithmKind::NaiveVectorizedV2WildcardBoundless => {
+            run_algorithm::<FsstColumn<'db>, NaiveVectorizedV2WildcardBoundless, M, _>(
+                column,
+                algorithm,
+                indexes,
+                config,
+                out,
+                profile_out,
+                sample_fsst_row,
+            )
+        }
         AlgorithmKind::NaiveAvx2Wildcard => {
             run_algorithm::<FsstColumn<'db>, NaiveAvx2Wildcard, M, _>(
                 column,
@@ -785,6 +817,15 @@ where
             )
         }
         AlgorithmKind::BM => run_algorithm::<FsstColumn<'db>, BM, M, _>(
+            column,
+            algorithm,
+            indexes,
+            config,
+            out,
+            profile_out,
+            sample_fsst_row,
+        ),
+        AlgorithmKind::BMBoundless => run_algorithm::<FsstColumn<'db>, BMBoundless, M, _>(
             column,
             algorithm,
             indexes,

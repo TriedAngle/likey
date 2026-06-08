@@ -243,6 +243,7 @@ pub enum AlgorithmKind {
     NaiveScalarWildcard,
     NaiveVectorizedWildcard,
     NaiveVectorizedV2Wildcard,
+    NaiveVectorizedV2WildcardBoundless,
     NaiveAvx2Wildcard,
     NaiveAvx2V2Wildcard,
     NaiveAvx512Wildcard,
@@ -250,6 +251,7 @@ pub enum AlgorithmKind {
     NaiveAutoWildcard,
     NaiveMixedWildcard,
     BM,
+    BMBoundless,
     TwoWay,
     TwoWay2,
     TwoWay3,
@@ -268,7 +270,7 @@ pub enum AlgorithmKind {
 }
 
 impl AlgorithmKind {
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 40] = [
         Self::StdSearch,
         Self::Utf8Kmp,
         Self::Naive,
@@ -285,6 +287,7 @@ impl AlgorithmKind {
         Self::NaiveScalarWildcard,
         Self::NaiveVectorizedWildcard,
         Self::NaiveVectorizedV2Wildcard,
+        Self::NaiveVectorizedV2WildcardBoundless,
         Self::NaiveAvx2Wildcard,
         Self::NaiveAvx2V2Wildcard,
         Self::NaiveAvx512Wildcard,
@@ -292,6 +295,7 @@ impl AlgorithmKind {
         Self::NaiveAutoWildcard,
         Self::NaiveMixedWildcard,
         Self::BM,
+        Self::BMBoundless,
         Self::TwoWay,
         Self::TwoWay2,
         Self::TwoWay3,
@@ -327,6 +331,9 @@ impl AlgorithmKind {
             AlgorithmKind::NaiveScalarWildcard => "NaiveScalarWildcard",
             AlgorithmKind::NaiveVectorizedWildcard => "NaiveVectorizedWildcard",
             AlgorithmKind::NaiveVectorizedV2Wildcard => "NaiveVectorizedV2Wildcard",
+            AlgorithmKind::NaiveVectorizedV2WildcardBoundless => {
+                "NaiveVectorizedV2WildcardBoundless"
+            }
             AlgorithmKind::NaiveAvx2Wildcard => "NaiveAvx2Wildcard",
             AlgorithmKind::NaiveAvx2V2Wildcard => "NaiveAvx2V2Wildcard",
             AlgorithmKind::NaiveAvx512Wildcard => "NaiveAvx512Wildcard",
@@ -334,6 +341,7 @@ impl AlgorithmKind {
             AlgorithmKind::NaiveAutoWildcard => "NaiveAutoWildcard",
             AlgorithmKind::NaiveMixedWildcard => "NaiveMixedWildcard",
             AlgorithmKind::BM => "BM",
+            AlgorithmKind::BMBoundless => "BMBoundless",
             AlgorithmKind::TwoWay => "TwoWay",
             AlgorithmKind::TwoWay2 => "TwoWay2",
             AlgorithmKind::TwoWay3 => "TwoWay3",
@@ -485,6 +493,16 @@ mod tests {
             AlgorithmKind::Utf8Kmp
         );
         assert_eq!("BM".parse::<AlgorithmKind>().unwrap(), AlgorithmKind::BM);
+        assert_eq!(
+            "BMBoundless".parse::<AlgorithmKind>().unwrap(),
+            AlgorithmKind::BMBoundless
+        );
+        assert_eq!(
+            "NaiveVectorizedV2WildcardBoundless"
+                .parse::<AlgorithmKind>()
+                .unwrap(),
+            AlgorithmKind::NaiveVectorizedV2WildcardBoundless
+        );
         assert_eq!(
             "TwoWay3".parse::<AlgorithmKind>().unwrap(),
             AlgorithmKind::TwoWay3

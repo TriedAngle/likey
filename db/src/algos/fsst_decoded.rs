@@ -9,19 +9,21 @@ use crate::like::RowLiteralSearch;
 use crate::storage::fsst::{FsstColumn, FsstRow};
 
 use super::bm::{BM, bm_find};
+use super::bm_boundless::{BMBoundless, bm_boundless_find};
 use super::kmp::{Utf8Kmp, kmp_find_from};
 use super::libc_find::{LibcMemmem, memmem_find};
 use super::naive::{
     Naive, NaiveAuto, NaiveAutoWildcard, NaiveAvx2, NaiveAvx2V2, NaiveAvx2V2Wildcard,
     NaiveAvx2Wildcard, NaiveAvx512, NaiveAvx512V2, NaiveAvx512V2Wildcard, NaiveAvx512Wildcard,
     NaiveMixed, NaiveMixedWildcard, NaiveScalar, NaiveScalarWildcard, NaiveVectorized,
-    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedWildcard, NaiveWildcard,
-    naive_find, naive_find_auto, naive_find_avx2, naive_find_avx2_v2, naive_find_avx512,
-    naive_find_avx512_v2, naive_find_mixed, naive_find_scalar, naive_find_vectorized,
-    naive_find_vectorized_v2, naive_find_wildcard, naive_find_wildcard_auto,
-    naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2, naive_find_wildcard_avx512,
-    naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed, naive_find_wildcard_scalar,
-    naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
+    NaiveVectorizedV2, NaiveVectorizedV2Wildcard, NaiveVectorizedV2WildcardBoundless,
+    NaiveVectorizedWildcard, NaiveWildcard, naive_find, naive_find_auto, naive_find_avx2,
+    naive_find_avx2_v2, naive_find_avx512, naive_find_avx512_v2, naive_find_mixed,
+    naive_find_scalar, naive_find_vectorized, naive_find_vectorized_v2, naive_find_wildcard,
+    naive_find_wildcard_auto, naive_find_wildcard_avx2, naive_find_wildcard_avx2_v2,
+    naive_find_wildcard_avx512, naive_find_wildcard_avx512_v2, naive_find_wildcard_mixed,
+    naive_find_wildcard_scalar, naive_find_wildcard_vectorized, naive_find_wildcard_vectorized_v2,
+    naive_find_wildcard_vectorized_v2_boundless,
 };
 use super::pair_horspool::{PairHorspool, pair_horspool_find};
 use super::std_search::StdSearch;
@@ -245,6 +247,7 @@ impl_fsst_exact_no_state!(NaiveAuto, naive_find_auto);
 impl_fsst_exact_no_state!(NaiveMixed, naive_find_mixed);
 
 impl_fsst_exact_with_state!(BM, bm_find);
+impl_fsst_exact_with_state!(BMBoundless, bm_boundless_find);
 impl_fsst_exact_with_state!(TwoWay, two_way_find);
 impl_fsst_exact_with_state!(TwoWay2, two_way2_find);
 impl_fsst_exact_with_state!(TwoWay3, two_way3_find);
@@ -255,6 +258,10 @@ impl_fsst_wildcard!(NaiveWildcard, naive_find_wildcard);
 impl_fsst_wildcard!(NaiveScalarWildcard, naive_find_wildcard_scalar);
 impl_fsst_wildcard!(NaiveVectorizedWildcard, naive_find_wildcard_vectorized);
 impl_fsst_wildcard!(NaiveVectorizedV2Wildcard, naive_find_wildcard_vectorized_v2);
+impl_fsst_wildcard!(
+    NaiveVectorizedV2WildcardBoundless,
+    naive_find_wildcard_vectorized_v2_boundless
+);
 impl_fsst_wildcard!(NaiveAvx2Wildcard, naive_find_wildcard_avx2);
 impl_fsst_wildcard!(NaiveAvx2V2Wildcard, naive_find_wildcard_avx2_v2);
 impl_fsst_wildcard!(NaiveAvx512Wildcard, naive_find_wildcard_avx512);
