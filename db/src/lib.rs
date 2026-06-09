@@ -1,8 +1,8 @@
 //! Tiny dense string database base implementation for LIKE/search experiments.
 //!
 //! This crate implements storage, typed table/database views, candidate
-//! iteration, result sinks, a small LIKE verifier module, and baseline FM/trigram
-//! indexes that plug into the candidate API.
+//! iteration, result sinks, a small LIKE verifier module, and baseline FM/qgram/
+//! trigram indexes that plug into the candidate API.
 
 pub mod algos;
 mod arena;
@@ -38,9 +38,9 @@ pub use crate::arena::{ArenaBuilder, ArenaError, FrozenArena, Pod, RelSlice};
 pub use crate::db::{Db, DbBuilder, DbError, TableBuilder, TableDesc, TableKind, TableRef};
 pub use crate::index::{
     BuildIndex, Dna2FixedTrigramIndex, FmIndex, FmIndexBuildPhase, FmIndexBuildProgress,
-    FmIndexError, FmProbe, FmProbeOutcome, IndexProbe, PrefixBtreeIndex, PrefixBtreeProbe,
-    TrigramIndex, TrigramProbe, TrigramProbeOutcome, dna2_trigram_key, intersect_sorted_rowids,
-    trigram_key, trigram_keys,
+    FmIndexError, FmProbe, FmProbeOutcome, IndexProbe, PrefixBtreeIndex, PrefixBtreeProbe, QGRAM_Q,
+    QgramIndex, QgramProbe, QgramProbeOutcome, TrigramIndex, TrigramProbe, TrigramProbeOutcome,
+    dna2_trigram_key, intersect_sorted_rowids, qgram_key, qgram_keys, trigram_key, trigram_keys,
 };
 pub use crate::like::{
     AdaptiveGenericMatcher, GenericMatcher, LikeCompileError, LikeCompileOptions, LikePattern,

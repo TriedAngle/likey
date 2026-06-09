@@ -10,8 +10,8 @@ Aggregate tables use per-pattern `median_execute_ns` from the runner summary. `g
 
 | Dataset | Source config | Storage | Rows loaded | Symbols loaded | Pattern config |
 |---|---|---|---:|---:|---|
-| DNA | `benchmarks/dna/data_gencode_dna_utf8_dna2.csv` | `utf8` | 54,107 | 100,000,000 | `benchmarks/dna/patterns_gencode_exact_vs_underscore.csv` |
-| Quotes | `benchmarks/quotes/data_quotes_utf8.csv` | `utf8` | 75,966 | 10,741,913 | `benchmarks/quotes/patterns_quotes_exact_vs_underscore.csv` |
+| DNA | `benchmarks/dna/data_gencode_dna_utf8_dna2.csv` | `utf8` | 54,107 | 100,000,000 | `benchmarks/dna/exact-vs-underscore/patterns.csv` |
+| Quotes | `benchmarks/quotes/data_quotes_utf8.csv` | `utf8` | 75,966 | 10,741,913 | `benchmarks/quotes/exact-vs-underscore/patterns.csv` |
 
 ## Algorithms
 

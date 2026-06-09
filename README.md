@@ -124,7 +124,7 @@ Indexes   indexes.csv
 
 Use those file names to swap the data, algorithm, and pattern inputs in the direct or wrapper commands above.
 
-If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.csv` supports `none`/`full-scan`, `trigram`, and `fm`.
+If `--indexes-csv` is omitted, the runner benchmarks full scan only. `indexes.csv` supports `none`/`full-scan`, `prefix-btree`, `qgram`, `trigram`, and `fm`.
 
 Use `--generic-matcher static|adaptive|recursive` to choose the generic LIKE matcher. The default is `static`. A comma-separated list such as `--generic-matcher static,adaptive,recursive` runs multiple matcher engines in one invocation; loaded columns and requested indexes are built once per storage and reused across the selected matchers.
 

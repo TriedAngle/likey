@@ -183,6 +183,7 @@ pub enum IndexKind {
     FullScan,
     Fm,
     PrefixBtree,
+    Qgram,
     Trigram,
 }
 
@@ -192,6 +193,7 @@ impl IndexKind {
             IndexKind::FullScan => "full-scan",
             IndexKind::Fm => "fm",
             IndexKind::PrefixBtree => "prefix-btree",
+            IndexKind::Qgram => "qgram",
             IndexKind::Trigram => "trigram",
         }
     }
@@ -207,9 +209,10 @@ impl FromStr for IndexKind {
             "prefix" | "prefixbtree" | "prefix-btree" | "prefix_btree" | "btree" => {
                 Ok(Self::PrefixBtree)
             }
+            "qgram" | "q-gram" | "q_gram" | "qgram15" | "q-gram15" | "q_gram15" => Ok(Self::Qgram),
             "trigram" | "tri" => Ok(Self::Trigram),
             other => bail!(
-                "unknown index {other:?}; supported: none/full-scan, fm, prefix-btree, trigram"
+                "unknown index {other:?}; supported: none/full-scan, fm, prefix-btree, qgram, trigram"
             ),
         }
     }

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 from pathlib import Path
 
 
@@ -28,12 +29,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--patterns-csv",
         type=Path,
-        default=Path("benchmarks/fftstr/patterns_abab_wildcards.csv"),
+        default=Path("benchmarks/fftstr/abab-wildcards/patterns.csv"),
     )
     parser.add_argument(
         "--manifest-csv",
         type=Path,
-        default=Path("benchmarks/fftstr/data_fftstr_abab.csv"),
+        default=Path("benchmarks/fftstr/abab-wildcards/data.csv"),
     )
     return parser.parse_args()
 
@@ -86,7 +87,7 @@ def write_patterns(path: Path, step: int, max_len: int) -> None:
 
 def write_manifest(path: Path, data_csv: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    rel_data = Path("../../") / data_csv
+    rel_data = Path(os.path.relpath(data_csv, path.parent))
     with path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(

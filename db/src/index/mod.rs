@@ -8,6 +8,7 @@
 pub mod dna2_trigram;
 pub mod fm;
 pub mod prefix_btree;
+pub mod qgram;
 pub mod trigram;
 
 pub use dna2_trigram::{Dna2FixedTrigramIndex, dna2_trigram_key};
@@ -15,6 +16,7 @@ pub use fm::{
     FmIndex, FmIndexBuildPhase, FmIndexBuildProgress, FmIndexError, FmProbe, FmProbeOutcome,
 };
 pub use prefix_btree::{PrefixBtreeIndex, PrefixBtreeProbe};
+pub use qgram::{QGRAM_Q, QgramIndex, QgramProbe, QgramProbeOutcome, qgram_key, qgram_keys};
 pub use trigram::{TrigramIndex, TrigramProbe, TrigramProbeOutcome, trigram_key, trigram_keys};
 
 use crate::RowId;

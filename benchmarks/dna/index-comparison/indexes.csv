@@ -1,5 +1,6 @@
 index,enabled
 none,true
 prefix-btree,true
+qgram,true
 trigram,true
 fm,true

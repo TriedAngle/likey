@@ -7,10 +7,10 @@ Run the exact-vs-underscore-heavy algorithm comparison on GENCODE human transcri
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/dna/data_gencode_dna_utf8_dna2.csv \
-  --algorithms-csv benchmarks/dna/algorithms_dna_long_patterns.csv \
+  --algorithms-csv benchmarks/dna/exact-vs-underscore/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/dna/patterns_gencode_exact_vs_underscore.csv \
-  --indexes-csv benchmarks/dna/indexes.csv \
+  --patterns-csv benchmarks/dna/exact-vs-underscore/patterns.csv \
+  --indexes-csv benchmarks/dna/exact-vs-underscore/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -23,10 +23,10 @@ Run the matcher-engine comparison with static, adaptive, and recursive matchers 
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/dna/data_gencode_dna_utf8_dna2.csv \
-  --algorithms-csv benchmarks/dna/algorithms_matchers.csv \
+  --algorithms-csv benchmarks/dna/matcher-comparison/algorithms.csv \
   --generic-matcher static,adaptive,recursive \
-  --patterns-csv benchmarks/dna/patterns_gencode_matchers.csv \
-  --indexes-csv benchmarks/dna/indexes.csv \
+  --patterns-csv benchmarks/dna/matcher-comparison/patterns.csv \
+  --indexes-csv benchmarks/dna/matcher-comparison/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -41,10 +41,10 @@ Run the index comparison on prefix/equality-friendly DNA patterns across all con
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/dna/data_gencode_dna_utf8_dna2.csv \
-  --algorithms-csv benchmarks/dna/algorithms_index.csv \
+  --algorithms-csv benchmarks/dna/index-comparison/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/dna/patterns_gencode_indexes.csv \
-  --indexes-csv benchmarks/dna/indexes.csv \
+  --patterns-csv benchmarks/dna/index-comparison/patterns.csv \
+  --indexes-csv benchmarks/dna/index-comparison/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -59,10 +59,10 @@ Run the exact-vs-underscore-heavy algorithm comparison on the quotes dataset wit
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/quotes/data_quotes_utf8.csv \
-  --algorithms-csv benchmarks/quotes/algorithms_quotes_long_patterns.csv \
+  --algorithms-csv benchmarks/quotes/exact-vs-underscore/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/quotes/patterns_quotes_exact_vs_underscore.csv \
-  --indexes-csv benchmarks/quotes/indexes.csv \
+  --patterns-csv benchmarks/quotes/exact-vs-underscore/patterns.csv \
+  --indexes-csv benchmarks/quotes/exact-vs-underscore/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -75,10 +75,10 @@ Run the quote-specific algorithm stress cases for BM, TwoWay, TwoWay2, TwoWay3, 
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/quotes/data_quotes_utf8.csv \
-  --algorithms-csv benchmarks/quotes/algorithms_quotes_long_patterns.csv \
+  --algorithms-csv benchmarks/quotes/algorithm-cases/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/quotes/patterns_quotes_algorithm_cases.csv \
-  --indexes-csv benchmarks/quotes/indexes.csv \
+  --patterns-csv benchmarks/quotes/algorithm-cases/patterns.csv \
+  --indexes-csv benchmarks/quotes/algorithm-cases/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -91,10 +91,10 @@ Run the matcher-engine comparison with `StdSearch`, `NaiveVectorizedV2`, and `Na
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/quotes/data_quotes_utf8.csv \
-  --algorithms-csv benchmarks/quotes/algorithms_matchers.csv \
+  --algorithms-csv benchmarks/quotes/matcher-comparison/algorithms.csv \
   --generic-matcher static,adaptive,recursive \
-  --patterns-csv benchmarks/quotes/patterns_quotes_matchers.csv \
-  --indexes-csv benchmarks/quotes/indexes.csv \
+  --patterns-csv benchmarks/quotes/matcher-comparison/patterns.csv \
+  --indexes-csv benchmarks/quotes/matcher-comparison/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -109,10 +109,10 @@ Run the index comparison on prefix/equality-friendly quote patterns across all c
 ```bash
 cargo run -p runner --bin runner --release -- \
   --data-csv benchmarks/quotes/data_quotes_utf8.csv \
-  --algorithms-csv benchmarks/quotes/algorithms_index.csv \
+  --algorithms-csv benchmarks/quotes/index-comparison/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/quotes/patterns_quotes_indexes.csv \
-  --indexes-csv benchmarks/quotes/indexes.csv \
+  --patterns-csv benchmarks/quotes/index-comparison/patterns.csv \
+  --indexes-csv benchmarks/quotes/index-comparison/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
@@ -132,11 +132,11 @@ Run the benchmark comparing scalar/SIMD literal baselines, `TwoWay` variants, gl
 
 ```bash
 cargo run -p runner --bin runner --release -- \
-  --data-csv benchmarks/fftstr/data_fftstr_abab.csv \
-  --algorithms-csv benchmarks/fftstr/algorithms_twoway2_fftstr.csv \
+  --data-csv benchmarks/fftstr/abab-wildcards/data.csv \
+  --algorithms-csv benchmarks/fftstr/abab-wildcards/algorithms.csv \
   --generic-matcher static \
-  --patterns-csv benchmarks/fftstr/patterns_abab_wildcards.csv \
-  --indexes-csv benchmarks/fftstr/indexes.csv \
+  --patterns-csv benchmarks/fftstr/abab-wildcards/patterns.csv \
+  --indexes-csv benchmarks/fftstr/abab-wildcards/indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \

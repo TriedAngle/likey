@@ -12,8 +12,9 @@ use db::{
     NaiveAvx512V2Wildcard, NaiveAvx512Wildcard, NaiveMixed, NaiveMixedWildcard, NaiveScalar,
     NaiveScalarWildcard, NaiveVectorized, NaiveVectorizedV2, NaiveVectorizedV2Wildcard,
     NaiveVectorizedV2WildcardBoundless, NaiveVectorizedWildcard, NaiveWildcard, PairHorspool,
-    PrefixBtreeIndex, QueryStats, RowId, RowLiteralSearch, RowVerifier, StdSearch, TrigramIndex,
-    TrigramProbeOutcome, TwoWay, TwoWay2, TwoWay3, Utf8Column, Utf8Kmp, execute_like,
+    PrefixBtreeIndex, QGRAM_Q, QgramIndex, QgramProbeOutcome, QueryStats, RowId, RowLiteralSearch,
+    RowVerifier, StdSearch, TrigramIndex, TrigramProbeOutcome, TwoWay, TwoWay2, TwoWay3,
+    Utf8Column, Utf8Kmp, execute_like,
 };
 use serde::Serialize;
 
@@ -140,6 +141,7 @@ where
 {
     pub fm: Option<BuiltIndex<FmIndex>>,
     pub prefix_btree: Option<BuiltIndex<PrefixBtreeIndex<C>>>,
+    pub qgram: Option<BuiltIndex<QgramIndex<C>>>,
     pub trigram: Option<BuiltIndex<TrigramIndex<C>>>,
 }
 
@@ -151,6 +153,7 @@ where
         Self {
             fm: None,
             prefix_btree: None,
+            qgram: None,
             trigram: None,
         }
     }
@@ -183,6 +186,15 @@ where
         let start = Instant::now();
         let index = TrigramIndex::build(column);
         out.trigram = Some(BuiltIndex {
+            index,
+            build_ns: start.elapsed().as_nanos(),
+        });
+    }
+
+    if requested.iter().any(|kind| *kind == IndexKind::Qgram) {
+        let start = Instant::now();
+        let index = QgramIndex::build(column);
+        out.qgram = Some(BuiltIndex {
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -1270,6 +1282,81 @@ where
                 )
             }
         }
+        IndexKind::Qgram => {
+            if let Some(qgram) = indexes.qgram.as_ref() {
+                if let Some(literal) = pattern.longest_fixed_source_fragment() {
+                    let literal = literal.as_bytes();
+                    if literal.len() >= QGRAM_Q {
+                        let prepare_start = Instant::now();
+                        let probe = qgram.index.probe_literal_selective(literal, batch_rows);
+                        let candidate_prepare_ns = prepare_start.elapsed().as_nanos();
+                        match probe {
+                            Some(QgramProbeOutcome::Probe(mut probe)) => {
+                                let mut sink = CountSink::default();
+                                let verifier = pattern.verifier::<M>();
+                                let execute_start = Instant::now();
+                                let stats = execute_like(column, &mut probe, &verifier, &mut sink);
+                                let execute_ns = execute_start.elapsed().as_nanos();
+                                ExecuteOnceResult {
+                                    stats,
+                                    count: sink.count,
+                                    actual_index: "qgram",
+                                    fallback_reason: "",
+                                    candidate_prepare_ns,
+                                    execute_ns,
+                                }
+                            }
+                            Some(QgramProbeOutcome::TooBroad) => {
+                                let mut res = execute_full_scan::<C, A, M>(
+                                    column,
+                                    pattern,
+                                    batch_rows,
+                                    "too-broad",
+                                    "full-scan",
+                                );
+                                res.candidate_prepare_ns += candidate_prepare_ns;
+                                res
+                            }
+                            None => {
+                                let mut res = execute_full_scan::<C, A, M>(
+                                    column,
+                                    pattern,
+                                    batch_rows,
+                                    "literal-not-valid-for-qgram",
+                                    "full-scan",
+                                );
+                                res.candidate_prepare_ns += candidate_prepare_ns;
+                                res
+                            }
+                        }
+                    } else {
+                        execute_full_scan::<C, A, M>(
+                            column,
+                            pattern,
+                            batch_rows,
+                            "literal-shorter-than-qgram",
+                            "full-scan",
+                        )
+                    }
+                } else {
+                    execute_full_scan::<C, A, M>(
+                        column,
+                        pattern,
+                        batch_rows,
+                        "no-indexable-literal",
+                        "full-scan",
+                    )
+                }
+            } else {
+                execute_full_scan::<C, A, M>(
+                    column,
+                    pattern,
+                    batch_rows,
+                    "qgram-not-built",
+                    "full-scan",
+                )
+            }
+        }
         IndexKind::Trigram => {
             if let Some(trigram) = indexes.trigram.as_ref() {
                 if let Some(literal) = pattern.longest_fixed_source_fragment() {
@@ -1386,6 +1473,7 @@ where
         IndexKind::FullScan => 0,
         IndexKind::Fm => indexes.fm.as_ref().map_or(0, |idx| idx.build_ns),
         IndexKind::PrefixBtree => indexes.prefix_btree.as_ref().map_or(0, |idx| idx.build_ns),
+        IndexKind::Qgram => indexes.qgram.as_ref().map_or(0, |idx| idx.build_ns),
         IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.build_ns),
     }
 }
