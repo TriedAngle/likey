@@ -1,0 +1,19 @@
+name: movie_companies_note
+rows: 2000
+datasets: job_movie_companies_note
+columns: movie_companies.note
+storages: utf8
+generic_matchers: static
+algorithms: LibcMemmem, NaiveAutoWildcard, PairHorspool, StdSearch, TwoWay2
+indexes: fm, full-scan, prefix-btree, qgram, trigram
+patterns: contains_1994, contains_2006, contains_2007, contains_200_wild, contains_blu_ray, contains_co_production, contains_france, contains_japan, contains_presents, contains_theatrical, contains_usa, contains_vhs, contains_worldwide, not_contains_mgm_as, not_contains_tv, not_contains_usa
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

@@ -1,0 +1,2 @@
+name,path,type,storage,column,key_column,value_column,enabled
+job_title_title,../../data/job/title__title.csv,job-csv,utf8,title.title,key,value,true

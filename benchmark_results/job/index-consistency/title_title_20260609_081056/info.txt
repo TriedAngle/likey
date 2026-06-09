@@ -1,0 +1,19 @@
+name: title_title
+rows: 2250
+datasets: job_title_title
+columns: title.title
+storages: utf8
+generic_matchers: static
+algorithms: LibcMemmem, NaiveAutoWildcard, PairHorspool, StdSearch, TwoWay2
+indexes: fm, full-scan, prefix-btree, qgram, trigram
+patterns: contains_champion, contains_freddy, contains_jason, contains_kung_fu_panda, contains_loser, contains_money, contains_mord, contains_movie, contains_murder_lower, contains_murder_upper, prefix_birdemic, prefix_champion, prefix_dragon_ball_z, prefix_kung_fu_panda, prefix_loser, prefix_one_piece, prefix_saw, prefix_vampire
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

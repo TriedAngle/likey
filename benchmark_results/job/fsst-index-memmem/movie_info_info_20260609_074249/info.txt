@@ -1,0 +1,19 @@
+name: movie_info_info
+rows: 400
+datasets: job_movie_info_info
+columns: movie_info.info
+storages: fsst, utf8
+generic_matchers: static
+algorithms: LibcMemmem
+indexes: fm, full-scan, prefix-btree, qgram, trigram
+patterns: prefix_japan_200, prefix_japan_2007, prefix_japan_201, prefix_usa_200, prefix_usa_2008, prefix_usa_201, prefix_usa_space_199, prefix_usa_space_200
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

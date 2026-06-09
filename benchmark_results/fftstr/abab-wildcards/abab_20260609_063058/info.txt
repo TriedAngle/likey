@@ -1,0 +1,19 @@
+name: abab
+rows: 5850
+datasets: fftstr_abab_512_x1000
+columns: value
+storages: utf8
+generic_matchers: static
+algorithms: FftStr1, FftstrV2, LibcMemmem, NaiveVectorizedV2Wildcard, PairHorspool, StdSearch, TwoWay, TwoWay2, TwoWay3
+indexes: full-scan
+patterns: exact_len002_no_wildcard, wild_len003, wild_len004, wild_len008, wild_len012, wild_len016, wild_len020, wild_len024, wild_len028, wild_len032, wild_len036, wild_len040, wild_len044, wild_len048, wild_len052, wild_len056, wild_len060, wild_len064, wild_len068, wild_len072, wild_len076, wild_len080, wild_len084, wild_len088, wild_len092, wild_len096, wild_len100, wild_len104, wild_len108, wild_len112, wild_len116, wild_len120, wild_len124, wild_len128, wild_len132, wild_len136, wild_len140, wild_len144, wild_len148, wild_len152, wild_len156, wild_len160, wild_len164, wild_len168, wild_len172, wild_len176, wild_len180, wild_len184, wild_len188, wild_len192, wild_len196, wild_len200, wild_len204, wild_len208, wild_len212, wild_len216, wild_len220, wild_len224, wild_len228, wild_len232, wild_len236, wild_len240, wild_len244, wild_len248, wild_len252, wild_len256, wild_len260, wild_len264, wild_len268, wild_len272, wild_len276, wild_len280, wild_len284, wild_len288, wild_len292, wild_len296, wild_len300, wild_len304, wild_len308, wild_len312, wild_len316, wild_len320, wild_len324, wild_len328, wild_len332, wild_len336, wild_len340, wild_len344, wild_len348, wild_len352, wild_len356, wild_len360, wild_len364, wild_len368, wild_len372, wild_len376, wild_len380, wild_len384, wild_len388, wild_len392, wild_len396, wild_len400, wild_len404, wild_len408, wild_len412, wild_len416, wild_len420, wild_len424, wild_len428, wild_len432, wild_len436, wild_len440, wild_len444, wild_len448, wild_len452, wild_len456, wild_len460, wild_len464, wild_len468, wild_len472, wild_len476, wild_len480, wild_len484, wild_len488, wild_len492, wild_len496, wild_len500, wild_len504, wild_len508, wild_len512
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

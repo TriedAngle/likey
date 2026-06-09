@@ -1,0 +1,17 @@
+name,pattern,enabled
+contains_1994,%(1994)%,true
+contains_200_wild,%(200%)%,true
+contains_2006,%(2006)%,true
+contains_2007,%(2007)%,true
+contains_blu_ray,%(Blu-ray)%,true
+contains_france,%(France)%,true
+contains_japan,%(Japan)%,true
+contains_usa,%(USA)%,true
+contains_vhs,%(VHS)%,true
+contains_co_production,%(co-production)%,true
+contains_presents,%(presents)%,true
+contains_theatrical,%(theatrical)%,true
+contains_worldwide,%(worldwide)%,true
+not_contains_tv,%(TV)%,true
+not_contains_usa,%(USA)%,true
+not_contains_mgm_as,%(as Metro-Goldwyn-Mayer Pictures)%,true

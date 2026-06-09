@@ -1,0 +1,4 @@
+name,pattern,enabled
+contains_producer,%(producer)%,true
+contains_uncredited,%(uncredited)%,true
+contains_voice,%(voice)%,true

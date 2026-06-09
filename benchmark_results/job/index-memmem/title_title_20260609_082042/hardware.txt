@@ -1,0 +1,17 @@
+platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+system: Linux
+release: 5.15.167.4-microsoft-standard-WSL2
+machine: x86_64
+cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+cpu_count_logical: 32
+memory_total_bytes: 16718303232
+capabilities: avx, avx2, sse, sse2, sse3, sse4_1, sse4_2, sse4a, ssse3
+cargo_version: cargo 1.93.0 (083ac5135 2025-12-15)
+rustc_version_verbose:
+rustc 1.93.0 (254b59607 2026-01-19)
+binary: rustc
+commit-hash: 254b59607d4417e9dffbc307138ae5c86280fe4c
+commit-date: 2026-01-19
+host: x86_64-unknown-linux-gnu
+release: 1.93.0
+LLVM version: 21.1.8

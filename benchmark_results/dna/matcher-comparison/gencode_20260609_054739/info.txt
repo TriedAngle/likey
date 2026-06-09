@@ -1,0 +1,19 @@
+name: gencode
+rows: 7125
+datasets: GENCODE human transcripts
+columns: sequence
+storages: dna2, utf8
+generic_matchers: adaptive, recursive, static
+algorithms: Dna2, Dna2TwoWay, NaiveVectorizedV2, NaiveVectorizedV2Wildcard, StdSearch
+indexes: fm, full-scan, prefix-btree, qgram, trigram
+patterns: anchored_prefix_exact_segments, anchored_prefix_gap, anchored_suffix_gap, any_len001, gap_len016, gap_len032, gap_len064, gap_len128, gap_len256, interleaved_common, interleaved_with_bigger, many_common_short_segments, one_fixed_len002, ordered_exact_segments, ordered_mixed_segments, ordered_wild_segments, selective_spaced_segments, spaced_seed, sparse_len004
+warmups: 1
+iterations: 5
+generic_matcher: static,adaptive,recursive
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

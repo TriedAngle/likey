@@ -1,0 +1,9 @@
+name,pattern,enabled
+prefix_japan_200,Japan:%200%,true
+prefix_japan_2007,Japan:%2007%,true
+prefix_japan_201,Japan:%201%,true
+prefix_usa_space_199,USA:% 199%,true
+prefix_usa_space_200,USA:% 200%,true
+prefix_usa_200,USA:%200%,true
+prefix_usa_2008,USA:%2008%,true
+prefix_usa_201,USA:%201%,true

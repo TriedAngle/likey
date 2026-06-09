@@ -1,0 +1,10 @@
+algorithm,enabled
+StdSearch,true
+NaiveVectorizedV2Wildcard,true
+TwoWay,true
+TwoWay2,true
+TwoWay3,true
+PairHorspool,true
+LibcMemmem,true
+FftStr1,true
+FftstrV2,true

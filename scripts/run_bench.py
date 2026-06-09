@@ -84,6 +84,8 @@ def main() -> int:
         "run",
         "-p",
         args.package,
+        "--bin",
+        "runner",
         "--release",
     ]
     if args.features:

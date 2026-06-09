@@ -1,0 +1,19 @@
+name: quotes
+rows: 300
+datasets: quotes
+columns: quotes.quote
+storages: fsst, utf8
+generic_matchers: static
+algorithms: LibcMemmem
+indexes: fm, full-scan, prefix-btree, qgram, trigram
+patterns: contains_relationship, equality_age_issue_full, prefix_age_issue, prefix_coffee_obituaries, prefix_gap_age, prefix_learning
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+hardware_platform: Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39
+hardware_cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+hardware_cpu_count_logical: 32
+hardware_memory_total_bytes: 16718303232

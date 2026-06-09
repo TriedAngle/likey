@@ -1,0 +1,14 @@
+name,pattern,enabled
+contains_an,%An%,true
+contains_ang,%Ang%,true
+contains_angel,%Angel%,true
+contains_b,%B%,true
+contains_bert,%Bert%,true
+contains_downey_robert,%Downey%Robert%,true
+contains_tim,%Tim%,true
+contains_yo,%Yo%,true
+prefix_a,A%,true
+prefix_b,B%,true
+prefix_x,X%,true
+prefix_z,Z%,true
+not_contains_yu,%Yu%,true

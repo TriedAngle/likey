@@ -1,0 +1,2 @@
+name,path,type,storage,column,key_column,value_column,enabled
+quotes,../../data/quotes/quotes__quote.csv,job-csv,utf8;fsst,quotes.quote,key,value,true

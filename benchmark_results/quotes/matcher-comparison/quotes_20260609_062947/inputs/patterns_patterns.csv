@@ -1,0 +1,15 @@
+name,pattern,enabled
+wild_any,%_%,true
+wild_short,%t_%,true
+wild_4,%t__ %,true
+gap_8,%le____ng%,true
+gap_16,%ge i________ue o%,true
+gap_32,%Age is a________________over mat%,true
+multi_gap_common,%the_%of_%and_%,true
+multi_gap_selective,%young_%learning_%mind%,true
+ordered_common,%the%of%the%,true
+ordered_selective,%coffee%obituaries%,true
+common_first_selective_later,%the%relationship with%,true
+selective_first_common_later,%relationship with%the%,true
+anchored_prefix_exact,Age is an issue%,true
+anchored_prefix_gap,Age is a________________over mat%,true

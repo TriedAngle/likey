@@ -1,0 +1,19 @@
+name,pattern,enabled
+contains_champion,%Champion%,true
+contains_freddy,%Freddy%,true
+contains_jason,%Jason%,true
+contains_kung_fu_panda,%Kung%Fu%Panda%,true
+contains_loser,%Loser%,true
+contains_money,%Money%,true
+contains_mord,%Mord%,true
+contains_movie,%Movie%,true
+contains_murder_upper,%Murder%,true
+contains_murder_lower,%murder%,true
+prefix_birdemic,Birdemic%,true
+prefix_champion,Champion%,true
+prefix_dragon_ball_z,Dragon Ball Z%,true
+prefix_kung_fu_panda,Kung Fu Panda%,true
+prefix_loser,Loser%,true
+prefix_one_piece,One Piece%,true
+prefix_saw,Saw%,true
+prefix_vampire,Vampire%,true
