@@ -436,39 +436,38 @@ fn first_intersecting_n_range_end(ranges: &[Dna2NRange], start: u32, end: u32) -
 }
 
 #[cfg(test)]
-fn dna2_exact_find_slow(row: &Dna2Row<'_>, from: u32, pattern: &[u8]) -> Option<u32> {
-    let n = row.len_bases();
-    let m = pattern.len() as u32;
-    if from > n {
-        return None;
-    }
-    if m == 0 {
-        return Some(from);
-    }
-    if m > n.saturating_sub(from) {
-        return None;
-    }
-
-    let last_start = n - m;
-    let mut pos = from;
-    while pos <= last_start {
-        if dna2_exact_matches_at(row, pos, pattern) {
-            return Some(pos);
-        }
-        if pos == last_start {
-            break;
-        }
-        pos += 1;
-    }
-    None
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use crate::like::{LikePattern, RowLiteralSearch};
     use crate::storage::Column;
     use crate::{DbBuilder, FullScan, RowId, execute_like};
+
+    fn dna2_exact_find_slow(row: &Dna2Row<'_>, from: u32, pattern: &[u8]) -> Option<u32> {
+        let n = row.len_bases();
+        let m = pattern.len() as u32;
+        if from > n {
+            return None;
+        }
+        if m == 0 {
+            return Some(from);
+        }
+        if m > n.saturating_sub(from) {
+            return None;
+        }
+
+        let last_start = n - m;
+        let mut pos = from;
+        while pos <= last_start {
+            if dna2_exact_matches_at(row, pos, pattern) {
+                return Some(pos);
+            }
+            if pos == last_start {
+                break;
+            }
+            pos += 1;
+        }
+        None
+    }
 
     fn one_row(seq: &str) -> (crate::Db, crate::TableId) {
         let mut table = crate::Dna2TableBuilder::new("dna");

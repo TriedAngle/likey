@@ -22,6 +22,7 @@ pub struct TwoWay3State {
     shift: usize,
     // Small byteset borrowed from stdlib's two-way implementation.
     byteset: u64,
+    #[allow(unused)]
     pattern_len: usize,
     anchors: [PrefilterAnchor; MAX_PREFILTER_ANCHORS],
     anchor_count: usize,

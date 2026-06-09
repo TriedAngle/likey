@@ -61,7 +61,7 @@ pub struct FmIndex {
     row_count: RowId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum FmProbeOutcome {
     Probe(FmProbe),
     TooBroad,
@@ -434,7 +434,7 @@ impl FmIndex {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 /// Candidate provider backed by FM-index search results.
 pub struct FmProbe {
     rows: Vec<RowId>,

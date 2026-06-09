@@ -1,10 +1,8 @@
 //! Minimal LIKE compiler/verifier integration.
 //!
-//! This module is deliberately small:
 //! - compile a LIKE pattern into `Literal`, `Skip(_)`, and `Any` tokens;
 //! - build literal-search state once per literal;
 //! - implement `RowVerifier<C>` so the compiled pattern plugs into `execute_like`;
-//! - keep indexes separate: they still only produce candidate `RowId`s.
 //!
 //! `_` handling is controlled by the literal algorithm. Algorithms that do not
 //! support `_` receive it as `Skip(1)`. Algorithms that do support `_` can keep
@@ -84,10 +82,6 @@ impl std::fmt::Display for LikeCompileError {
 impl std::error::Error for LikeCompileError {}
 
 /// Literal-level algorithm state.
-///
-/// This trait is independent of the table/column lifetime. It is only about
-/// compiling literal fragments once. For example, KMP stores a byte needle plus
-/// its prefix table here.
 pub trait LiteralAlgorithm {
     type Needle;
     type State;
@@ -105,10 +99,6 @@ pub trait LiteralAlgorithm {
 }
 
 /// Row-level operations for a literal algorithm on one concrete dense column.
-///
-/// Implement this for the column types on which the algorithm is legal. KMP is
-/// implemented only for `Utf8Column<'_>` in `algos::kmp`, so it cannot
-/// accidentally be used on DNA2 rows.
 pub trait RowLiteralSearch<C>: LiteralAlgorithm
 where
     C: Column<Symbol = u8>,
@@ -376,8 +366,7 @@ where
     ///
     /// `%` and `_` are treated as index wildcards regardless of whether the
     /// selected matcher can consume `_` inside a compiled literal. Indexes use
-    /// these fragments only to generate candidates; verification is still done
-    /// by the compiled pattern.
+    /// these fragments only to generate candidates]
     pub fn fixed_source_fragments(&self) -> impl Iterator<Item = &str> + '_ {
         self.literals
             .iter()
@@ -653,7 +642,7 @@ where
 
         // SQL LIKE is implicitly anchored at the end unless the pattern ends
         // with `%`. If there is only one segment, the prefix check above has
-        // already checked it; the global length constraint enforces exactness.
+        // already checked
         if !ends_with_any && last_middle > first_middle {
             let suffix_idx = last_middle - 1;
             let segment = &self.segments[suffix_idx];

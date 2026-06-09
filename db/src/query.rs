@@ -2,8 +2,7 @@
 //!
 //! `execute_like` deliberately does not know LIKE syntax. Compiled patterns
 //! such as [`LikePattern`](crate::LikePattern) implement [`RowVerifier`], while
-//! scans and indexes provide candidate rows. The verifier remains the
-//! correctness gate for every candidate.
+//! scans and indexes provide candidate rows.
 
 use crate::storage::Column;
 use crate::{LenConstraint, RowId};

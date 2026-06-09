@@ -72,7 +72,7 @@ mod tests {
     use crate::storage::Column;
     use crate::storage::utf8::{Utf8Column, Utf8TableBuilder};
 
-    use super::utf8_shared::expected_find_from;
+    use super::utf8_shared::tests::expected_find_from;
 
     macro_rules! utf8_algo_suites {
         ($($test_name:ident => $algo:ty),* $(,)?) => {

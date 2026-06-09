@@ -345,18 +345,24 @@ unsafe fn bytes_eq_neon(a: &[u8], b: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-pub(crate) fn expected_find_from(text: &[u8], pattern: &[u8], from: usize) -> Option<usize> {
-    if from > text.len() {
-        return None;
+pub(crate) mod tests {
+    pub(crate) fn expected_find_from(
+        text: &[u8],
+        pattern: &[u8],
+        from: usize,
+    ) -> Option<usize> {
+        if from > text.len() {
+            return None;
+        }
+        if pattern.is_empty() {
+            return Some(from);
+        }
+        if pattern.len() > text.len().saturating_sub(from) {
+            return None;
+        }
+        text[from..]
+            .windows(pattern.len())
+            .position(|w| w == pattern)
+            .map(|p| p + from)
     }
-    if pattern.is_empty() {
-        return Some(from);
-    }
-    if pattern.len() > text.len().saturating_sub(from) {
-        return None;
-    }
-    text[from..]
-        .windows(pattern.len())
-        .position(|w| w == pattern)
-        .map(|p| p + from)
 }
