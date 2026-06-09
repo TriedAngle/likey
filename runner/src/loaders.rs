@@ -507,6 +507,11 @@ fn normalize_dna2_record(
     let mut out = Vec::with_capacity(seq.len());
 
     for &b in seq {
+        if matches!(b, b'N' | b'n') {
+            out.push(b'N');
+            continue;
+        }
+
         match DnaBase::from_ascii(b) {
             Ok(base) => out.push(base.ascii()),
             Err(_) => {
@@ -545,5 +550,72 @@ pub fn resolve_relative(base: &Path, path: &Path) -> PathBuf {
         path.to_owned()
     } else {
         base.join(path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load_options() -> LoadOptions {
+        LoadOptions {
+            max_rows: None,
+            max_total_bytes: u64::MAX,
+            max_row_bytes: u64::MAX,
+            row_overflow_policy: RowOverflowPolicy::Truncate,
+            invalid_dna: InvalidDnaPolicy::SkipRecord,
+            uppercase_sequences: true,
+        }
+    }
+
+    #[test]
+    fn normalize_dna2_record_preserves_n() {
+        let mut stats = LoadStats::default();
+        let normalized = normalize_dna2_record(b"aCnNt", InvalidDnaPolicy::SkipRecord, &mut stats)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(normalized, b"ACNNT");
+        assert_eq!(stats.records_invalid_dna, 0);
+    }
+
+    #[test]
+    fn normalize_dna2_record_still_applies_invalid_policy() {
+        let mut stats = LoadStats::default();
+        let normalized =
+            normalize_dna2_record(b"ACNX", InvalidDnaPolicy::SkipRecord, &mut stats).unwrap();
+
+        assert!(normalized.is_none());
+        assert_eq!(stats.records_invalid_dna, 1);
+    }
+
+    #[test]
+    fn fasta_loader_keeps_dna2_rows_with_n() {
+        let path = std::env::temp_dir().join(format!(
+            "likey2_dna2_n_loader_{}_{}.fna",
+            std::process::id(),
+            "keeps_n"
+        ));
+        std::fs::write(&path, b">row1\nACNNTA\n>row2\nNNNN\n").unwrap();
+
+        let loaded = load_fasta_column(
+            &path,
+            "test",
+            "sequence",
+            StorageKind::Dna2,
+            &load_options(),
+        )
+        .unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        let column = &loaded.columns[0];
+        assert_eq!(column.stats.records_loaded, 2);
+        assert_eq!(column.stats.records_skipped, 0);
+        assert_eq!(column.stats.records_invalid_dna, 0);
+
+        let table = loaded.db.dna2_table(column.table_id).unwrap();
+        let sequence = table.sequence();
+        assert_eq!(sequence.row_to_ascii_string(0), "ACNNTA");
+        assert_eq!(sequence.row_to_ascii_string(1), "NNNN");
     }
 }

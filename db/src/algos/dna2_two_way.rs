@@ -1,7 +1,7 @@
-use core::cmp::max;
+use core::cmp::{max, min};
 
 use crate::like::{LiteralAlgorithm, RowLiteralSearch};
-use crate::storage::dna2::{Dna2Column, Dna2Row, DnaBase};
+use crate::storage::dna2::{Dna2Column, Dna2NRange, Dna2Row, DnaBase};
 
 use super::dna2::DNA_N;
 
@@ -176,20 +176,11 @@ pub fn dna2_exact_matches_at(row: &Dna2Row<'_>, pos: u32, pattern: &[u8]) -> boo
     if end > row.len_bases() {
         return false;
     }
-    if !row.has_n() {
-        for (idx, &want) in pattern.iter().enumerate() {
-            if want == DNA_N || row.base_code_at(pos + idx as u32) != want {
-                return false;
-            }
-        }
+    if let Some(n_ranges) = row.n_ranges() {
+        return dna2_exact_matches_at_with_n_ranges(row, pos, pattern, n_ranges.as_slice());
     } else {
         for (idx, &want) in pattern.iter().enumerate() {
-            let row_pos = pos + idx as u32;
-            if want == DNA_N {
-                if !row.is_n_at(row_pos) {
-                    return false;
-                }
-            } else if row.is_n_at(row_pos) || row.base_code_at(row_pos) != want {
+            if want == DNA_N || row.base_code_at(pos + idx as u32) != want {
                 return false;
             }
         }
@@ -198,7 +189,65 @@ pub fn dna2_exact_matches_at(row: &Dna2Row<'_>, pos: u32, pattern: &[u8]) -> boo
     true
 }
 
+fn dna2_exact_matches_at_with_n_ranges(
+    row: &Dna2Row<'_>,
+    pos: u32,
+    pattern: &[u8],
+    ranges: &[Dna2NRange],
+) -> bool {
+    let len = pattern.len() as u32;
+    let Some(end) = pos.checked_add(len) else {
+        return false;
+    };
+    if end > row.len_bases() {
+        return false;
+    }
+
+    let mut range_idx = ranges.partition_point(|range| range.end <= pos);
+    for (idx, &want) in pattern.iter().enumerate() {
+        let row_pos = pos + idx as u32;
+        while range_idx < ranges.len() && ranges[range_idx].end <= row_pos {
+            range_idx += 1;
+        }
+        let row_is_n = range_idx < ranges.len() && ranges[range_idx].start <= row_pos;
+        if want == DNA_N {
+            if !row_is_n {
+                return false;
+            }
+        } else if row_is_n || row.base_code_at(row_pos) != want {
+            return false;
+        }
+    }
+
+    true
+}
+
 pub fn dna2_two_way_find(
+    row: &Dna2Row<'_>,
+    from: u32,
+    pattern: &[u8],
+    state: &Dna2TwoWayState,
+) -> Option<u32> {
+    if from > row.len_bases() {
+        return None;
+    }
+    if pattern.is_empty() {
+        return Some(from);
+    }
+
+    match (row.n_ranges(), first_pattern_n(pattern)) {
+        (Some(ranges), None) => {
+            dna2_find_no_pattern_n_in_row_with_n(row, from, pattern, state, ranges.as_slice())
+        }
+        (Some(ranges), Some(first_n)) => {
+            dna2_find_pattern_n_in_row_with_n(row, from, pattern, first_n, ranges.as_slice())
+        }
+        (None, Some(_)) => None,
+        (None, None) => dna2_two_way_find_packed(row, from, pattern, state),
+    }
+}
+
+fn dna2_two_way_find_packed(
     row: &Dna2Row<'_>,
     from: u32,
     pattern: &[u8],
@@ -215,12 +264,6 @@ pub fn dna2_two_way_find(
         return Some(from as u32);
     }
     if m > n.saturating_sub(from) {
-        return None;
-    }
-    if row.has_n() {
-        return dna2_exact_find_slow(row, from as u32, pattern);
-    }
-    if pattern_has_n(pattern) {
         return None;
     }
     if m == 1 {
@@ -312,10 +355,87 @@ pub fn dna2_two_way_find(
 }
 
 #[inline]
-fn pattern_has_n(pattern: &[u8]) -> bool {
-    pattern.contains(&DNA_N)
+fn first_pattern_n(pattern: &[u8]) -> Option<u32> {
+    pattern
+        .iter()
+        .position(|&symbol| symbol == DNA_N)
+        .and_then(|idx| u32::try_from(idx).ok())
 }
 
+fn dna2_find_no_pattern_n_in_row_with_n(
+    row: &Dna2Row<'_>,
+    from: u32,
+    pattern: &[u8],
+    state: &Dna2TwoWayState,
+    ranges: &[Dna2NRange],
+) -> Option<u32> {
+    let m = pattern.len() as u32;
+    let mut search_from = from;
+
+    loop {
+        let found = dna2_two_way_find_packed(row, search_from, pattern, state)?;
+        let end = found.checked_add(m)?;
+        match first_intersecting_n_range_end(ranges, found, end) {
+            Some(skip_to) => {
+                search_from = skip_to.max(found.saturating_add(1));
+            }
+            None => return Some(found),
+        }
+    }
+}
+
+fn dna2_find_pattern_n_in_row_with_n(
+    row: &Dna2Row<'_>,
+    from: u32,
+    pattern: &[u8],
+    first_n: u32,
+    ranges: &[Dna2NRange],
+) -> Option<u32> {
+    let n = row.len_bases();
+    let m = pattern.len() as u32;
+    if from > n {
+        return None;
+    }
+    if m == 0 {
+        return Some(from);
+    }
+    if m > n.saturating_sub(from) {
+        return None;
+    }
+
+    let last_start = n - m;
+    for range in ranges {
+        if range.end <= first_n {
+            continue;
+        }
+        let mut pos = from.max(range.start.saturating_sub(first_n));
+        let max_pos = min(last_start, range.end - first_n - 1);
+        while pos <= max_pos {
+            if dna2_exact_matches_at_with_n_ranges(row, pos, pattern, ranges) {
+                return Some(pos);
+            }
+            if pos == max_pos {
+                break;
+            }
+            pos += 1;
+        }
+    }
+
+    None
+}
+
+#[inline]
+fn first_intersecting_n_range_end(ranges: &[Dna2NRange], start: u32, end: u32) -> Option<u32> {
+    debug_assert!(start <= end);
+    if start == end {
+        return None;
+    }
+    let idx = ranges.partition_point(|range| range.end <= start);
+    let range = ranges.get(idx)?;
+    (range.start < end).then_some(range.end)
+}
+
+#[cfg(test)]
 fn dna2_exact_find_slow(row: &Dna2Row<'_>, from: u32, pattern: &[u8]) -> Option<u32> {
     let n = row.len_bases();
     let m = pattern.len() as u32;
@@ -383,6 +503,13 @@ mod tests {
             ("ACNNNT", "AN"),
             ("AAAA", "N"),
             ("NNNN", "AN"),
+            ("NCGT", "ACGT"),
+            ("NCGTACGT", "ACGT"),
+            ("AACGTNNNACGT", "ACGT"),
+            ("ACGTNACGT", "TNAC"),
+            ("ACGTNACGT", "NAC"),
+            ("ACGTNACGT", "GTN"),
+            ("ACGTNACGT", "AN"),
         ];
 
         for (text, pat) in cases {

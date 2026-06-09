@@ -21,11 +21,11 @@ python3 scripts/run_all_benchmarks.py --only-case name_name --dry-run
 python3 scripts/run_all_benchmarks.py --only-benchmark job/index-memmem/name_name --dry-run
 ```
 
-The FFTSTR artificial data generator is run automatically when an FFTSTR benchmark is selected. Use `--skip-fftstr-generate` if the generated CSVs already exist and should not be refreshed.
+The FFTSTR artificial data generator is run automatically when an FFTSTR benchmark is selected. Use `--skip-fftstr-generate` if the generated CSVs already exist and should not be refreshed. The DNA sparse-N data generator is run automatically when `dna/n-handling/n_sparse` is selected; use `--skip-dna-n-generate` to reuse existing generated files.
 
 ## DNA Benchmark
 
-Run the exact-vs-underscore-heavy algorithm comparison on GENCODE human transcripts with three measured iterations per combination:
+Run the exact-vs-underscore-heavy full-scan algorithm comparison on GENCODE human transcripts with three measured iterations per combination:
 
 ```bash
 cargo run -p runner --bin runner --release -- \
@@ -33,13 +33,31 @@ cargo run -p runner --bin runner --release -- \
   --algorithms-csv benchmarks/dna/exact-vs-underscore/algorithms.csv \
   --generic-matcher static \
   --patterns-csv benchmarks/dna/exact-vs-underscore/patterns.csv \
-  --indexes-csv benchmarks/dna/exact-vs-underscore/indexes.csv \
+  --indexes-csv benchmarks/dna/exact-vs-underscore/algorithm-indexes.csv \
   --iterations 3 \
   --max-row-bytes 50MB \
   --max-total-bytes 100MB \
   --output-csv results/gencode_algos_raw.csv \
   --summary-csv results/gencode_algos_summary.csv
 ```
+
+Run the matching exact-vs-underscore index consistency campaign with representative UTF-8 and DNA2 algorithms across all configured indexes:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/dna/data_gencode_dna_utf8_dna2.csv \
+  --algorithms-csv benchmarks/dna/exact-vs-underscore/index-algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/dna/exact-vs-underscore/patterns.csv \
+  --indexes-csv benchmarks/dna/exact-vs-underscore/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/gencode_exact_indexes_raw.csv \
+  --summary-csv results/gencode_exact_indexes_summary.csv
+```
+
+The checkpointed super-runner splits these into `dna/exact-vs-underscore-algorithms/gencode` and `dna/exact-vs-underscore-indexes/gencode` to avoid the full algorithm × index cross product.
 
 Run the matcher-engine comparison with static, adaptive, and recursive matchers in one invocation. This reuses loaded data and requested indexes across matcher engines:
 
@@ -73,6 +91,35 @@ cargo run -p runner --bin runner --release -- \
   --max-total-bytes 100MB \
   --output-csv results/gencode_indexes_raw.csv \
   --summary-csv results/gencode_indexes_summary.csv
+```
+
+Run the deterministic sparse-N DNA benchmark comparing UTF-8 `StdSearch`/`NaiveScalar`/`NaiveAvx2`/`TwoWay` with packed DNA2 `Dna2PackedScalar`/`Dna2PackedAvx2`/`Dna2TwoWay`, both with and without the qgram index:
+
+```bash
+python3 scripts/generate_dna_n_benchmark.py
+
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/dna/data_n_sparse_utf8_dna2.csv \
+  --algorithms-csv benchmarks/dna/n-handling/algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/dna/n-handling/patterns.csv \
+  --indexes-csv benchmarks/dna/n-handling/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/dna_n_handling_raw.csv \
+  --summary-csv results/dna_n_handling_summary.csv
+```
+
+The generated FASTA has 2048 entries of length 180, with 512 rows containing `N` so every `N` qgram posting stays below the default broad-posting threshold. The table includes A/C/G/T-only rows, an all-`N` row, and alternating/interleaved `N` rows that stress DNA2 N-range checks. Most LIKE patterns contain `N`; several are at least 15 fixed bytes so `qgram` can use its q=15 postings and avoid the full DNA2 slow path for N-aware verification.
+
+The same case is included in the checkpointed super-runner as `dna/n-handling/n_sparse`:
+
+```bash
+python3 scripts/run_all_benchmarks.py \
+  --only-benchmark dna/n-handling/n_sparse \
+  --result-root benchmark_results \
+  --iterations 3
 ```
 
 ## Quotes Benchmark

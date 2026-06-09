@@ -83,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--only-case", action="append", help="Run only matching case names")
     parser.add_argument("--only-benchmark", action="append", help="Run only exact benchmark_id values")
     parser.add_argument("--skip-fftstr-generate", action="store_true", help="Do not run the FFTSTR data generator")
+    parser.add_argument("--skip-dna-n-generate", action="store_true", help="Do not run the DNA sparse-N data generator")
     parser.add_argument("--force", action="store_true", help="Rerun rows already marked done")
     parser.add_argument("--continue-on-error", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without running them")
@@ -110,6 +111,11 @@ def main() -> int:
     if needs_fftstr_setup(benchmarks) and not args.skip_fftstr_generate:
         setup_command = [sys.executable, "scripts/generate_fftstr_benchmark.py"]
         print(f"[SETUP] FFTSTR data: {shlex.join(setup_command)}")
+        if not args.dry_run:
+            subprocess.run(setup_command, cwd=repo_root, check=True)
+    if needs_dna_n_setup(benchmarks) and not args.skip_dna_n_generate:
+        setup_command = [sys.executable, "scripts/generate_dna_n_benchmark.py"]
+        print(f"[SETUP] DNA sparse-N data: {shlex.join(setup_command)}")
         if not args.dry_run:
             subprocess.run(setup_command, cwd=repo_root, check=True)
 
@@ -163,13 +169,24 @@ def main() -> int:
 def all_benchmarks() -> list[Benchmark]:
     benchmarks = [
         Benchmark(
-            benchmark_id="dna/exact-vs-underscore/gencode",
+            benchmark_id="dna/exact-vs-underscore-algorithms/gencode",
             suite="dna",
-            mode="exact-vs-underscore",
+            mode="exact-vs-underscore-algorithms",
             case="gencode",
-            result_subdir="dna/exact-vs-underscore",
+            result_subdir="dna/exact-vs-underscore-algorithms",
             data_csv=Path("benchmarks/dna/data_gencode_dna_utf8_dna2.csv"),
             algorithms_csv=Path("benchmarks/dna/exact-vs-underscore/algorithms.csv"),
+            patterns_csv=Path("benchmarks/dna/exact-vs-underscore/patterns.csv"),
+            indexes_csv=Path("benchmarks/dna/exact-vs-underscore/algorithm-indexes.csv"),
+        ),
+        Benchmark(
+            benchmark_id="dna/exact-vs-underscore-indexes/gencode",
+            suite="dna",
+            mode="exact-vs-underscore-indexes",
+            case="gencode",
+            result_subdir="dna/exact-vs-underscore-indexes",
+            data_csv=Path("benchmarks/dna/data_gencode_dna_utf8_dna2.csv"),
+            algorithms_csv=Path("benchmarks/dna/exact-vs-underscore/index-algorithms.csv"),
             patterns_csv=Path("benchmarks/dna/exact-vs-underscore/patterns.csv"),
             indexes_csv=Path("benchmarks/dna/exact-vs-underscore/indexes.csv"),
         ),
@@ -206,6 +223,17 @@ def all_benchmarks() -> list[Benchmark]:
             algorithms_csv=Path("benchmarks/dna/fsst-index-memmem/algorithms.csv"),
             patterns_csv=Path("benchmarks/dna/index-comparison/patterns.csv"),
             indexes_csv=Path("benchmarks/dna/fsst-index-memmem/indexes.csv"),
+        ),
+        Benchmark(
+            benchmark_id="dna/n-handling/n_sparse",
+            suite="dna",
+            mode="n-handling",
+            case="n_sparse",
+            result_subdir="dna/n-handling",
+            data_csv=Path("benchmarks/dna/data_n_sparse_utf8_dna2.csv"),
+            algorithms_csv=Path("benchmarks/dna/n-handling/algorithms.csv"),
+            patterns_csv=Path("benchmarks/dna/n-handling/patterns.csv"),
+            indexes_csv=Path("benchmarks/dna/n-handling/indexes.csv"),
         ),
         Benchmark(
             benchmark_id="quotes/exact-vs-underscore/quotes",
@@ -419,6 +447,10 @@ def build_command(args: argparse.Namespace, repo_root: Path, row: dict[str, str]
 
 def needs_fftstr_setup(benchmarks: list[Benchmark]) -> bool:
     return any(bench.suite == "fftstr" for bench in benchmarks)
+
+
+def needs_dna_n_setup(benchmarks: list[Benchmark]) -> bool:
+    return any(bench.suite == "dna" and bench.mode == "n-handling" for bench in benchmarks)
 
 
 def read_checkpoint(path: Path) -> list[dict[str, str]]:
