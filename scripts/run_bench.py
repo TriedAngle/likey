@@ -12,7 +12,10 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import json
 import math
+import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -41,8 +44,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--iterations", type=int, default=5)
     p.add_argument("--batch-rows", type=int, default=4096)
     p.add_argument("--max-rows")
-    p.add_argument("--max-total-bytes", default="1GiB")
-    p.add_argument("--max-row-bytes", default="50MiB")
+    p.add_argument("--max-total-bytes", default="100MB")
+    p.add_argument("--max-row-bytes", default="50MB")
     p.add_argument("--row-overflow-policy", choices=["truncate", "skip", "error"], default="truncate")
     p.add_argument("--invalid-dna", choices=["error", "skip-record", "map-to-a"], default="skip-record")
     p.add_argument("--no-uppercase", action="store_true")
@@ -166,7 +169,9 @@ def main() -> int:
                 (out_dir / "row_profile_plotting_skipped.txt").write_text(msg)
                 print(msg, file=sys.stderr)
 
-    write_info(args, out_dir, rows)
+    hardware = collect_hardware_info(args)
+    write_hardware_info(hardware, out_dir)
+    write_info(args, out_dir, rows, hardware)
     print(f"Done. Results in: {out_dir}")
     return 0
 
@@ -413,7 +418,130 @@ def safe_filename(s: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in s)[:180]
 
 
-def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str]]) -> None:
+def collect_hardware_info(args: argparse.Namespace) -> dict[str, object]:
+    uname = platform.uname()
+    cpuinfo = read_proc_cpuinfo()
+    flags = sorted(cpuinfo.get("flags", set()) | cpuinfo.get("features", set()))
+    capability_names = [
+        "sse",
+        "sse2",
+        "sse3",
+        "ssse3",
+        "sse4_1",
+        "sse4_2",
+        "sse4a",
+        "avx",
+        "avx2",
+        "avx512f",
+        "avx512bw",
+        "avx512vl",
+        "avx512dq",
+        "avx512cd",
+        "avx512ifma",
+        "avx512vbmi",
+        "avx512vbmi2",
+        "avx512vnni",
+        "avx512bitalg",
+        "avx512vpopcntdq",
+        "avx512fp16",
+        "asimd",
+        "neon",
+    ]
+    capabilities = {name: name in flags for name in capability_names}
+    # Linux x86 reports SSE3 as `pni` in /proc/cpuinfo/lscpu flags.
+    if "pni" in flags:
+        capabilities["sse3"] = True
+    # Linux on AArch64 usually reports NEON as `asimd`.
+    if capabilities.get("asimd"):
+        capabilities["neon"] = True
+
+    return {
+        "timestamp_utc": dt.datetime.now(dt.UTC).isoformat(),
+        "platform": platform.platform(),
+        "system": uname.system,
+        "release": uname.release,
+        "version": uname.version,
+        "machine": uname.machine,
+        "processor": uname.processor,
+        "python": platform.python_version(),
+        "cpu_model": cpuinfo.get("model_name") or uname.processor,
+        "cpu_count_logical": os.cpu_count(),
+        "cpu_flags": flags,
+        "capabilities": capabilities,
+        "memory_total_bytes": read_mem_total_bytes(),
+        "cargo_version": command_output([args.cargo, "--version"]),
+        "rustc_version_verbose": command_output(["rustc", "-Vv"]),
+    }
+
+
+def read_proc_cpuinfo() -> dict[str, object]:
+    path = Path("/proc/cpuinfo")
+    out: dict[str, object] = {"flags": set(), "features": set()}
+    if not path.exists():
+        return out
+    for line in path.read_text(errors="replace").splitlines():
+        if ":" not in line:
+            continue
+        key, value = [part.strip() for part in line.split(":", 1)]
+        key_lower = key.lower().replace(" ", "_")
+        if key_lower == "model_name" and "model_name" not in out:
+            out["model_name"] = value
+        elif key_lower in {"flags", "features"}:
+            existing = out.get(key_lower)
+            if isinstance(existing, set):
+                existing.update(str(value).split())
+            else:
+                out[key_lower] = set(str(value).split())
+    return out
+
+
+def read_mem_total_bytes() -> int | None:
+    path = Path("/proc/meminfo")
+    if not path.exists():
+        return None
+    for line in path.read_text(errors="replace").splitlines():
+        if line.startswith("MemTotal:"):
+            parts = line.split()
+            if len(parts) >= 2:
+                return int(parts[1]) * 1024
+    return None
+
+
+def command_output(command: list[str]) -> str:
+    try:
+        completed = subprocess.run(command, check=False, text=True, capture_output=True)
+    except OSError as exc:
+        return f"unavailable: {exc}"
+    text = (completed.stdout or completed.stderr).strip()
+    return text or f"exit_code={completed.returncode}"
+
+
+def write_hardware_info(hardware: dict[str, object], out_dir: Path) -> None:
+    serializable = dict(hardware)
+    (out_dir / "hardware.json").write_text(json.dumps(serializable, indent=2, sort_keys=True) + "\n")
+
+    capabilities = hardware.get("capabilities", {})
+    caps_text = ""
+    if isinstance(capabilities, dict):
+        enabled = sorted(name for name, value in capabilities.items() if value)
+        caps_text = ", ".join(enabled)
+    lines = [
+        f"platform: {hardware.get('platform', '')}",
+        f"system: {hardware.get('system', '')}",
+        f"release: {hardware.get('release', '')}",
+        f"machine: {hardware.get('machine', '')}",
+        f"cpu_model: {hardware.get('cpu_model', '')}",
+        f"cpu_count_logical: {hardware.get('cpu_count_logical', '')}",
+        f"memory_total_bytes: {hardware.get('memory_total_bytes', '')}",
+        f"capabilities: {caps_text}",
+        f"cargo_version: {hardware.get('cargo_version', '')}",
+        "rustc_version_verbose:",
+        str(hardware.get("rustc_version_verbose", "")),
+    ]
+    (out_dir / "hardware.txt").write_text("\n".join(lines) + "\n")
+
+
+def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str]], hardware: dict[str, object]) -> None:
     datasets = sorted({r["dataset"] for r in rows})
     columns = sorted({r.get("column", "") for r in rows})
     storages = sorted({r["storage"] for r in rows})
@@ -437,6 +565,10 @@ def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str
         f"max_total_bytes: {args.max_total_bytes}",
         f"max_row_bytes: {args.max_row_bytes}",
         f"row_profile: {args.row_profile}",
+        f"hardware_platform: {hardware.get('platform', '')}",
+        f"hardware_cpu_model: {hardware.get('cpu_model', '')}",
+        f"hardware_cpu_count_logical: {hardware.get('cpu_count_logical', '')}",
+        f"hardware_memory_total_bytes: {hardware.get('memory_total_bytes', '')}",
     ]
     (out_dir / "info.txt").write_text("\n".join(text) + "\n")
 

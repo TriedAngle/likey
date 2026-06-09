@@ -1,0 +1,2 @@
+name,path,type,storage,column,key_column,value_column,enabled
+job_keyword_keyword,../../data/job/keyword__keyword.csv,job-csv,utf8;fsst,keyword.keyword,key,value,true

@@ -1,0 +1,2 @@
+name,path,type,storage,column,key_column,value_column,enabled
+job_movie_info_info,../../data/job/movie_info__info.csv,job-csv,utf8,movie_info.info,key,value,true

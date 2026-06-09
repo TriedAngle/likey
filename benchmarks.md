@@ -1,5 +1,28 @@
 # Benchmarks
 
+## Run Everything
+
+Run every benchmark in this file with checkpointing:
+
+```bash
+python3 scripts/run_all_benchmarks.py \
+  --result-root benchmark_results \
+  --iterations 3
+```
+
+The super runner delegates each case to `scripts/run_bench.py` and writes timestamped outputs under `benchmark_results/<suite>/<mode>/<case>_<timestamp>/`. Progress is tracked in `benchmark_results/checkpoint.csv`; rows already marked `done=true` are skipped on the next invocation. Use `--force` to rerun completed rows, `--dry-run` to print commands without executing them, and `--list` to show the selected benchmark IDs.
+
+Useful filters:
+
+```bash
+python3 scripts/run_all_benchmarks.py --only-suite dna --dry-run
+python3 scripts/run_all_benchmarks.py --only-mode index-comparison --dry-run
+python3 scripts/run_all_benchmarks.py --only-case name_name --dry-run
+python3 scripts/run_all_benchmarks.py --only-benchmark job/index-memmem/name_name --dry-run
+```
+
+The FFTSTR artificial data generator is run automatically when an FFTSTR benchmark is selected. Use `--skip-fftstr-generate` if the generated CSVs already exist and should not be refreshed.
+
 ## DNA Benchmark
 
 Run the exact-vs-underscore-heavy algorithm comparison on GENCODE human transcripts with three measured iterations per combination:
@@ -118,6 +141,52 @@ cargo run -p runner --bin runner --release -- \
   --max-total-bytes 100MB \
   --output-csv results/quotes_indexes_raw.csv \
   --summary-csv results/quotes_indexes_summary.csv
+```
+
+## JOB Benchmark
+
+JOB configs use predicates copied from the Join Order Benchmark SQL files. Patterns are split per column because runner pattern CSVs apply to every data row in one invocation.
+
+Available JOB data/pattern pairs:
+
+| Column | Data CSV | Pattern CSV |
+|---|---|---|
+| `cast_info.note` | `benchmarks/job/data_cast_info_note.csv` | `benchmarks/job/index-comparison/patterns_cast_info_note.csv` |
+| `keyword.keyword` | `benchmarks/job/data_keyword_keyword.csv` | `benchmarks/job/index-comparison/patterns_keyword_keyword.csv` |
+| `movie_companies.note` | `benchmarks/job/data_movie_companies_note.csv` | `benchmarks/job/index-comparison/patterns_movie_companies_note.csv` |
+| `movie_info.info` | `benchmarks/job/data_movie_info_info.csv` | `benchmarks/job/index-comparison/patterns_movie_info_info.csv` |
+| `name.name` | `benchmarks/job/data_name_name.csv` | `benchmarks/job/index-comparison/patterns_name_name.csv` |
+| `title.title` | `benchmarks/job/data_title_title.csv` | `benchmarks/job/index-comparison/patterns_title_title.csv` |
+
+The `scripts/run_bench.py` wrapper writes each run to a timestamped directory under `--result-root` with `raw.csv`, `summary.csv`, `python_summary.csv`, copied inputs, `command.txt`, `info.txt`, `hardware.json`, `hardware.txt`, and plots.
+
+Run all JOB benchmark modes for all JOB columns with checkpointing:
+
+```bash
+python3 scripts/run_all_benchmarks.py \
+  --only-suite job \
+  --result-root benchmark_results \
+  --iterations 3
+```
+
+This writes:
+
+| Mode | Output Directory |
+|---|---|
+| index consistency cross product | `benchmark_results/job/index-consistency/<column>_<timestamp>/` |
+| full-scan algorithm comparison | `benchmark_results/job/algorithm-comparison/<column>_<timestamp>/` |
+| matcher-engine comparison | `benchmark_results/job/matcher-comparison/<column>_<timestamp>/` |
+| `LibcMemmem`-only index comparison | `benchmark_results/job/index-memmem/<column>_<timestamp>/` |
+| UTF8-vs-FSST `LibcMemmem` index comparison | `benchmark_results/job/fsst-index-memmem/<column>_<timestamp>/` |
+
+Progress is tracked in `benchmark_results/checkpoint.csv`; rows already marked `done=true` are skipped on the next invocation. Use `--force` to rerun completed rows. Use `--only-mode` or `--only-case` to run a subset.
+
+The index consistency mode is intentionally a cross product of five verifier algorithms and all indexes to confirm index behavior is consistent across verifier implementations. The matcher-engine comparison runs `StdSearch`, `NaiveVectorizedV2`, and `NaiveVectorizedV2Wildcard` with `static`, `adaptive`, and `recursive` matchers for every JOB column, reusing the same per-column pattern CSVs as the other JOB modes. The `index-memmem` mode includes indexes but fixes the verifier algorithm to `LibcMemmem`, avoiding a full index-by-algorithm cross product. The `fsst-index-memmem` mode uses `utf8;fsst` storage with `LibcMemmem` and all indexes, so it isolates the decoded FSST search cost against the UTF-8 baseline and shows how much candidate indexes reduce that cost.
+
+The same UTF8-vs-FSST fixed-`LibcMemmem` index comparison is available for DNA and quotes:
+
+```bash
+python3 scripts/run_all_benchmarks.py --only-mode fsst-index-memmem --dry-run
 ```
 
 ## FFTSTR Benchmark

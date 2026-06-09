@@ -57,6 +57,7 @@ DEFAULT_COLUMNS: dict[str, set[str]] = {
     "job": {
         "job.cast_info.note",
         "job.keyword.keyword",
+        "job.movie_companies.note",
         "job.movie_info.info",
         "job.name.name",
         "job.title.title",
