@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+job_movie_info_info,movie_info.info,utf8,benchmarks/job/data_movie_info_info.csv,benchmarks/job/../../data/job/movie_info__info.csv,/Users/sebastian/Projects/likey2/data/job/movie_info__info.csv

@@ -1,2 +1,0 @@
-name,path,type,storage,column,key_column,value_column,enabled
-job_name_name,../../data/job/name__name.csv,job-csv,utf8;fsst,name.name,key,value,true

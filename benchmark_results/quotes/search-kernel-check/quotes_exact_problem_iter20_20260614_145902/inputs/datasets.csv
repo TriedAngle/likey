@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+quotes,quotes.quote,utf8,benchmarks/quotes/data_quotes_utf8.csv,benchmarks/quotes/../../data/quotes/quotes__quote.csv,/Users/sebastian/Projects/likey2/data/quotes/quotes__quote.csv

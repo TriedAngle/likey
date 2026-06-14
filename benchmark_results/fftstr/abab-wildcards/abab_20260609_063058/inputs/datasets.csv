@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+fftstr_abab_512_x1000,value,utf8,benchmarks/fftstr/abab-wildcards/data.csv,benchmarks/fftstr/abab-wildcards/../../../data/fftstr/abab_512_x1000.csv,/Users/sebastian/Projects/likey2/benchmarks/fftstr/abab-wildcards/data/fftstr/abab_512_x1000.csv

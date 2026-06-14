@@ -3,7 +3,7 @@
 
 The script forwards your data/algorithm/pattern/index CSV files to the Rust
 benchmark runner. It writes everything into results/<name>_<timestamp>/:
-raw.csv, summary.csv, optional row_profile.csv, Python summaries, copied inputs,
+raw.csv, summary.csv, optional row_profile.csv, Python summaries, copied specs,
 and plots.
 """
 
@@ -153,6 +153,8 @@ def main() -> int:
         print("raw CSV has no rows", file=sys.stderr)
         return 3
 
+    write_dataset_paths(args, out_dir, rows)
+
     write_python_summary(rows, out_dir / "python_summary.csv")
     try:
         make_plots(rows, plots_dir)
@@ -191,13 +193,68 @@ def copy_inputs(args: argparse.Namespace, out_dir: Path) -> None:
     inputs_dir = out_dir / "inputs"
     inputs_dir.mkdir(exist_ok=True)
     for label, path in [
-        ("data", args.data_csv),
         ("algorithms", args.algorithms_csv),
         ("patterns", args.patterns_csv),
         ("indexes", args.indexes_csv),
     ]:
         if path:
             shutil.copy2(path, inputs_dir / f"{label}_{path.name}")
+
+
+def write_dataset_paths(
+    args: argparse.Namespace,
+    out_dir: Path,
+    rows: list[dict[str, str]],
+) -> None:
+    inputs_dir = out_dir / "inputs"
+    inputs_dir.mkdir(exist_ok=True)
+    data_manifest = args.data_csv
+    out_rows = []
+    seen = set()
+    for row in rows:
+        key = (
+            row.get("dataset", ""),
+            row.get("column", ""),
+            row.get("storage", ""),
+            row.get("data_path", ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        dataset, column, storage, data_path = key
+        resolved = ""
+        if data_path:
+            data_path_obj = Path(data_path)
+            if data_path_obj.is_absolute():
+                resolved = str(data_path_obj)
+            elif data_path_obj.exists():
+                resolved = str(data_path_obj.resolve())
+            else:
+                resolved = str((data_manifest.parent / data_path_obj).resolve())
+        out_rows.append(
+            {
+                "dataset": dataset,
+                "column": column,
+                "storage": storage,
+                "data_manifest": str(data_manifest),
+                "data_path": data_path,
+                "data_path_resolved": resolved,
+            }
+        )
+
+    out_rows.sort(key=lambda r: (r["dataset"], r["column"], r["storage"], r["data_path"]))
+    with (inputs_dir / "datasets.csv").open("w", newline="") as f:
+        fieldnames = [
+            "dataset",
+            "column",
+            "storage",
+            "data_manifest",
+            "data_path",
+            "data_path_resolved",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(out_rows)
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -546,7 +603,12 @@ def write_hardware_info(hardware: dict[str, object], out_dir: Path) -> None:
     (out_dir / "hardware.txt").write_text("\n".join(lines) + "\n")
 
 
-def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str]], hardware: dict[str, object]) -> None:
+def write_info(
+    args: argparse.Namespace,
+    out_dir: Path,
+    rows: list[dict[str, str]],
+    hardware: dict[str, object],
+) -> None:
     datasets = sorted({r["dataset"] for r in rows})
     columns = sorted({r.get("column", "") for r in rows})
     storages = sorted({r["storage"] for r in rows})
@@ -554,9 +616,12 @@ def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str
     algorithms = sorted({r["algorithm"] for r in rows})
     indexes = sorted({r["requested_index"] for r in rows})
     patterns = sorted({r["pattern_name"] for r in rows})
+    dataset_paths = sorted({r.get("data_path", "") for r in rows if r.get("data_path", "")})
     text = [
         f"name: {args.name}",
         f"rows: {len(rows)}",
+        f"data_manifest: {args.data_csv}",
+        f"dataset_paths: {', '.join(dataset_paths)}",
         f"datasets: {', '.join(datasets)}",
         f"columns: {', '.join(columns)}",
         f"storages: {', '.join(storages)}",

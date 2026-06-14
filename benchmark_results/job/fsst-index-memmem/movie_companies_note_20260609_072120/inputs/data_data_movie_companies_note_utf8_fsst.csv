@@ -1,2 +1,0 @@
-name,path,type,storage,column,key_column,value_column,enabled
-job_movie_companies_note,../../data/job/movie_companies__note.csv,job-csv,utf8;fsst,movie_companies.note,key,value,true

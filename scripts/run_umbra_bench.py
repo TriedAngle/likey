@@ -106,8 +106,8 @@ def main() -> int:
     if not patterns:
         raise SystemExit("pattern CSV produced no enabled patterns")
 
-    shutil.copy2(args.data_csv, inputs_dir / f"data_{args.data_csv.name}")
     shutil.copy2(args.patterns_csv, inputs_dir / f"patterns_{args.patterns_csv.name}")
+    write_dataset_paths(inputs_dir, args.data_csv, data_spec)
 
     loaded_csv = out_dir / "umbra_input.csv"
     load_stats = write_umbra_input_csv(
@@ -150,6 +150,7 @@ def main() -> int:
 
     print(f"Running Umbra benchmark; output directory: {out_dir}", file=sys.stderr)
     run = subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    loaded_csv.unlink(missing_ok=True)
     output = run.stdout or ""
     (out_dir / "umbra_output.txt").write_text(output)
     if run.returncode != 0:
@@ -229,6 +230,31 @@ def load_patterns(path: Path) -> list[PatternSpec]:
                 raise SystemExit(f"pattern CSV row {idx} has no pattern column")
             patterns.append(PatternSpec(name=name, pattern=row["pattern"]))
     return patterns
+
+
+def write_dataset_paths(inputs_dir: Path, data_csv: Path, data_spec: DataSpec) -> None:
+    data_path = data_csv.parent / data_spec.path
+    with (inputs_dir / "datasets.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "dataset",
+                "column",
+                "data_manifest",
+                "data_path",
+                "data_path_resolved",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "dataset": data_spec.name,
+                "column": data_spec.column,
+                "data_manifest": str(data_csv),
+                "data_path": str(data_path),
+                "data_path_resolved": str(data_path.resolve()),
+            }
+        )
 
 
 def write_umbra_input_csv(

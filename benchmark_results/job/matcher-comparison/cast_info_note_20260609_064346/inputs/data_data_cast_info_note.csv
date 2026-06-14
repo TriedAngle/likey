@@ -1,2 +1,0 @@
-name,path,type,storage,column,key_column,value_column,enabled
-job_cast_info_note,../../data/job/cast_info__note.csv,job-csv,utf8,cast_info.note,key,value,true

@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+job_movie_companies_note,movie_companies.note,utf8,benchmarks/job/data_movie_companies_note.csv,benchmarks/job/../../data/job/movie_companies__note.csv,/Users/sebastian/Projects/likey2/data/job/movie_companies__note.csv

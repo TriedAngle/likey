@@ -277,7 +277,7 @@ Available JOB data/pattern pairs:
 | `name.name` | `benchmarks/job/data_name_name.csv` | `benchmarks/job/index-comparison/patterns_name_name.csv` |
 | `title.title` | `benchmarks/job/data_title_title.csv` | `benchmarks/job/index-comparison/patterns_title_title.csv` |
 
-The `scripts/run_bench.py` wrapper writes each run to a timestamped directory under `--result-root` with `raw.csv`, `summary.csv`, `python_summary.csv`, copied inputs, `command.txt`, `info.txt`, `hardware.json`, `hardware.txt`, and plots.
+The `scripts/run_bench.py` wrapper writes each run to a timestamped directory under `--result-root` with `raw.csv`, `summary.csv`, `python_summary.csv`, copied pattern/index/algorithm specs, dataset path metadata, `command.txt`, `info.txt`, `hardware.json`, `hardware.txt`, and plots.
 
 Run all JOB benchmark modes for all JOB columns with checkpointing:
 

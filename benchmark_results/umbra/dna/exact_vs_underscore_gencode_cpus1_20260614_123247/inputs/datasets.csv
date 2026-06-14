@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+GENCODE human transcripts,sequence,umbra,benchmark_results/umbra/dna/exact_vs_underscore_gencode_cpus1_20260614_123247/inputs/data_data_gencode_dna_utf8_dna2.csv,benchmarks/dna/../../data/fasta/gencode_human_transcripts.fna,/Users/sebastian/Projects/likey2/data/fasta/gencode_human_transcripts.fna

@@ -1,0 +1,3 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+job_title_title,title.title,fsst,benchmarks/job/data_title_title_utf8_fsst.csv,benchmarks/job/../../data/job/title__title.csv,/Users/sebastian/Projects/likey2/data/job/title__title.csv
+job_title_title,title.title,utf8,benchmarks/job/data_title_title_utf8_fsst.csv,benchmarks/job/../../data/job/title__title.csv,/Users/sebastian/Projects/likey2/data/job/title__title.csv

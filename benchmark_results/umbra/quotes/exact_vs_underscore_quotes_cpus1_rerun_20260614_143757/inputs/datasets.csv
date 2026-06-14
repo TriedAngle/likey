@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+quotes,quotes.quote,umbra,benchmark_results/umbra/quotes/exact_vs_underscore_quotes_cpus1_rerun_20260614_143757/inputs/data_data_quotes_utf8.csv,benchmarks/quotes/../../data/quotes/quotes__quote.csv,/Users/sebastian/Projects/likey2/data/quotes/quotes__quote.csv

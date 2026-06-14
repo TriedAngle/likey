@@ -1,0 +1,3 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+DNA N-sparse 180bp reads,sequence,dna2,benchmarks/dna/data_n_sparse_utf8_dna2.csv,benchmarks/dna/../../data/fasta/dna_n_sparse_180_x2048.fna,/Users/sebastian/Projects/likey2/data/fasta/dna_n_sparse_180_x2048.fna
+DNA N-sparse 180bp reads,sequence,utf8,benchmarks/dna/data_n_sparse_utf8_dna2.csv,benchmarks/dna/../../data/fasta/dna_n_sparse_180_x2048.fna,/Users/sebastian/Projects/likey2/data/fasta/dna_n_sparse_180_x2048.fna

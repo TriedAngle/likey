@@ -1,0 +1,2 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+job_cast_info_note,cast_info.note,utf8,benchmarks/job/data_cast_info_note.csv,benchmarks/job/../../data/job/cast_info__note.csv,/Users/sebastian/Projects/likey2/data/job/cast_info__note.csv

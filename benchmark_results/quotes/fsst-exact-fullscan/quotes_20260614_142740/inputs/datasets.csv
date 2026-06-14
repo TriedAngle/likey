@@ -1,0 +1,3 @@
+dataset,column,storage,data_manifest,data_path,data_path_resolved
+quotes,quotes.quote,fsst,benchmarks/quotes/data_quotes_utf8_fsst.csv,benchmarks/quotes/../../data/quotes/quotes__quote.csv,/Users/sebastian/Projects/likey2/data/quotes/quotes__quote.csv
+quotes,quotes.quote,utf8,benchmarks/quotes/data_quotes_utf8_fsst.csv,benchmarks/quotes/../../data/quotes/quotes__quote.csv,/Users/sebastian/Projects/likey2/data/quotes/quotes__quote.csv

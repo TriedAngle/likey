@@ -70,7 +70,7 @@ cargo run -p runner --release -- \
   --summary-csv results/summary.csv
 ```
 
-Use the Python wrapper when you want a timestamped result directory, copied inputs, summaries, and plots:
+Use the Python wrapper when you want a timestamped result directory, copied benchmark specs, summaries, and plots:
 
 ```bash
 python3 scripts/run_bench.py \
@@ -83,7 +83,7 @@ python3 scripts/run_bench.py \
   --iterations 5
 ```
 
-The wrapper writes to `results/<name>_<timestamp>/` with `raw.csv`, `summary.csv`, `python_summary.csv`, `command.txt`, `info.txt`, copied inputs, and plots.
+The wrapper writes to `results/<name>_<timestamp>/` with `raw.csv`, `summary.csv`, `python_summary.csv`, `command.txt`, `info.txt`, copied pattern/index/algorithm specs, dataset path metadata, and plots.
 
 ## Benchmark Inputs
 

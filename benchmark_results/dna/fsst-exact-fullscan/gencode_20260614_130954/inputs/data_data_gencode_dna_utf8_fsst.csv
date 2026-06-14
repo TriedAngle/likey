@@ -1,2 +1,0 @@
-name,path,type,storage,column,enabled
-GENCODE human transcripts,../../data/fasta/gencode_human_transcripts.fna,dna-fasta,utf8;fsst,sequence,true
