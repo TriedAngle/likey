@@ -1,0 +1,60 @@
+suite,pattern_name,pattern,shape,selectivity,best_algorithm,best_ms,worst_algorithm,worst_ms,worst_to_best
+JOB cast_info.note,contains_producer,%(producer)%,contains,0.0489026,PairHorspool,65.969,StdSearch,183.925,2.788x
+JOB cast_info.note,contains_uncredited,%(uncredited)%,contains,0.0309777,PairHorspool,56.092,StdSearch,143.303,2.555x
+JOB cast_info.note,contains_voice,%(voice)%,contains,0.0338849,PairHorspool,73.422,LibcMemmem,159.836,2.177x
+JOB keyword.keyword,contains_sequel,%sequel%,contains,0.000223597,PairHorspool,1.597,LibcMemmem,3.432,2.149x
+JOB movie_companies.note,contains_1994,%(1994)%,contains,0.00324553,PairHorspool,18.473,StdSearch,36.557,1.979x
+JOB movie_companies.note,contains_2006,%(2006)%,contains,0.0219127,PairHorspool,18.465,LibcMemmem,36.491,1.976x
+JOB movie_companies.note,contains_2007,%(2007)%,contains,0.0238221,PairHorspool,17.222,Naive,36.209,2.102x
+JOB movie_companies.note,contains_200_wild,%(200%)%,multi-percent,0.168692,PairHorspool,29.650,LibcMemmem,47.463,1.601x
+JOB movie_companies.note,contains_blu_ray,%(Blu-ray)%,contains,0.00305198,PairHorspool,16.757,StdSearch,36.934,2.204x
+JOB movie_companies.note,contains_co_production,%(co-production)%,contains,0.00682833,PairHorspool,11.975,StdSearch,42.589,3.556x
+JOB movie_companies.note,contains_france,%(France)%,contains,0.0150042,PairHorspool,14.987,StdSearch,37.649,2.512x
+JOB movie_companies.note,contains_japan,%(Japan)%,contains,0.0187407,PairHorspool,15.694,StdSearch,35.601,2.268x
+JOB movie_companies.note,contains_presents,%(presents)%,contains,0.00426617,PairHorspool,13.940,StdSearch,40.172,2.882x
+JOB movie_companies.note,contains_theatrical,%(theatrical)%,contains,0.107184,PairHorspool,15.208,StdSearch,44.350,2.916x
+JOB movie_companies.note,contains_usa,%(USA)%,contains,0.186966,PairHorspool,19.657,LibcMemmem,37.458,1.906x
+JOB movie_companies.note,contains_vhs,%(VHS)%,contains,0.0290108,PairHorspool,18.223,LibcMemmem,34.818,1.911x
+JOB movie_companies.note,contains_worldwide,%(worldwide)%,contains,0.039553,PairHorspool,14.149,StdSearch,38.867,2.747x
+JOB movie_companies.note,not_contains_mgm_as,%(as Metro-Goldwyn-Mayer Pictures)%,contains,1.993e-05,PairHorspool,5.002,StdSearch,13.305,2.660x
+JOB movie_companies.note,not_contains_tv,%(TV)%,contains,0.158558,PairHorspool,20.109,BM,37.972,1.888x
+JOB movie_companies.note,not_contains_usa,%(USA)%,contains,0.186966,PairHorspool,20.015,LibcMemmem,37.311,1.864x
+JOB movie_info.info,prefix_japan_200,Japan:%200%,anchored-general,0.00820523,NaiveVectorizedV2Wildcard,37.726,Naive,45.991,1.219x
+JOB movie_info.info,prefix_japan_2007,Japan:%2007%,anchored-general,0.00127372,NaiveVectorizedV2Wildcard,34.559,LibcMemmem,43.293,1.253x
+JOB movie_info.info,prefix_japan_201,Japan:%201%,anchored-general,0.00357768,NaiveVectorizedV2Wildcard,37.561,Naive,46.842,1.247x
+JOB movie_info.info,prefix_usa_200,USA:%200%,anchored-general,0.0441605,NaiveWildcard,61.273,LibcMemmem,74.760,1.220x
+JOB movie_info.info,prefix_usa_2008,USA:%2008%,anchored-general,0.00683802,TwoWay,53.404,LibcMemmem,64.672,1.211x
+JOB movie_info.info,prefix_usa_201,USA:%201%,anchored-general,0.0341177,NaiveVectorizedV2Wildcard,61.195,LibcMemmem,73.928,1.208x
+JOB movie_info.info,prefix_usa_space_199,USA:% 199%,anchored-general,0.0117072,TwoWay,53.279,LibcMemmem,64.565,1.212x
+JOB movie_info.info,prefix_usa_space_200,USA:% 200%,anchored-general,0.0402918,PairHorspool,55.737,LibcMemmem,67.226,1.206x
+JOB name.name,contains_an,%An%,contains,0.0392613,TwoWay3,57.376,BM,155.709,2.714x
+JOB name.name,contains_ang,%Ang%,contains,0.00379197,NaiveWildcard,61.360,LibcMemmem,112.357,1.831x
+JOB name.name,contains_angel,%Angel%,contains,0.00293246,PairHorspool,46.146,StdSearch,105.408,2.284x
+JOB name.name,contains_b,%B%,contains,0.128786,LibcMemmem,26.376,BM,259.072,9.822x
+JOB name.name,contains_bert,%Bert%,contains,0.00125159,PairHorspool,53.949,LibcMemmem,105.376,1.953x
+JOB name.name,contains_downey_robert,%Downey%Robert%,multi-percent,4.79905e-07,PairHorspool,50.638,StdSearch,100.460,1.984x
+JOB name.name,contains_tim,%Tim%,contains,0.00371974,NaiveWildcard,59.690,LibcMemmem,109.573,1.836x
+JOB name.name,contains_yo,%Yo%,contains,0.00505484,TwoWay,54.128,BM,156.068,2.883x
+JOB name.name,not_contains_yu,%Yu%,contains,0.0038582,TwoWay,54.689,BM,151.529,2.771x
+JOB name.name,prefix_a,A%,prefix,0.0425347,LibcMemmem,13.826,Utf8Kmp,15.559,1.125x
+JOB name.name,prefix_b,B%,prefix,0.0823995,NaiveWildcard,13.935,StdSearch,15.913,1.142x
+JOB name.name,prefix_x,X%,prefix,0.000639234,NaiveWildcard,13.890,StdSearch,15.928,1.147x
+JOB name.name,prefix_z,Z%,prefix,0.00868004,LibcMemmem,13.815,Utf8Kmp,15.547,1.125x
+JOB title.title,contains_champion,%Champion%,contains,0.000739624,PairHorspool,27.480,StdSearch,64.023,2.330x
+JOB title.title,contains_freddy,%Freddy%,contains,5.7746e-05,PairHorspool,32.288,LibcMemmem,64.429,1.995x
+JOB title.title,contains_jason,%Jason%,contains,0.000190641,PairHorspool,33.251,LibcMemmem,65.954,1.984x
+JOB title.title,contains_kung_fu_panda,%Kung%Fu%Panda%,multi-percent,7.91042e-06,PairHorspool,36.892,BM,62.678,1.699x
+JOB title.title,contains_loser,%Loser%,contains,0.000138037,PairHorspool,33.036,StdSearch,68.257,2.066x
+JOB title.title,contains_money,%Money%,contains,0.000904161,PairHorspool,33.231,LibcMemmem,65.825,1.981x
+JOB title.title,contains_mord,%Mord%,contains,0.000251947,PairHorspool,34.460,LibcMemmem,67.028,1.945x
+JOB title.title,contains_movie,%Movie%,contains,0.0014389,PairHorspool,32.934,LibcMemmem,64.752,1.966x
+JOB title.title,contains_murder_lower,%murder%,contains,2.76865e-06,PairHorspool,32.289,StdSearch,67.270,2.083x
+JOB title.title,contains_murder_upper,%Murder%,contains,0.00143258,PairHorspool,32.675,LibcMemmem,66.102,2.023x
+JOB title.title,prefix_birdemic,Birdemic%,prefix,3.16417e-06,PairHorspool,9.068,NaiveAvx2V2Wildcard,10.490,1.157x
+JOB title.title,prefix_champion,Champion%,prefix,8.78056e-05,Naive,9.204,NaiveAvx2V2Wildcard,10.358,1.125x
+JOB title.title,prefix_dragon_ball_z,Dragon Ball Z%,prefix,9.88802e-06,StdSearch,9.536,NaiveAutoWildcard,10.649,1.117x
+JOB title.title,prefix_kung_fu_panda,Kung Fu Panda%,prefix,5.93281e-06,StdSearch,9.623,NaiveAutoWildcard,10.152,1.055x
+JOB title.title,prefix_loser,Loser%,prefix,2.84775e-05,NaiveVectorizedV2Wildcard,9.184,NaiveVectorizedV2,10.914,1.188x
+JOB title.title,prefix_one_piece,One Piece%,prefix,5.53729e-06,NaiveAuto,9.366,NaiveAvx2V2Wildcard,10.124,1.081x
+JOB title.title,prefix_saw,Saw%,prefix,5.18132e-05,NaiveAuto,9.395,NaiveAvx2V2Wildcard,10.248,1.091x
+JOB title.title,prefix_vampire,Vampire%,prefix,0.000112328,NaiveWildcard,8.973,BM,11.774,1.312x

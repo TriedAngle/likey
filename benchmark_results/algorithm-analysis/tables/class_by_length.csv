@@ -1,0 +1,16 @@
+suite,length,exact_non-wildcard_geomean_ms,exact_wildcard_geomean_ms,underscore_non-wildcard_geomean_ms,underscore_wildcard_geomean_ms
+DNA exact/underscore,1,1.000,0.711,0.152,0.253
+DNA exact/underscore,2,3.947,2.750,1.742,0.822
+DNA exact/underscore,4,22.901,16.423,5.877,2.206
+DNA exact/underscore,16,60.232,44.910,70.968,58.680
+DNA exact/underscore,32,57.253,45.836,61.231,56.027
+DNA exact/underscore,64,55.090,46.801,68.113,57.050
+DNA exact/underscore,128,52.613,45.461,60.047,60.099
+DNA exact/underscore,256,47.506,43.306,61.366,52.580
+Quotes exact/underscore,1,0.979,0.729,0.212,0.358
+Quotes exact/underscore,2,2.797,1.982,1.887,0.839
+Quotes exact/underscore,4,4.558,3.237,6.930,2.225
+Quotes exact/underscore,8,4.151,3.141,6.887,3.143
+Quotes exact/underscore,16,3.528,2.797,5.124,2.798
+Quotes exact/underscore,32,2.527,2.140,4.056,2.159
+Quotes exact/underscore,64,2.632,2.187,4.308,2.175

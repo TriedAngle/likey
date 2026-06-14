@@ -1,0 +1,20 @@
+name: gencode_utf8
+rows: 1560
+datasets: GENCODE human transcripts
+columns: sequence
+storages: utf8
+generic_matchers: adaptive, static
+algorithms: NaiveVectorizedV2, NaiveVectorizedV2Wildcard, StdSearch
+indexes: full-scan
+patterns: anchored_prefix_exact_segments, anchored_prefix_gap, anchored_suffix_gap, any_len001, dna_common_gap_multi_percent, dna_multi_percent_common4, dna_multi_percent_medium4, exact_short_hit, exact_short_nohit, gap_len016, gap_len032, gap_len064, gap_len128, gap_len256, interleaved_common, interleaved_with_bigger, many_common_short_segments, one_fixed_len002, ordered_exact_segments, ordered_mixed_segments, ordered_wild_segments, selective_spaced_segments, spaced_seed, sparse_len004, suffix_short_hit, suffix_short_nohit
+warmups: 1
+iterations: 10
+generic_matcher: static,adaptive
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+rustflags: -C target-cpu=native
+hardware_platform: macOS-26.3.1-arm64-arm-64bit
+hardware_cpu_model: arm
+hardware_cpu_count_logical: 16
+hardware_memory_total_bytes: None

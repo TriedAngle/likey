@@ -1,0 +1,499 @@
+dataset,case,algorithm,pattern_name,pattern,ratio,rows_matched,complexity,specificity,percent_count,underscore_count,longest_fixed_fragment
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,any_len001,%_%,1.0340936747883933,50421,wildcard_only,all_rows,2,1,0
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,any_len001,%_%,0.9670303806902504,50421,wildcard_only,all_rows,2,1,0
+DNA,static_bad_vs_adaptive,StdSearch,any_len001,%_%,0.9743403565640194,50421,wildcard_only,all_rows,2,1,0
+DNA,adaptive_bad_vs_static,StdSearch,any_len001,%_%,1.0263354004205147,50421,wildcard_only,all_rows,2,1,0
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,any_len001,%_%,0.9916545870715511,50421,wildcard_only,all_rows,2,1,0
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,any_len001,%_%,1.0084156449607053,50421,wildcard_only,all_rows,2,1,0
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.7638191583733203,0,single_gapped_segment,zero_match,1,20,6
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,anchored_suffix_gap,%GGGCAC____________________GGTGTC,1.3092104185101432,0,single_gapped_segment,zero_match,1,20,6
+DNA,static_bad_vs_adaptive,StdSearch,anchored_prefix_gap,AAGC________ACCG%,0.5961852162146289,0,single_gapped_segment,zero_match,1,8,4
+DNA,adaptive_bad_vs_static,StdSearch,anchored_prefix_gap,AAGC________ACCG%,1.6773310924234597,0,single_gapped_segment,zero_match,1,8,4
+DNA,static_bad_vs_adaptive,StdSearch,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.7621730689244753,55,ordered_segments,selective,3,0,4
+DNA,adaptive_bad_vs_static,StdSearch,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.3120379619436424,55,ordered_segments,selective,3,0,4
+DNA,static_bad_vs_adaptive,StdSearch,anchored_suffix_gap,%GGGCAC____________________GGTGTC,1.0273407689783873,0,single_gapped_segment,zero_match,1,20,6
+DNA,adaptive_bad_vs_static,StdSearch,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.9733868548742832,0,single_gapped_segment,zero_match,1,20,6
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,anchored_prefix_gap,AAGC________ACCG%,0.7585851326850173,0,single_gapped_segment,zero_match,1,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,anchored_prefix_gap,AAGC________ACCG%,1.318243604986685,0,single_gapped_segment,zero_match,1,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_gap,AAGC________ACCG%,0.6365268242703797,0,single_gapped_segment,zero_match,1,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,anchored_prefix_gap,AAGC________ACCG%,1.5710257005213446,0,single_gapped_segment,zero_match,1,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.9930646276800122,55,ordered_segments,selective,3,0,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.0069838076260857,55,ordered_segments,selective,3,0,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.730068732146163,0,single_gapped_segment,zero_match,1,20,6
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,anchored_suffix_gap,%GGGCAC____________________GGTGTC,1.3697340482728626,0,single_gapped_segment,zero_match,1,20,6
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.9295329251804315,55,ordered_segments,selective,3,0,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.0758091218833266,55,ordered_segments,selective,3,0,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,one_fixed_len002,%G_%,0.9752546861609243,50421,single_gapped_segment,all_rows,2,1,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,one_fixed_len002,%G_%,1.0253731811702287,50421,single_gapped_segment,all_rows,2,1,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,one_fixed_len002,%G_%,1.1129860571719616,50421,single_gapped_segment,all_rows,2,1,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,one_fixed_len002,%G_%,0.8984838521166625,50421,single_gapped_segment,all_rows,2,1,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,sparse_len004,%C__G%,0.6556610579216896,50407,single_gapped_segment,broad,2,2,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,sparse_len004,%C__G%,1.5251782730086088,50407,single_gapped_segment,broad,2,2,1
+DNA,static_bad_vs_adaptive,StdSearch,one_fixed_len002,%G_%,0.8080035816372215,50421,single_gapped_segment,all_rows,2,1,1
+DNA,adaptive_bad_vs_static,StdSearch,one_fixed_len002,%G_%,1.2376182763617765,50421,single_gapped_segment,all_rows,2,1,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,sparse_len004,%C__G%,1.1148252321521956,50407,single_gapped_segment,broad,2,2,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,sparse_len004,%C__G%,0.8970015847860539,50407,single_gapped_segment,broad,2,2,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,many_common_short_segments,%A_%C_%G_%T_%,0.4690044973866537,50420,complex_multi_percent,broad,5,4,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,many_common_short_segments,%A_%C_%G_%T_%,2.132175715951795,50420,complex_multi_percent,broad,5,4,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,many_common_short_segments,%A_%C_%G_%T_%,0.6192048770589188,50420,complex_multi_percent,broad,5,4,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,many_common_short_segments,%A_%C_%G_%T_%,1.6149743599400745,50420,complex_multi_percent,broad,5,4,1
+DNA,static_bad_vs_adaptive,StdSearch,many_common_short_segments,%A_%C_%G_%T_%,0.5439723832008216,50420,complex_multi_percent,broad,5,4,1
+DNA,adaptive_bad_vs_static,StdSearch,many_common_short_segments,%A_%C_%G_%T_%,1.838328619029955,50420,complex_multi_percent,broad,5,4,1
+DNA,static_bad_vs_adaptive,StdSearch,sparse_len004,%C__G%,0.5791738218655957,50407,single_gapped_segment,broad,2,2,1
+DNA,adaptive_bad_vs_static,StdSearch,sparse_len004,%C__G%,1.7265973741334981,50407,single_gapped_segment,broad,2,2,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.9231536902394676,35019,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,1.0832432460304615,35019,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.9963957949041284,30963,complex_multi_percent,broad,4,3,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,1.003617242379288,30963,complex_multi_percent,broad,4,3,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.8822163569868032,35019,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,1.1335087952976581,35019,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.9599773822004654,30963,complex_multi_percent,broad,4,3,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,1.0416912091280677,30963,complex_multi_percent,broad,4,3,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.9584378206157415,27590,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,1.043364502621106,27590,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.9545683532279259,24211,complex_multi_percent,broad,4,0,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,ordered_exact_segments,%CGCA%GAGA%CGGG%,1.04759391678809,24211,complex_multi_percent,broad,4,0,4
+DNA,static_bad_vs_adaptive,StdSearch,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.9523507264860698,30963,complex_multi_percent,broad,4,3,4
+DNA,adaptive_bad_vs_static,StdSearch,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,1.0500333251067533,30963,complex_multi_percent,broad,4,3,4
+DNA,static_bad_vs_adaptive,StdSearch,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.9502586195796187,35019,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,StdSearch,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,1.0523450978454543,35019,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.8007072722328386,27590,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,1.2488958632927327,27590,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.9308754214041022,24211,complex_multi_percent,broad,4,0,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,ordered_exact_segments,%CGCA%GAGA%CGGG%,1.0742576041933007,24211,complex_multi_percent,broad,4,0,4
+DNA,static_bad_vs_adaptive,StdSearch,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.9503130693572325,24211,complex_multi_percent,broad,4,0,4
+DNA,adaptive_bad_vs_static,StdSearch,ordered_exact_segments,%CGCA%GAGA%CGGG%,1.0522848019720223,24211,complex_multi_percent,broad,4,0,4
+DNA,static_bad_vs_adaptive,StdSearch,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9788409756097561,44,single_gapped_segment,selective,2,104,12
+DNA,adaptive_bad_vs_static,StdSearch,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.0216164064617985,44,single_gapped_segment,selective,2,104,12
+DNA,static_bad_vs_adaptive,StdSearch,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.946434440486885,27590,complex_multi_percent,broad,4,2,4
+DNA,adaptive_bad_vs_static,StdSearch,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,1.056597221341141,27590,complex_multi_percent,broad,4,2,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.9512253733346561,42,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.0512755736260035,42,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,gap_len016,%AAGC________ACCG%,0.9921745890543919,538,single_gapped_segment,medium,2,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,gap_len016,%AAGC________ACCG%,1.0078871309867614,538,single_gapped_segment,medium,2,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.9676298840124269,494,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.0334529932595151,494,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,spaced_seed,%CGCA____CGGG____TAGA%,0.9726309203229259,0,single_gapped_segment,zero_match,2,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,spaced_seed,%CGCA____CGGG____TAGA%,1.0281392243503706,0,single_gapped_segment,zero_match,2,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,0.9508495435615008,1586,complex_multi_percent,medium,7,6,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,1.0516910974731095,1586,complex_multi_percent,medium,7,6,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,gap_len032,%GGGCAC____________________GGTGTC%,1.0689843883449512,25,single_gapped_segment,selective,2,20,6
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,gap_len032,%GGGCAC____________________GGTGTC%,0.9354673565890368,25,single_gapped_segment,selective,2,20,6
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.0356351101500056,67,single_gapped_segment,selective,2,48,8
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9655910563472069,67,single_gapped_segment,selective,2,48,8
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.0078174413289813,26,single_gapped_segment,selective,2,224,16
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9922431970231903,26,single_gapped_segment,selective,2,224,16
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.44573127517192407,297,single_gapped_segment,selective,2,7,3
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,2.243504227102502,297,single_gapped_segment,selective,2,7,3
+DNA,static_bad_vs_adaptive,StdSearch,gap_len032,%GGGCAC____________________GGTGTC%,0.9832525435437248,25,single_gapped_segment,selective,2,20,6
+DNA,adaptive_bad_vs_static,StdSearch,gap_len032,%GGGCAC____________________GGTGTC%,1.0170327110427968,25,single_gapped_segment,selective,2,20,6
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.009040584272562,44,single_gapped_segment,selective,2,104,12
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9910404156052062,44,single_gapped_segment,selective,2,104,12
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9977692590876327,26,single_gapped_segment,selective,2,224,16
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.0022357282428276,26,single_gapped_segment,selective,2,224,16
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,0.9491695703727714,1586,complex_multi_percent,medium,7,6,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,1.053552527613444,1586,complex_multi_percent,medium,7,6,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,spaced_seed,%CGCA____CGGG____TAGA%,0.9636752549621452,0,single_gapped_segment,zero_match,2,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,spaced_seed,%CGCA____CGGG____TAGA%,1.0376939688456375,0,single_gapped_segment,zero_match,2,8,4
+DNA,static_bad_vs_adaptive,StdSearch,spaced_seed,%CGCA____CGGG____TAGA%,0.966955762521668,0,single_gapped_segment,zero_match,2,8,4
+DNA,adaptive_bad_vs_static,StdSearch,spaced_seed,%CGCA____CGGG____TAGA%,1.0341734738641588,0,single_gapped_segment,zero_match,2,8,4
+DNA,static_bad_vs_adaptive,StdSearch,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.8779496002735161,42,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,StdSearch,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.1390175468938768,42,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,StdSearch,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.8024394028368321,494,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,StdSearch,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.2462000201694232,494,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9536243170779443,67,single_gapped_segment,selective,2,48,8
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.0486309777252305,67,single_gapped_segment,selective,2,48,8
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,interleaved_common,%C_G_C_G_C_G_C_G%,0.9744718058951911,3085,single_gapped_segment,medium,2,7,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,interleaved_common,%C_G_C_G_C_G_C_G%,1.026196955058497,3085,single_gapped_segment,medium,2,7,1
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_len032,%GGGCAC____________________GGTGTC%,0.9517038051844643,25,single_gapped_segment,selective,2,20,6
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_len032,%GGGCAC____________________GGTGTC%,1.0507470859656536,25,single_gapped_segment,selective,2,20,6
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_len016,%AAGC________ACCG%,0.9641278520379919,538,single_gapped_segment,medium,2,8,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_len016,%AAGC________ACCG%,1.0372068371286867,538,single_gapped_segment,medium,2,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.9208994927046945,42,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.0858948320874693,42,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.9354918682731689,494,complex_multi_percent,selective,5,5,4
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.0689563789003396,494,complex_multi_percent,selective,5,5,4
+DNA,static_bad_vs_adaptive,StdSearch,gap_len016,%AAGC________ACCG%,1.1197388038403693,538,single_gapped_segment,medium,2,8,4
+DNA,adaptive_bad_vs_static,StdSearch,gap_len016,%AAGC________ACCG%,0.8930654154078603,538,single_gapped_segment,medium,2,8,4
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.9605926058241206,297,single_gapped_segment,selective,2,7,3
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,1.041024044883284,297,single_gapped_segment,selective,2,7,3
+DNA,static_bad_vs_adaptive,StdSearch,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.3592254713650323,297,single_gapped_segment,selective,2,7,3
+DNA,adaptive_bad_vs_static,StdSearch,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,2.783766964519716,297,single_gapped_segment,selective,2,7,3
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9810169015529091,44,single_gapped_segment,selective,2,104,12
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.0193504295563527,44,single_gapped_segment,selective,2,104,12
+DNA,static_bad_vs_adaptive,StdSearch,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,0.9698760129961084,1586,complex_multi_percent,medium,7,6,4
+DNA,adaptive_bad_vs_static,StdSearch,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,1.031059626797897,1586,complex_multi_percent,medium,7,6,4
+DNA,static_bad_vs_adaptive,StdSearch,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9833875673914005,67,single_gapped_segment,selective,2,48,8
+DNA,adaptive_bad_vs_static,StdSearch,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.016893067554908,67,single_gapped_segment,selective,2,48,8
+DNA,static_bad_vs_adaptive,StdSearch,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9539710343334077,26,single_gapped_segment,selective,2,224,16
+DNA,adaptive_bad_vs_static,StdSearch,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.0482498566623204,26,single_gapped_segment,selective,2,224,16
+DNA,static_bad_vs_adaptive,NaiveVectorizedV2,interleaved_common,%C_G_C_G_C_G_C_G%,1.1332327209820021,3085,single_gapped_segment,medium,2,7,1
+DNA,adaptive_bad_vs_static,NaiveVectorizedV2,interleaved_common,%C_G_C_G_C_G_C_G%,0.8824312795464031,3085,single_gapped_segment,medium,2,7,1
+DNA,static_bad_vs_adaptive,StdSearch,interleaved_common,%C_G_C_G_C_G_C_G%,1.0506362326374947,3085,single_gapped_segment,medium,2,7,1
+DNA,adaptive_bad_vs_static,StdSearch,interleaved_common,%C_G_C_G_C_G_C_G%,0.951804220086358,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,any_len001,%_%,1.0380351010032722,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,any_len001,%_%,0.9633585598728687,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_bad_vs_best_segment,StdSearch,any_len001,%_%,1.0058219998403108,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_good_vs_best_segment,StdSearch,any_len001,%_%,0.9942116996434407,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,any_len001,%_%,0.9891524452576131,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,any_len001,%_%,1.0109665146099516,50421,wildcard_only,all_rows,2,1,0
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.9645827188411497,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_suffix_gap,%GGGCAC____________________GGTGTC,1.0367177230807127,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_bad_vs_best_segment,StdSearch,anchored_prefix_gap,AAGC________ACCG%,1.107219897993032,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_good_vs_best_segment,StdSearch,anchored_prefix_gap,AAGC________ACCG%,0.9031629596005447,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_bad_vs_best_segment,StdSearch,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.9507480413835037,55,ordered_segments,selective,3,0,4
+DNA,recursive_good_vs_best_segment,StdSearch,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.051803376365442,55,ordered_segments,selective,3,0,4
+DNA,recursive_bad_vs_best_segment,StdSearch,anchored_suffix_gap,%GGGCAC____________________GGTGTC,241.37953511810568,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_good_vs_best_segment,StdSearch,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.00414285328501733,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,anchored_prefix_gap,AAGC________ACCG%,0.6587246128922356,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,anchored_prefix_gap,AAGC________ACCG%,1.518085069888827,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_gap,AAGC________ACCG%,0.8486932309574535,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_gap,AAGC________ACCG%,1.1782820500074564,0,single_gapped_segment,zero_match,1,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.7012826217329903,55,ordered_segments,selective,3,0,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.425958620689655,55,ordered_segments,selective,3,0,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,anchored_suffix_gap,%GGGCAC____________________GGTGTC,191.21268755526953,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,anchored_suffix_gap,%GGGCAC____________________GGTGTC,0.0052297784879518135,0,single_gapped_segment,zero_match,1,20,6
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,1.0322752467666494,55,ordered_segments,selective,3,0,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,0.968733875128999,55,ordered_segments,selective,3,0,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,one_fixed_len002,%G_%,1.0877509141293762,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,one_fixed_len002,%G_%,0.919328117320305,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,one_fixed_len002,%G_%,1.5848561787737951,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,one_fixed_len002,%G_%,0.630972080238663,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,sparse_len004,%C__G%,0.9907993507889653,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,sparse_len004,%C__G%,1.0092860872422942,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_bad_vs_best_segment,StdSearch,one_fixed_len002,%G_%,1.0627257693291279,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_good_vs_best_segment,StdSearch,one_fixed_len002,%G_%,0.9409765236343849,50421,single_gapped_segment,all_rows,2,1,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,sparse_len004,%C__G%,1.846320363644228,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,sparse_len004,%C__G%,0.5416178143787687,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,many_common_short_segments,%A_%C_%G_%T_%,1.1572067747039048,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,many_common_short_segments,%A_%C_%G_%T_%,0.8641497974775257,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,many_common_short_segments,%A_%C_%G_%T_%,1.8915661834369772,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,many_common_short_segments,%A_%C_%G_%T_%,0.5286624431945591,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_bad_vs_best_segment,StdSearch,many_common_short_segments,%A_%C_%G_%T_%,1.006247953255706,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_good_vs_best_segment,StdSearch,many_common_short_segments,%A_%C_%G_%T_%,0.9937908412777479,50420,complex_multi_percent,broad,5,4,1
+DNA,recursive_bad_vs_best_segment,StdSearch,sparse_len004,%C__G%,1.5095217190369818,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_good_vs_best_segment,StdSearch,sparse_len004,%C__G%,0.6624614852431289,50407,single_gapped_segment,broad,2,2,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,2.1100087470302626,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.47393168459962676,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,7.2286464062344065,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.13833848604595483,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,2.0857232009928377,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.47945000541010613,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,7.97610806873163,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.12537442965702209,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,5.77157191855301,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.17326302333432758,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,ordered_exact_segments,%CGCA%GAGA%CGGG%,2.4392707126709228,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.4099585973813592,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_bad_vs_best_segment,StdSearch,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,5.10252033955926,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_good_vs_best_segment,StdSearch,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,0.19598158036668933,30963,complex_multi_percent,broad,4,3,4
+DNA,recursive_bad_vs_best_segment,StdSearch,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,1.8383574565895924,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,StdSearch,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,0.5439638501290921,35019,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,5.655925723487408,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.17680571649788326,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_exact_segments,%CGCA%GAGA%CGGG%,2.54888218933582,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.39232884288801795,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_bad_vs_best_segment,StdSearch,ordered_exact_segments,%CGCA%GAGA%CGGG%,2.0488370274836654,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_good_vs_best_segment,StdSearch,ordered_exact_segments,%CGCA%GAGA%CGGG%,0.4880817686256759,24211,complex_multi_percent,broad,4,0,4
+DNA,recursive_bad_vs_best_segment,StdSearch,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.0239013905149559,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_good_vs_best_segment,StdSearch,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9766565503901357,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_bad_vs_best_segment,StdSearch,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,4.403270588542279,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_good_vs_best_segment,StdSearch,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,0.22710391739315164,27590,complex_multi_percent,broad,4,2,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.0497983093938374,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.9525639268531577,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_len016,%AAGC________ACCG%,1.0640626291819464,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_len016,%AAGC________ACCG%,0.9397943058753995,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.0640317236697818,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.9398216028287762,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,spaced_seed,%CGCA____CGGG____TAGA%,1.0422391713925967,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,spaced_seed,%CGCA____CGGG____TAGA%,0.9594726694678359,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_len032,%GGGCAC____________________GGTGTC%,1.0667721268472812,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_len032,%GGGCAC____________________GGTGTC%,0.9374073195513475,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.0563465982261424,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9466589864342236,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.034382132772429,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9667607050788132,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,4.037520342500468,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.24767677068363506,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_bad_vs_best_segment,StdSearch,gap_len032,%GGGCAC____________________GGTGTC%,1.0280609864505477,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_good_vs_best_segment,StdSearch,gap_len032,%GGGCAC____________________GGTGTC%,0.9727049398621476,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.0354889110926042,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9657273866359827,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.0270098585957612,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9737004875175277,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,spaced_seed,%CGCA____CGGG____TAGA%,1.0361466752364747,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,spaced_seed,%CGCA____CGGG____TAGA%,0.9651143258957761,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_bad_vs_best_segment,StdSearch,spaced_seed,%CGCA____CGGG____TAGA%,1.0693186885725237,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_good_vs_best_segment,StdSearch,spaced_seed,%CGCA____CGGG____TAGA%,0.9351749021939756,0,single_gapped_segment,zero_match,2,8,4
+DNA,recursive_bad_vs_best_segment,StdSearch,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.0621914211229095,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,StdSearch,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.9414498932243652,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,StdSearch,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.0684623100712654,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,StdSearch,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.9359244500943613,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.027775443287315,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9729751829850344,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,interleaved_common,%C_G_C_G_C_G_C_G%,1.0367712703350607,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,interleaved_common,%C_G_C_G_C_G_C_G%,0.9645328999874997,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len032,%GGGCAC____________________GGTGTC%,1.0362398660582612,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len032,%GGGCAC____________________GGTGTC%,0.9650275315153493,25,single_gapped_segment,selective,2,20,6
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len016,%AAGC________ACCG%,1.06873470500477,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len016,%AAGC________ACCG%,0.9356859053206631,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,1.087390779130863,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,0.9196325913295739,42,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,1.0728269422722447,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,0.9321167847276491,494,complex_multi_percent,selective,5,5,4
+DNA,recursive_bad_vs_best_segment,StdSearch,gap_len016,%AAGC________ACCG%,1.1545540033046642,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_good_vs_best_segment,StdSearch,gap_len016,%AAGC________ACCG%,0.8661353190389653,538,single_gapped_segment,medium,2,8,4
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,1.0675317031846356,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.9367403300687216,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_bad_vs_best_segment,StdSearch,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,4.9591536729292365,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_good_vs_best_segment,StdSearch,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,0.201647310398697,297,single_gapped_segment,selective,2,7,3
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,1.033092466618684,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,0.9679675656458944,44,single_gapped_segment,selective,2,104,12
+DNA,recursive_bad_vs_best_segment,StdSearch,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,1.017655313833663,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_good_vs_best_segment,StdSearch,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,0.9826509884106509,67,single_gapped_segment,selective,2,48,8
+DNA,recursive_bad_vs_best_segment,StdSearch,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,1.0175743706516556,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_good_vs_best_segment,StdSearch,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,0.9827291536043691,26,single_gapped_segment,selective,2,224,16
+DNA,recursive_bad_vs_best_segment,NaiveVectorizedV2,interleaved_common,%C_G_C_G_C_G_C_G%,1.1469081808543873,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_good_vs_best_segment,NaiveVectorizedV2,interleaved_common,%C_G_C_G_C_G_C_G%,0.8719093792277701,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_bad_vs_best_segment,StdSearch,interleaved_common,%C_G_C_G_C_G_C_G%,1.0791918752318121,3085,single_gapped_segment,medium,2,7,1
+DNA,recursive_good_vs_best_segment,StdSearch,interleaved_common,%C_G_C_G_C_G_C_G%,0.9266192814741109,3085,single_gapped_segment,medium,2,7,1
+Quotes,static_bad_vs_adaptive,StdSearch,wild_any,%_%,1.0369397160827922,75966,wildcard_only,all_rows,2,1,0
+Quotes,adaptive_bad_vs_static,StdSearch,wild_any,%_%,0.9643762163702843,75966,wildcard_only,all_rows,2,1,0
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,wild_any,%_%,1.3490619670267197,75966,wildcard_only,all_rows,2,1,0
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,wild_any,%_%,0.7412557943531395,75966,wildcard_only,all_rows,2,1,0
+Quotes,static_bad_vs_adaptive,StdSearch,anchored_prefix_exact,Age is an issue%,0.9744662068615123,1,simple_literal,selective,1,0,15
+Quotes,adaptive_bad_vs_static,StdSearch,anchored_prefix_exact,Age is an issue%,1.0262028513238288,1,simple_literal,selective,1,0,15
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,anchored_prefix_exact,Age is an issue%,1.223493689243389,1,simple_literal,selective,1,0,15
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,anchored_prefix_exact,Age is an issue%,0.8173315553580027,1,simple_literal,selective,1,0,15
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_exact,Age is an issue%,1.1021852551984876,1,simple_literal,selective,1,0,15
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,anchored_prefix_exact,Age is an issue%,0.9072884937295903,1,simple_literal,selective,1,0,15
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_gap,Age is a________________over mat%,1.0592221567472009,1,single_gapped_segment,selective,1,16,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,anchored_prefix_gap,Age is a________________over mat%,0.9440890125173853,1,single_gapped_segment,selective,1,16,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,anchored_prefix_gap,Age is a________________over mat%,1.2604313636735736,1,single_gapped_segment,selective,1,16,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,anchored_prefix_gap,Age is a________________over mat%,0.7933791786055396,1,single_gapped_segment,selective,1,16,8
+Quotes,static_bad_vs_adaptive,StdSearch,anchored_prefix_gap,Age is a________________over mat%,1.0495766335677028,1,single_gapped_segment,selective,1,16,8
+Quotes,adaptive_bad_vs_static,StdSearch,anchored_prefix_gap,Age is a________________over mat%,0.9527651131111954,1,single_gapped_segment,selective,1,16,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,wild_any,%_%,0.9995555555555555,75966,wildcard_only,all_rows,2,1,0
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,wild_any,%_%,1.0004446420631392,75966,wildcard_only,all_rows,2,1,0
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,wild_short,%t_%,1.2304450251650565,75409,single_gapped_segment,broad,2,1,1
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,wild_short,%t_%,0.8127140827489275,75409,single_gapped_segment,broad,2,1,1
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,wild_short,%t_%,1.0357032561114599,75409,single_gapped_segment,broad,2,1,1
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,wild_short,%t_%,0.9655275235442367,75409,single_gapped_segment,broad,2,1,1
+Quotes,static_bad_vs_adaptive,StdSearch,wild_short,%t_%,1.0473437026075163,75409,single_gapped_segment,broad,2,1,1
+Quotes,adaptive_bad_vs_static,StdSearch,wild_short,%t_%,0.9547964030435785,75409,single_gapped_segment,broad,2,1,1
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,wild_4,%t__ %,1.0077158366256793,58785,single_gapped_segment,broad,2,2,1
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,wild_4,%t__ %,0.9923432416706721,58785,single_gapped_segment,broad,2,2,1
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,gap_32,%Age is a________________over mat%,0.983921255833594,1,single_gapped_segment,selective,2,16,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,gap_32,%Age is a________________over mat%,1.0163414948819087,1,single_gapped_segment,selective,2,16,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_32,%Age is a________________over mat%,0.9808685222814857,1,single_gapped_segment,selective,2,16,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_32,%Age is a________________over mat%,1.0195046301149666,1,single_gapped_segment,selective,2,16,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,selective_first_common_later,%relationship with%the%,0.9792082227122328,236,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,selective_first_common_later,%relationship with%the%,1.0212332543840141,236,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,multi_gap_selective,%young_%learning_%mind%,0.9636192843624959,0,complex_multi_percent,zero_match,4,2,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,multi_gap_selective,%young_%learning_%mind%,1.0377542419790535,0,complex_multi_percent,zero_match,4,2,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,gap_16,%ge i________ue o%,0.9931494089111359,1,single_gapped_segment,selective,2,8,4
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,gap_16,%ge i________ue o%,1.0068978454071427,1,single_gapped_segment,selective,2,8,4
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.0160462232609473,3,complex_multi_percent,selective,5,2,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.9842071916674738,3,complex_multi_percent,selective,5,2,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,ordered_selective,%coffee%obituaries%,0.9952307207403005,1,ordered_segments,selective,3,0,10
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,ordered_selective,%coffee%obituaries%,1.004792134286361,1,ordered_segments,selective,3,0,10
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.0099030497894352,1,complex_multi_percent,selective,5,0,6
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.9901940589331817,1,complex_multi_percent,selective,5,0,6
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_16,%ge i________ue o%,0.9781871097040286,1,single_gapped_segment,selective,2,8,4
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_16,%ge i________ue o%,1.0222993025358629,1,single_gapped_segment,selective,2,8,4
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.9942419741195598,3,complex_multi_percent,selective,5,2,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.0057913727546446,3,complex_multi_percent,selective,5,2,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,gap_8,%le____ng%,1.0060793842929667,1497,single_gapped_segment,medium,2,4,2
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,gap_8,%le____ng%,0.9939573512906846,1497,single_gapped_segment,medium,2,4,2
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.0091022906171594,4,complex_multi_percent,selective,6,3,12
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9909798137396036,4,complex_multi_percent,selective,6,3,12
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,selective_first_common_later,%relationship with%the%,0.9960339072995656,236,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,selective_first_common_later,%relationship with%the%,1.0039818852263647,236,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,multi_gap_selective,%young_%learning_%mind%,1.0066067351868095,0,complex_multi_percent,zero_match,4,2,8
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,multi_gap_selective,%young_%learning_%mind%,0.9934366272786924,0,complex_multi_percent,zero_match,4,2,8
+Quotes,static_bad_vs_adaptive,StdSearch,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.9503590066556932,3,complex_multi_percent,selective,5,2,8
+Quotes,adaptive_bad_vs_static,StdSearch,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.052233937908363,3,complex_multi_percent,selective,5,2,8
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,gap_8,%le____ng%,0.9467058698012055,1497,single_gapped_segment,medium,2,4,2
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,gap_8,%le____ng%,1.0562942851616475,1497,single_gapped_segment,medium,2,4,2
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,ordered_selective,%coffee%obituaries%,1.0059114981874937,1,ordered_segments,selective,3,0,10
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,ordered_selective,%coffee%obituaries%,0.9941232422552626,1,ordered_segments,selective,3,0,10
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.9926114412636902,1,complex_multi_percent,selective,5,0,6
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.0074435558861818,1,complex_multi_percent,selective,5,0,6
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,common_first_selective_later,%the%relationship with%,0.9876567808377036,167,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,common_first_selective_later,%the%relationship with%,1.0124974782756286,167,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,StdSearch,ordered_selective,%coffee%obituaries%,1.0050077697706628,1,ordered_segments,selective,3,0,10
+Quotes,adaptive_bad_vs_static,StdSearch,ordered_selective,%coffee%obituaries%,0.9950171830295348,1,ordered_segments,selective,3,0,10
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,common_first_selective_later,%the%relationship with%,1.0200195051927947,167,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,common_first_selective_later,%the%relationship with%,0.980373409438861,167,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,wild_4,%t__ %,0.7170803137840867,58785,single_gapped_segment,broad,2,2,1
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,wild_4,%t__ %,1.3945439315199226,58785,single_gapped_segment,broad,2,2,1
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,ordered_common,%the%of%the%,0.9737184799337043,15174,complex_multi_percent,broad,4,0,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,ordered_common,%the%of%the%,1.0269908814589666,15174,complex_multi_percent,broad,4,0,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,multi_gap_common,%the_%of_%and_%,0.9777711173662704,9937,complex_multi_percent,broad,4,3,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,multi_gap_common,%the_%of_%and_%,1.022734239372508,9937,complex_multi_percent,broad,4,3,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,ordered_common,%the%of%the%,1.013727196579711,15174,complex_multi_percent,broad,4,0,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,ordered_common,%the%of%the%,0.9864586876765009,15174,complex_multi_percent,broad,4,0,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,multi_gap_common,%the_%of_%and_%,0.9986185946693494,9937,complex_multi_percent,broad,4,3,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,multi_gap_common,%the_%of_%and_%,1.001383316251094,9937,complex_multi_percent,broad,4,3,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9915830255988,4,complex_multi_percent,selective,6,3,12
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.0084884212253604,4,complex_multi_percent,selective,6,3,12
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_multi_common4,%the_%of_%and_%to_%,0.9861146587504098,3636,complex_multi_percent,medium,5,4,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_multi_common4,%the_%of_%and_%to_%,1.0140808587788215,3636,complex_multi_percent,medium,5,4,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_multi_common5,%the_%of_%and_%to_%in_%,0.9796630284400029,1747,complex_multi_percent,medium,6,5,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_multi_common5,%the_%of_%and_%to_%in_%,1.0207591497990705,1747,complex_multi_percent,medium,6,5,3
+Quotes,static_bad_vs_adaptive,StdSearch,multi_gap_selective,%young_%learning_%mind%,1.0325962064372154,0,complex_multi_percent,zero_match,4,2,8
+Quotes,adaptive_bad_vs_static,StdSearch,multi_gap_selective,%young_%learning_%mind%,0.9684327656502995,0,complex_multi_percent,zero_match,4,2,8
+Quotes,static_bad_vs_adaptive,StdSearch,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.966655093591669,1,complex_multi_percent,selective,5,0,6
+Quotes,adaptive_bad_vs_static,StdSearch,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.034495143748155,1,complex_multi_percent,selective,5,0,6
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_multi_common5,%the_%of_%and_%to_%in_%,1.0219778595440867,1747,complex_multi_percent,medium,6,5,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_multi_common5,%the_%of_%and_%to_%in_%,0.9784947791785907,1747,complex_multi_percent,medium,6,5,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_multi_common4,%the_%of_%and_%to_%,1.006064802971092,3636,complex_multi_percent,medium,5,4,3
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_multi_common4,%the_%of_%and_%to_%,0.9939717571341514,3636,complex_multi_percent,medium,5,4,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2Wildcard,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.9861611497331201,2017,complex_multi_percent,medium,6,2,2
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2Wildcard,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,1.0140330515662932,2017,complex_multi_percent,medium,6,2,2
+Quotes,static_bad_vs_adaptive,StdSearch,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9040096371579533,4,complex_multi_percent,selective,6,3,12
+Quotes,adaptive_bad_vs_static,StdSearch,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.1061828977220016,4,complex_multi_percent,selective,6,3,12
+Quotes,static_bad_vs_adaptive,StdSearch,wild_4,%t__ %,0.7036390756162124,58785,single_gapped_segment,broad,2,2,1
+Quotes,adaptive_bad_vs_static,StdSearch,wild_4,%t__ %,1.42118315291721,58785,single_gapped_segment,broad,2,2,1
+Quotes,static_bad_vs_adaptive,StdSearch,gap_8,%le____ng%,1.0204820875884923,1497,single_gapped_segment,medium,2,4,2
+Quotes,adaptive_bad_vs_static,StdSearch,gap_8,%le____ng%,0.9799290082230706,1497,single_gapped_segment,medium,2,4,2
+Quotes,static_bad_vs_adaptive,StdSearch,ordered_common,%the%of%the%,1.0415592496994523,15174,complex_multi_percent,broad,4,0,3
+Quotes,adaptive_bad_vs_static,StdSearch,ordered_common,%the%of%the%,0.9600990056864797,15174,complex_multi_percent,broad,4,0,3
+Quotes,static_bad_vs_adaptive,StdSearch,gap_32,%Age is a________________over mat%,0.9743530946948455,1,single_gapped_segment,selective,2,16,8
+Quotes,adaptive_bad_vs_static,StdSearch,gap_32,%Age is a________________over mat%,1.0263219827029817,1,single_gapped_segment,selective,2,16,8
+Quotes,static_bad_vs_adaptive,StdSearch,multi_gap_common,%the_%of_%and_%,0.9923682758078322,9937,complex_multi_percent,broad,4,3,3
+Quotes,adaptive_bad_vs_static,StdSearch,multi_gap_common,%the_%of_%and_%,1.0076904153208197,9937,complex_multi_percent,broad,4,3,3
+Quotes,static_bad_vs_adaptive,StdSearch,quote_multi_common4,%the_%of_%and_%to_%,1.0363396167782273,3636,complex_multi_percent,medium,5,4,3
+Quotes,adaptive_bad_vs_static,StdSearch,quote_multi_common4,%the_%of_%and_%to_%,0.9649346447922159,3636,complex_multi_percent,medium,5,4,3
+Quotes,static_bad_vs_adaptive,StdSearch,selective_first_common_later,%relationship with%the%,1.0016754338916785,236,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,StdSearch,selective_first_common_later,%relationship with%the%,0.9983273684918386,236,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,StdSearch,gap_16,%ge i________ue o%,1.03027256855588,1,single_gapped_segment,selective,2,8,4
+Quotes,adaptive_bad_vs_static,StdSearch,gap_16,%ge i________ue o%,0.9706169323732333,1,single_gapped_segment,selective,2,8,4
+Quotes,static_bad_vs_adaptive,StdSearch,quote_multi_common5,%the_%of_%and_%to_%in_%,1.019756103701568,1747,complex_multi_percent,medium,6,5,3
+Quotes,adaptive_bad_vs_static,StdSearch,quote_multi_common5,%the_%of_%and_%to_%in_%,0.980626638438489,1747,complex_multi_percent,medium,6,5,3
+Quotes,static_bad_vs_adaptive,NaiveVectorizedV2,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.949790294315884,2017,complex_multi_percent,medium,6,2,2
+Quotes,adaptive_bad_vs_static,NaiveVectorizedV2,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,1.0528639911195146,2017,complex_multi_percent,medium,6,2,2
+Quotes,static_bad_vs_adaptive,StdSearch,common_first_selective_later,%the%relationship with%,1.0082074588521066,167,ordered_segments,selective,3,0,17
+Quotes,adaptive_bad_vs_static,StdSearch,common_first_selective_later,%the%relationship with%,0.9918593551554843,167,ordered_segments,selective,3,0,17
+Quotes,static_bad_vs_adaptive,StdSearch,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,1.0017118025576344,2017,complex_multi_percent,medium,6,2,2
+Quotes,adaptive_bad_vs_static,StdSearch,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.9982911227028934,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_bad_vs_best_segment,StdSearch,wild_any,%_%,1.2153161973196887,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_good_vs_best_segment,StdSearch,wild_any,%_%,0.8228311300429005,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,wild_any,%_%,1.077507674815236,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,wild_any,%_%,0.9280676355010404,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_bad_vs_best_segment,StdSearch,anchored_prefix_exact,Age is an issue%,1.0023103869653769,1,simple_literal,selective,1,0,15
+Quotes,recursive_good_vs_best_segment,StdSearch,anchored_prefix_exact,Age is an issue%,0.9976949386183936,1,simple_literal,selective,1,0,15
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,anchored_prefix_exact,Age is an issue%,1.1449968761835703,1,simple_literal,selective,1,0,15
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,anchored_prefix_exact,Age is an issue%,0.8733648281496936,1,simple_literal,selective,1,0,15
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_exact,Age is an issue%,1.0266742281033396,1,simple_literal,selective,1,0,15
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_exact,Age is an issue%,0.9740188003427172,1,simple_literal,selective,1,0,15
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_gap,Age is a________________over mat%,0.9665103123158515,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,anchored_prefix_gap,Age is a________________over mat%,1.034650109013223,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,anchored_prefix_gap,Age is a________________over mat%,0.7209715554228645,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,anchored_prefix_gap,Age is a________________over mat%,1.3870172720107934,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_bad_vs_best_segment,StdSearch,anchored_prefix_gap,Age is a________________over mat%,0.7498139407352279,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_good_vs_best_segment,StdSearch,anchored_prefix_gap,Age is a________________over mat%,1.3336641874375568,1,single_gapped_segment,selective,1,16,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,wild_any,%_%,0.9896663474364675,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,wild_any,%_%,1.0104415519334367,75966,wildcard_only,all_rows,2,1,0
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,wild_short,%t_%,1.574627983573465,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,wild_short,%t_%,0.6350706391808162,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,wild_short,%t_%,1.032131391851094,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,wild_short,%t_%,0.9688688939172102,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_bad_vs_best_segment,StdSearch,wild_short,%t_%,1.0151335800490875,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_good_vs_best_segment,StdSearch,wild_short,%t_%,0.9850920308947364,75409,single_gapped_segment,broad,2,1,1
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,wild_4,%t__ %,1.0258669073756979,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,wild_4,%t__ %,0.9747853184563008,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_32,%Age is a________________over mat%,0.9930487162647249,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_32,%Age is a________________over mat%,1.0069999423204752,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_32,%Age is a________________over mat%,1.0465108152496767,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_32,%Age is a________________over mat%,0.9555562975824763,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,selective_first_common_later,%relationship with%the%,1.0675327823655683,236,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,selective_first_common_later,%relationship with%the%,0.9367393831073543,236,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,multi_gap_selective,%young_%learning_%mind%,1.0786114514582397,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,multi_gap_selective,%young_%learning_%mind%,0.927117915026806,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_16,%ge i________ue o%,1.0248799396582822,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_16,%ge i________ue o%,0.9757240446460707,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.0491176680624534,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.9531819265295898,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,ordered_selective,%coffee%obituaries%,1.0638874478476017,1,ordered_segments,selective,3,0,10
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,ordered_selective,%coffee%obituaries%,0.9399490538431905,1,ordered_segments,selective,3,0,10
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.0911502763792806,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.9164640486718832,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_16,%ge i________ue o%,1.0099520149709584,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_16,%ge i________ue o%,0.9901460516703413,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.0477095925516218,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.9544629610239337,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,gap_8,%le____ng%,1.017809358869484,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,gap_8,%le____ng%,0.9825022645800138,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.062156549784508,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9414808016792642,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,selective_first_common_later,%relationship with%the%,1.0234613799195211,236,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,selective_first_common_later,%relationship with%the%,0.9770764384667198,236,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,multi_gap_selective,%young_%learning_%mind%,1.0329131690842404,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,multi_gap_selective,%young_%learning_%mind%,0.9681355896416536,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,0.5536558732199753,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,1.8061760894617762,3,complex_multi_percent,selective,5,2,8
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,gap_8,%le____ng%,1.0348475361764744,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,gap_8,%le____ng%,0.9663259224588502,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_selective,%coffee%obituaries%,1.0027536962453347,1,ordered_segments,selective,3,0,10
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_selective,%coffee%obituaries%,0.9972538657741722,1,ordered_segments,selective,3,0,10
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.0866787109115545,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.9202351991980734,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,common_first_selective_later,%the%relationship with%,2.124740146306447,167,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,common_first_selective_later,%the%relationship with%,0.47064578778649957,167,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,StdSearch,ordered_selective,%coffee%obituaries%,1.0526161357714607,1,ordered_segments,selective,3,0,10
+Quotes,recursive_good_vs_best_segment,StdSearch,ordered_selective,%coffee%obituaries%,0.9500139376707365,1,ordered_segments,selective,3,0,10
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,common_first_selective_later,%the%relationship with%,2.08548304452141,167,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,common_first_selective_later,%the%relationship with%,0.47950521708963906,167,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,wild_4,%t__ %,1.0369828630447222,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,wild_4,%t__ %,0.9643360904382398,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,ordered_common,%the%of%the%,1.6169366565349543,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,ordered_common,%the%of%the%,0.6184534168103835,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,multi_gap_common,%the_%of_%and_%,1.9711856076654826,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,multi_gap_common,%the_%of_%and_%,0.5073088988227351,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_common,%the%of%the%,1.6488945369181487,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,ordered_common,%the%of%the%,0.6064669253311015,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,multi_gap_common,%the_%of_%and_%,1.935201827920159,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,multi_gap_common,%the_%of_%and_%,0.5167419674643141,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.0662796545853588,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9378402707954389,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_multi_common4,%the_%of_%and_%to_%,2.291678162803323,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_multi_common4,%the_%of_%and_%to_%,0.4363614473581831,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_multi_common5,%the_%of_%and_%to_%in_%,2.485089423022018,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_multi_common5,%the_%of_%and_%to_%in_%,0.4024000065091983,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_bad_vs_best_segment,StdSearch,multi_gap_selective,%young_%learning_%mind%,1.0729309721894995,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_good_vs_best_segment,StdSearch,multi_gap_selective,%young_%learning_%mind%,0.9320264079611091,0,complex_multi_percent,zero_match,4,2,8
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,1.0890637917141102,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,0.9182198578341034,1,complex_multi_percent,selective,5,0,6
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common5,%the_%of_%and_%to_%in_%,2.6755876767919333,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common5,%the_%of_%and_%to_%in_%,0.37374966579268065,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common4,%the_%of_%and_%to_%,2.3537704328725555,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common4,%the_%of_%and_%to_%,0.42485026833292067,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,2.8835784609084794,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2Wildcard,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.3467913266646288,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,1.0665688333375503,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,0.9375859942117,4,complex_multi_percent,selective,6,3,12
+Quotes,recursive_bad_vs_best_segment,StdSearch,wild_4,%t__ %,1.0046115003431104,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_good_vs_best_segment,StdSearch,wild_4,%t__ %,0.9954096679745997,58785,single_gapped_segment,broad,2,2,1
+Quotes,recursive_bad_vs_best_segment,StdSearch,gap_8,%le____ng%,1.041815626012474,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_good_vs_best_segment,StdSearch,gap_8,%le____ng%,0.9598627386954038,1497,single_gapped_segment,medium,2,4,2
+Quotes,recursive_bad_vs_best_segment,StdSearch,ordered_common,%the%of%the%,1.7060107072280253,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_good_vs_best_segment,StdSearch,ordered_common,%the%of%the%,0.586162792392334,15174,complex_multi_percent,broad,4,0,3
+Quotes,recursive_bad_vs_best_segment,StdSearch,gap_32,%Age is a________________over mat%,1.0795426358590423,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_good_vs_best_segment,StdSearch,gap_32,%Age is a________________over mat%,0.9263182080847169,1,single_gapped_segment,selective,2,16,8
+Quotes,recursive_bad_vs_best_segment,StdSearch,multi_gap_common,%the_%of_%and_%,1.9626706409863368,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_good_vs_best_segment,StdSearch,multi_gap_common,%the_%of_%and_%,0.5095098378286496,9937,complex_multi_percent,broad,4,3,3
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_multi_common4,%the_%of_%and_%to_%,2.348328181032822,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_multi_common4,%the_%of_%and_%to_%,0.4258348590613891,3636,complex_multi_percent,medium,5,4,3
+Quotes,recursive_bad_vs_best_segment,StdSearch,selective_first_common_later,%relationship with%the%,0.9833604680550087,236,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,StdSearch,selective_first_common_later,%relationship with%the%,1.0169210909788784,236,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,StdSearch,gap_16,%ge i________ue o%,1.052388575335883,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_good_vs_best_segment,StdSearch,gap_16,%ge i________ue o%,0.9502193613996972,1,single_gapped_segment,selective,2,8,4
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_multi_common5,%the_%of_%and_%to_%in_%,2.4242884118983707,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_multi_common5,%the_%of_%and_%to_%in_%,0.4124921750613562,1747,complex_multi_percent,medium,6,5,3
+Quotes,recursive_bad_vs_best_segment,NaiveVectorizedV2,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,2.671347665435542,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_good_vs_best_segment,NaiveVectorizedV2,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.3743428880257553,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_bad_vs_best_segment,StdSearch,common_first_selective_later,%the%relationship with%,2.1988981477781633,167,ordered_segments,selective,3,0,17
+Quotes,recursive_good_vs_best_segment,StdSearch,common_first_selective_later,%the%relationship with%,0.4547732240397,167,ordered_segments,selective,3,0,17
+Quotes,recursive_bad_vs_best_segment,StdSearch,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,2.6013244631553745,2017,complex_multi_percent,medium,6,2,2
+Quotes,recursive_good_vs_best_segment,StdSearch,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,0.38441955786899895,2017,complex_multi_percent,medium,6,2,2

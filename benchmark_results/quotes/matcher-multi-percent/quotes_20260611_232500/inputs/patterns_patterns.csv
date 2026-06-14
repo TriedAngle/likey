@@ -1,0 +1,7 @@
+name,pattern,enabled
+quote_multi_common4,%the_%of_%and_%to_%,true
+quote_multi_common5,%the_%of_%and_%to_%in_%,true
+quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,true
+quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,true
+quote_learning_gap_multi,%A_yone%learning%young%m_nd%,true
+quote_people_repeat_stance_dance,%people%repeat%stance%dance%,true

@@ -79,8 +79,8 @@ pub struct Args {
     pub max_rows: Option<u64>,
 
     /// Maximum loaded sequence/value bytes across all rows per dataset column.
-    /// Accepts plain bytes or units like 1GB, 512MiB, 100mb.
-    #[arg(long, value_parser = parse_bytes, default_value = "1GiB")]
+    /// Accepts plain bytes or units like 100MB, 512MiB, 1GB.
+    #[arg(long, value_parser = parse_bytes, default_value = "100MB")]
     pub max_total_bytes: u64,
 
     /// Maximum loaded sequence/value bytes per row.

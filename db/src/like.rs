@@ -471,26 +471,36 @@ where
         A: RowLiteralSearch<C>,
         M: GenericMatcher,
     {
-        match self.strategy {
-            MatchStrategy::All => true,
-            MatchStrategy::Exact { literal_idx } => match literal_idx {
-                None => text_len == 0,
-                Some(idx) => {
-                    text_len == self.literal_len(idx) && self.literal_matches_at::<C>(row, 0, idx)
+        #[cfg(feature = "disable-like-fast-paths")]
+        {
+            M::matches_general::<C, A>(self, row, text_len)
+        }
+
+        #[cfg(not(feature = "disable-like-fast-paths"))]
+        {
+            match self.strategy {
+                MatchStrategy::All => true,
+                MatchStrategy::Exact { literal_idx } => match literal_idx {
+                    None => text_len == 0,
+                    Some(idx) => {
+                        text_len == self.literal_len(idx)
+                            && self.literal_matches_at::<C>(row, 0, idx)
+                    }
+                },
+                MatchStrategy::Prefix { literal_idx } => {
+                    self.literal_matches_at::<C>(row, 0, literal_idx)
                 }
-            },
-            MatchStrategy::Prefix { literal_idx } => {
-                self.literal_matches_at::<C>(row, 0, literal_idx)
-            }
-            MatchStrategy::Suffix { literal_idx } => {
-                let len = self.literal_len(literal_idx);
-                text_len >= len && self.literal_matches_at::<C>(row, text_len - len, literal_idx)
-            }
-            MatchStrategy::Contains { literal_idx } => {
-                self.find_literal_from::<C>(row, 0, literal_idx).is_some()
-            }
-            MatchStrategy::PercentOnly | MatchStrategy::General => {
-                M::matches_general::<C, A>(self, row, text_len)
+                MatchStrategy::Suffix { literal_idx } => {
+                    let len = self.literal_len(literal_idx);
+                    text_len >= len
+                        && self.literal_matches_at::<C>(row, text_len - len, literal_idx)
+                }
+                MatchStrategy::Contains { literal_idx } => {
+                    self.find_literal_from::<C>(row, 0, literal_idx).is_some()
+                }
+                MatchStrategy::PercentOnly | MatchStrategy::General => {
+                    M::matches_general::<C, A>(self, row, text_len)
+                }
             }
         }
     }
@@ -511,11 +521,19 @@ where
             return false;
         }
 
-        match self.strategy {
-            MatchStrategy::PercentOnly | MatchStrategy::General => {
-                self.match_general_static_anchor::<C>(row, text_len)
+        #[cfg(feature = "disable-like-fast-paths")]
+        {
+            self.match_general_static_anchor::<C>(row, text_len)
+        }
+
+        #[cfg(not(feature = "disable-like-fast-paths"))]
+        {
+            match self.strategy {
+                MatchStrategy::PercentOnly | MatchStrategy::General => {
+                    self.match_general_static_anchor::<C>(row, text_len)
+                }
+                _ => self.matches_row::<C>(row),
             }
-            _ => self.matches_row::<C>(row),
         }
     }
 
@@ -535,11 +553,19 @@ where
             return false;
         }
 
-        match self.strategy {
-            MatchStrategy::PercentOnly | MatchStrategy::General => {
-                self.match_general_adaptive_anchor::<C>(row, text_len)
+        #[cfg(feature = "disable-like-fast-paths")]
+        {
+            self.match_general_adaptive_anchor::<C>(row, text_len)
+        }
+
+        #[cfg(not(feature = "disable-like-fast-paths"))]
+        {
+            match self.strategy {
+                MatchStrategy::PercentOnly | MatchStrategy::General => {
+                    self.match_general_adaptive_anchor::<C>(row, text_len)
+                }
+                _ => self.matches_row::<C>(row),
             }
-            _ => self.matches_row::<C>(row),
         }
     }
 
@@ -557,11 +583,19 @@ where
             return false;
         }
 
-        match self.strategy {
-            MatchStrategy::PercentOnly | MatchStrategy::General => {
-                self.match_from::<C>(row, 0, 0, text_len)
+        #[cfg(feature = "disable-like-fast-paths")]
+        {
+            self.match_from::<C>(row, 0, 0, text_len)
+        }
+
+        #[cfg(not(feature = "disable-like-fast-paths"))]
+        {
+            match self.strategy {
+                MatchStrategy::PercentOnly | MatchStrategy::General => {
+                    self.match_from::<C>(row, 0, 0, text_len)
+                }
+                _ => self.matches_row::<C>(row),
             }
-            _ => self.matches_row::<C>(row),
         }
     }
 

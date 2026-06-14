@@ -87,6 +87,25 @@ where
         self.row_count
     }
 
+    /// Approximate retained in-memory size of the trigram index in bytes.
+    ///
+    /// This counts the index struct, approximate hash-map entry payload, and
+    /// posting vectors. It does not include exact hash table control bytes or
+    /// allocator bookkeeping.
+    pub fn estimated_size_bytes(&self) -> usize {
+        let postings_bytes = self.postings.values().fold(0usize, |bytes, rows| {
+            bytes.saturating_add(rows.capacity().saturating_mul(std::mem::size_of::<RowId>()))
+        });
+
+        std::mem::size_of::<Self>()
+            .saturating_add(
+                self.postings
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<(u32, Vec<RowId>)>()),
+            )
+            .saturating_add(postings_bytes)
+    }
+
     pub fn postings_for_key(&self, key: u32) -> Option<&[RowId]> {
         self.postings.get(&key).map(Vec::as_slice)
     }

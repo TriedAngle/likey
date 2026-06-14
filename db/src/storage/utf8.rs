@@ -6,7 +6,7 @@
 
 use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
-use crate::storage::Column;
+use crate::storage::{Column, ColumnStorageSize};
 
 #[derive(Debug, Clone)]
 pub struct Utf8TableDesc {
@@ -58,6 +58,14 @@ impl<'a> Utf8Table<'a> {
         1
     }
 
+    pub fn storage_size(&self) -> ColumnStorageSize {
+        self.text().storage_size()
+    }
+
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.storage_size().total_bytes()
+    }
+
     pub fn row(&self, row: RowId) -> Utf8RowEntry<'a> {
         Utf8RowEntry {
             id: row,
@@ -71,6 +79,7 @@ impl std::fmt::Debug for Utf8Table<'_> {
         f.debug_struct("Utf8Table")
             .field("name", &self.name())
             .field("row_count", &self.row_count())
+            .field("storage_size", &self.storage_size())
             .finish()
     }
 }
@@ -101,6 +110,21 @@ impl<'a> Utf8Column<'a> {
     #[inline]
     pub fn payload(&self) -> &'a [u8] {
         self.payload
+    }
+
+    #[inline]
+    pub fn storage_size(&self) -> ColumnStorageSize {
+        ColumnStorageSize {
+            offsets_bytes: self.offsets.len() * std::mem::size_of::<u64>(),
+            logical_lens_bytes: self.logical_lens.len() * std::mem::size_of::<u32>(),
+            payload_bytes: self.payload.len(),
+            codec_bytes: 0,
+        }
+    }
+
+    #[inline]
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.storage_size().total_bytes()
     }
 
     #[inline]
@@ -136,6 +160,7 @@ impl std::fmt::Debug for Utf8Column<'_> {
         f.debug_struct("Utf8Column")
             .field("row_count", &self.row_count())
             .field("payload_bytes", &self.payload().len())
+            .field("storage_size", &self.storage_size())
             .finish()
     }
 }

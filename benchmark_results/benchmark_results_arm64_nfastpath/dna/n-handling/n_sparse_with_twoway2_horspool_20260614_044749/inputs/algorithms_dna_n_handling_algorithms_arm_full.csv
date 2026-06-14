@@ -1,0 +1,15 @@
+algorithm,enabled
+StdSearch,true
+NaiveScalar,true
+NaiveVectorized,true
+NaiveVectorizedV2,true
+NaiveAvx2,true
+PairHorspool,true
+TwoWay,true
+TwoWay2,true
+Dna2PackedScalar,true
+Dna2PackedVectorized,true
+Dna2PackedNeon,true
+Dna2PackedAvx2,true
+Dna2TwoWay,true
+Dna2,true

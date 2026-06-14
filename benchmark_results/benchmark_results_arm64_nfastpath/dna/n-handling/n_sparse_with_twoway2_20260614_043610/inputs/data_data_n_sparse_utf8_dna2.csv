@@ -1,0 +1,2 @@
+name,path,type,storage,column,enabled
+DNA N-sparse 180bp reads,../../data/fasta/dna_n_sparse_180_x2048.fna,dna-fasta,utf8;dna2,sequence,true

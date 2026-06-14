@@ -1,0 +1,127 @@
+comparison_set,algorithm,pattern_name,pattern,matchers,rows_matched,before_median_execute_winner,after_median_execute_winner,winner_changed_median_execute,before_geomean_total_winner,after_geomean_total_winner,winner_changed_geomean_total
+DNA full static/adaptive,NaiveVectorizedV2,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,"static,adaptive",55,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,anchored_prefix_gap,AAGC________ACCG%,"static,adaptive",0,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,anchored_suffix_gap,%GGGCAC____________________GGTGTC,"static,adaptive",0,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,any_len001,%_%,"static,adaptive",50421,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,"static,adaptive",1586,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,"static,adaptive",494,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,"static,adaptive",42,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,gap_len016,%AAGC________ACCG%,"static,adaptive",538,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,gap_len032,%GGGCAC____________________GGTGTC%,"static,adaptive",25,static,adaptive,True,static,adaptive,True
+DNA full static/adaptive,NaiveVectorizedV2,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,"static,adaptive",67,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,"static,adaptive",44,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,"static,adaptive",26,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,interleaved_common,%C_G_C_G_C_G_C_G%,"static,adaptive",3085,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,"static,adaptive",297,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,many_common_short_segments,%A_%C_%G_%T_%,"static,adaptive",50420,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,one_fixed_len002,%G_%,"static,adaptive",50421,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2,ordered_exact_segments,%CGCA%GAGA%CGGG%,"static,adaptive",24211,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,"static,adaptive",27590,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,"static,adaptive",30963,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,"static,adaptive",35019,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2,spaced_seed,%CGCA____CGGG____TAGA%,"static,adaptive",0,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2,sparse_len004,%C__G%,"static,adaptive",50407,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,"static,adaptive",55,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,anchored_prefix_gap,AAGC________ACCG%,"static,adaptive",0,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,anchored_suffix_gap,%GGGCAC____________________GGTGTC,"static,adaptive",0,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,any_len001,%_%,"static,adaptive",50421,static,static,False,static,adaptive,True
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,"static,adaptive",1586,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,"static,adaptive",494,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,"static,adaptive",42,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,gap_len016,%AAGC________ACCG%,"static,adaptive",538,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,gap_len032,%GGGCAC____________________GGTGTC%,"static,adaptive",25,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,"static,adaptive",67,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,"static,adaptive",44,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,"static,adaptive",26,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,interleaved_common,%C_G_C_G_C_G_C_G%,"static,adaptive",3085,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,"static,adaptive",297,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,many_common_short_segments,%A_%C_%G_%T_%,"static,adaptive",50420,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,one_fixed_len002,%G_%,"static,adaptive",50421,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,ordered_exact_segments,%CGCA%GAGA%CGGG%,"static,adaptive",24211,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,"static,adaptive",27590,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,"static,adaptive",30963,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,"static,adaptive",35019,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,spaced_seed,%CGCA____CGGG____TAGA%,"static,adaptive",0,static,static,False,static,static,False
+DNA full static/adaptive,NaiveVectorizedV2Wildcard,sparse_len004,%C__G%,"static,adaptive",50407,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,anchored_prefix_exact_segments,CGCA%GAGA%CGGG%,"static,adaptive",55,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,anchored_prefix_gap,AAGC________ACCG%,"static,adaptive",0,static,static,False,adaptive,static,True
+DNA full static/adaptive,StdSearch,anchored_suffix_gap,%GGGCAC____________________GGTGTC,"static,adaptive",0,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,StdSearch,any_len001,%_%,"static,adaptive",50421,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,"static,adaptive",1586,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,StdSearch,dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,"static,adaptive",494,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,"static,adaptive",42,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,gap_len016,%AAGC________ACCG%,"static,adaptive",538,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,StdSearch,gap_len032,%GGGCAC____________________GGTGTC%,"static,adaptive",25,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,gap_len064,%TGCAAGCT________________________________________________GGATGGGC%,"static,adaptive",67,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,gap_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,"static,adaptive",44,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,gap_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,"static,adaptive",26,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,interleaved_common,%C_G_C_G_C_G_C_G%,"static,adaptive",3085,adaptive,adaptive,False,adaptive,adaptive,False
+DNA full static/adaptive,StdSearch,interleaved_with_bigger,%C_G_C_G_CGC_G_C_G%,"static,adaptive",297,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,many_common_short_segments,%A_%C_%G_%T_%,"static,adaptive",50420,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,one_fixed_len002,%G_%,"static,adaptive",50421,adaptive,static,True,adaptive,static,True
+DNA full static/adaptive,StdSearch,ordered_exact_segments,%CGCA%GAGA%CGGG%,"static,adaptive",24211,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,ordered_mixed_segments,%AAGC_%GGGA_%ACCG%,"static,adaptive",27590,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,ordered_wild_segments,%CGC_%GAGA_%CGGG_%,"static,adaptive",30963,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,selective_spaced_segments,%TGCA_%GAGT_%GGGC%,"static,adaptive",35019,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,spaced_seed,%CGCA____CGGG____TAGA%,"static,adaptive",0,static,static,False,static,static,False
+DNA full static/adaptive,StdSearch,sparse_len004,%C__G%,"static,adaptive",50407,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,anchored_prefix_exact,Age is an issue%,"static,adaptive,recursive",1,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2,anchored_prefix_gap,Age is a________________over mat%,"static,adaptive,recursive",1,recursive,recursive,False,recursive,recursive,False
+Quotes,NaiveVectorizedV2,common_first_selective_later,%the%relationship with%,"static,adaptive,recursive",167,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,gap_16,%ge i________ue o%,"static,adaptive,recursive",1,static,static,False,adaptive,static,True
+Quotes,NaiveVectorizedV2,gap_32,%Age is a________________over mat%,"static,adaptive,recursive",1,static,recursive,True,recursive,static,True
+Quotes,NaiveVectorizedV2,gap_8,%le____ng%,"static,adaptive,recursive",1497,static,static,False,static,static,False
+Quotes,NaiveVectorizedV2,multi_gap_common,%the_%of_%and_%,"static,adaptive,recursive",9937,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,multi_gap_selective,%young_%learning_%mind%,"static,adaptive,recursive",0,recursive,static,True,recursive,static,True
+Quotes,NaiveVectorizedV2,ordered_common,%the%of%the%,"static,adaptive,recursive",15174,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,ordered_selective,%coffee%obituaries%,"static,adaptive,recursive",1,recursive,static,True,recursive,static,True
+Quotes,NaiveVectorizedV2,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,"static,adaptive,recursive",3,static,adaptive,True,static,adaptive,True
+Quotes,NaiveVectorizedV2,quote_multi_common4,%the_%of_%and_%to_%,"static,adaptive,recursive",3636,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,quote_multi_common5,%the_%of_%and_%to_%in_%,"static,adaptive,recursive",1747,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,"static,adaptive,recursive",2017,static,static,False,static,static,False
+Quotes,NaiveVectorizedV2,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,"static,adaptive,recursive",1,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,"static,adaptive,recursive",4,static,static,False,static,static,False
+Quotes,NaiveVectorizedV2,selective_first_common_later,%relationship with%the%,"static,adaptive,recursive",236,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2,wild_4,%t__ %,"static,adaptive,recursive",58785,recursive,static,True,recursive,static,True
+Quotes,NaiveVectorizedV2,wild_any,%_%,"static,adaptive,recursive",75966,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2,wild_short,%t_%,"static,adaptive,recursive",75409,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,anchored_prefix_exact,Age is an issue%,"static,adaptive,recursive",1,recursive,adaptive,True,recursive,adaptive,True
+Quotes,NaiveVectorizedV2Wildcard,anchored_prefix_gap,Age is a________________over mat%,"static,adaptive,recursive",1,recursive,recursive,False,recursive,recursive,False
+Quotes,NaiveVectorizedV2Wildcard,common_first_selective_later,%the%relationship with%,"static,adaptive,recursive",167,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,gap_16,%ge i________ue o%,"static,adaptive,recursive",1,recursive,static,True,recursive,static,True
+Quotes,NaiveVectorizedV2Wildcard,gap_32,%Age is a________________over mat%,"static,adaptive,recursive",1,recursive,static,True,recursive,static,True
+Quotes,NaiveVectorizedV2Wildcard,gap_8,%le____ng%,"static,adaptive,recursive",1497,recursive,adaptive,True,recursive,adaptive,True
+Quotes,NaiveVectorizedV2Wildcard,multi_gap_common,%the_%of_%and_%,"static,adaptive,recursive",9937,adaptive,static,True,adaptive,static,True
+Quotes,NaiveVectorizedV2Wildcard,multi_gap_selective,%young_%learning_%mind%,"static,adaptive,recursive",0,recursive,adaptive,True,recursive,adaptive,True
+Quotes,NaiveVectorizedV2Wildcard,ordered_common,%the%of%the%,"static,adaptive,recursive",15174,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,ordered_selective,%coffee%obituaries%,"static,adaptive,recursive",1,recursive,adaptive,True,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,"static,adaptive,recursive",3,recursive,static,True,recursive,adaptive,True
+Quotes,NaiveVectorizedV2Wildcard,quote_multi_common4,%the_%of_%and_%to_%,"static,adaptive,recursive",3636,adaptive,adaptive,False,adaptive,static,True
+Quotes,NaiveVectorizedV2Wildcard,quote_multi_common5,%the_%of_%and_%to_%in_%,"static,adaptive,recursive",1747,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,"static,adaptive,recursive",2017,adaptive,static,True,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,"static,adaptive,recursive",1,static,static,False,static,static,False
+Quotes,NaiveVectorizedV2Wildcard,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,"static,adaptive,recursive",4,static,adaptive,True,static,adaptive,True
+Quotes,NaiveVectorizedV2Wildcard,selective_first_common_later,%relationship with%the%,"static,adaptive,recursive",236,adaptive,static,True,adaptive,adaptive,False
+Quotes,NaiveVectorizedV2Wildcard,wild_4,%t__ %,"static,adaptive,recursive",58785,static,adaptive,True,recursive,static,True
+Quotes,NaiveVectorizedV2Wildcard,wild_any,%_%,"static,adaptive,recursive",75966,recursive,recursive,False,recursive,static,True
+Quotes,NaiveVectorizedV2Wildcard,wild_short,%t_%,"static,adaptive,recursive",75409,recursive,adaptive,True,recursive,adaptive,True
+Quotes,StdSearch,anchored_prefix_exact,Age is an issue%,"static,adaptive,recursive",1,static,static,False,static,recursive,True
+Quotes,StdSearch,anchored_prefix_gap,Age is a________________over mat%,"static,adaptive,recursive",1,recursive,recursive,False,recursive,recursive,False
+Quotes,StdSearch,common_first_selective_later,%the%relationship with%,"static,adaptive,recursive",167,static,adaptive,True,static,adaptive,True
+Quotes,StdSearch,gap_16,%ge i________ue o%,"static,adaptive,recursive",1,recursive,adaptive,True,recursive,adaptive,True
+Quotes,StdSearch,gap_32,%Age is a________________over mat%,"static,adaptive,recursive",1,static,static,False,static,static,False
+Quotes,StdSearch,gap_8,%le____ng%,"static,adaptive,recursive",1497,static,adaptive,True,static,adaptive,True
+Quotes,StdSearch,multi_gap_common,%the_%of_%and_%,"static,adaptive,recursive",9937,adaptive,static,True,adaptive,static,True
+Quotes,StdSearch,multi_gap_selective,%young_%learning_%mind%,"static,adaptive,recursive",0,static,adaptive,True,static,adaptive,True
+Quotes,StdSearch,ordered_common,%the%of%the%,"static,adaptive,recursive",15174,adaptive,adaptive,False,static,adaptive,True
+Quotes,StdSearch,ordered_selective,%coffee%obituaries%,"static,adaptive,recursive",1,static,adaptive,True,static,static,False
+Quotes,StdSearch,quote_learning_gap_multi,%A_yone%learning%young%m_nd%,"static,adaptive,recursive",3,recursive,recursive,False,recursive,recursive,False
+Quotes,StdSearch,quote_multi_common4,%the_%of_%and_%to_%,"static,adaptive,recursive",3636,adaptive,adaptive,False,adaptive,adaptive,False
+Quotes,StdSearch,quote_multi_common5,%the_%of_%and_%to_%in_%,"static,adaptive,recursive",1747,static,adaptive,True,static,adaptive,True
+Quotes,StdSearch,quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,"static,adaptive,recursive",2017,static,adaptive,True,static,static,False
+Quotes,StdSearch,quote_people_repeat_stance_dance,%people%repeat%stance%dance%,"static,adaptive,recursive",1,static,static,False,static,static,False
+Quotes,StdSearch,quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,"static,adaptive,recursive",4,static,static,False,static,static,False
+Quotes,StdSearch,selective_first_common_later,%relationship with%the%,"static,adaptive,recursive",236,recursive,recursive,False,recursive,recursive,False
+Quotes,StdSearch,wild_4,%t__ %,"static,adaptive,recursive",58785,recursive,static,True,recursive,static,True
+Quotes,StdSearch,wild_any,%_%,"static,adaptive,recursive",75966,adaptive,adaptive,False,static,adaptive,True
+Quotes,StdSearch,wild_short,%t_%,"static,adaptive,recursive",75409,adaptive,adaptive,False,adaptive,adaptive,False

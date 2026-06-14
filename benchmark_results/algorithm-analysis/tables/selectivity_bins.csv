@@ -1,0 +1,26 @@
+selectivity_bin,groups,rank,algorithm,geomean_ms
+very broad >=50%,12,1,NaiveAutoWildcard,0.985
+very broad >=50%,12,2,NaiveVectorizedV2Wildcard,1.065
+very broad >=50%,12,3,NaiveAvx2V2Wildcard,1.077
+very broad >=50%,12,4,PairHorspool,1.455
+very broad >=50%,12,5,LibcMemmem,1.466
+broad 10-50%,6,1,PairHorspool,21.674
+broad 10-50%,6,2,TwoWay,28.636
+broad 10-50%,6,3,TwoWay2,28.679
+broad 10-50%,6,4,NaiveVectorizedV2,28.881
+broad 10-50%,6,5,NaiveVectorizedV2Wildcard,29.694
+medium 1-10%,19,1,PairHorspool,25.485
+medium 1-10%,19,2,NaiveVectorizedV2Wildcard,28.268
+medium 1-10%,19,3,NaiveVectorizedV2,28.831
+medium 1-10%,19,4,NaiveAvx2V2Wildcard,28.902
+medium 1-10%,19,5,NaiveAutoWildcard,29.063
+selective 0.01-1%,29,1,PairHorspool,28.479
+selective 0.01-1%,29,2,NaiveAutoWildcard,32.673
+selective 0.01-1%,29,3,NaiveAuto,32.767
+selective 0.01-1%,29,4,NaiveAvx2V2Wildcard,32.864
+selective 0.01-1%,29,5,NaiveAvx2V2,32.868
+needle in haystack <0.01%,23,1,PairHorspool,9.571
+needle in haystack <0.01%,23,2,NaiveAutoWildcard,10.071
+needle in haystack <0.01%,23,3,NaiveAvx2V2Wildcard,10.201
+needle in haystack <0.01%,23,4,NaiveAuto,10.505
+needle in haystack <0.01%,23,5,NaiveVectorizedV2Wildcard,10.525

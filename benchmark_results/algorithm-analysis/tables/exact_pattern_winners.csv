@@ -1,0 +1,31 @@
+suite,pattern_name,pattern,kind,length,selectivity,best_algorithm,best_ms,worst_algorithm,worst_ms,worst_to_best
+DNA exact/underscore,exact_len001,%C%,exact,1,1,PairHorspool,0.519,BM,2.383,4.591x
+DNA exact/underscore,exact_len002,%CG%,exact,2,0.992385,NaiveAutoWildcard,1.341,BM,10.655,7.948x
+DNA exact/underscore,exact_len004,%CGCA%,exact,4,0.721755,NaiveAvx2V2Wildcard,10.088,BM,53.437,5.297x
+DNA exact/underscore,exact_len016,%CGCAGAGACGGGTAGA%,exact,16,1.84819e-05,NaiveAvx512V2Wildcard,25.866,NaiveScalar,137.370,5.311x
+DNA exact/underscore,exact_len032,%CGCAGAGACGGGTAGAACCTCAGTAATCCGAA%,exact,32,1.84819e-05,TwoWay3,19.450,NaiveScalar,136.702,7.028x
+DNA exact/underscore,exact_len064,%CGCAGAGACGGGTAGAACCTCAGTAATCCGAAAAGCCGGGATCGACCGCCCCTTGCTTGCAGCC%,exact,64,1.84819e-05,TwoWay3,18.472,Utf8Kmp,136.170,7.372x
+DNA exact/underscore,exact_len128,%CGCAGAGACGGGTAGAACCTCAGTAATCCGAAAAGCCGGGATCGACCGCCCCTTGCTTGCAGCCGGGCACTACAGGACCCGCTTGCTCACGGTGTCTGACTTCCAGCAACTGCTGGCCTGTGCCAGGG%,exact,128,1.84819e-05,TwoWay3,18.138,Naive,134.070,7.392x
+DNA exact/underscore,exact_len256,%CGCAGAGACGGGTAGAACCTCAGTAATCCGAAAAGCCGGGATCGACCGCCCCTTGCTTGCAGCCGGGCACTACAGGACCCGCTTGCTCACGGTGTCTGACTTCCAGCAACTGCTGGCCTGTGCCAGGGTGCAAGCTGAGCACTGGAGTGGAGTTTTCCTGTGGAGAGGAGCCATGCCTAGAGTGGGATGGGCCATTGTTCATCTTCTGGCCCCTGTTGTCTGCATGTAACTTAATACCACAACCAGGCATAGGGGA%,exact,256,1.84819e-05,PairHorspool,13.940,Utf8Kmp,131.671,9.446x
+DNA exact/underscore,underscore_len001,%_%,underscore,1,1,StdSearch,0.148,NaiveVectorizedV2Wildcard,0.275,1.862x
+DNA exact/underscore,underscore_len002,%G_%,underscore,2,1,NaiveAvx2V2Wildcard,0.581,BM,5.341,9.198x
+DNA exact/underscore,underscore_len004,%C__G%,underscore,4,0.999723,NaiveAutoWildcard,1.099,BM,9.551,8.689x
+DNA exact/underscore,underscore_len016,%AAGC________ACCG%,underscore,16,0.0102944,NaiveAvx2V2Wildcard,34.238,BM,172.453,5.037x
+DNA exact/underscore,underscore_len032,%GGGCAC____________________GGTGTC%,underscore,32,0.000462047,NaiveAuto,33.299,BM,134.367,4.035x
+DNA exact/underscore,underscore_len064,%TGCAAGCT________________________________________________GGATGGGC%,underscore,64,0.00123829,NaiveMixedWildcard,33.283,Naive,151.948,4.565x
+DNA exact/underscore,underscore_len128,%AAGATTGGAGGA________________________________________________________________________________________________________GGCCGACTTGGA%,underscore,128,0.000813203,PairHorspool,33.737,Naive,139.927,4.148x
+DNA exact/underscore,underscore_len256,%CATGGGCCTGGTCTGC________________________________________________________________________________________________________________________________________________________________________________________________________________________________GGAGGCTGCCATTTGT%,underscore,256,0.000480529,PairHorspool,30.931,Naive,147.658,4.774x
+Quotes exact/underscore,exact_len001,%e%,exact,1,0.998302,LibcMemmem,0.509,BM,3.556,6.992x
+Quotes exact/underscore,exact_len002,%th%,exact,2,0.866453,NaiveVectorizedV2Wildcard,1.287,BM,8.087,6.281x
+Quotes exact/underscore,exact_len004,%the %,exact,4,0.583393,NaiveVectorizedV2Wildcard,2.061,BM,9.809,4.759x
+Quotes exact/underscore,exact_len008,%learning%,exact,8,0.0154016,NaiveVectorizedV2Wildcard,1.912,Naive,9.132,4.775x
+Quotes exact/underscore,exact_len016,%ge is an issue o%,exact,16,1.31638e-05,PairHorspool,1.899,Naive,7.768,4.090x
+Quotes exact/underscore,exact_len032,%Age is an issue of mind over mat%,exact,32,1.31638e-05,NaiveAvx512,1.012,StdSearch,7.172,7.084x
+Quotes exact/underscore,exact_len064,%whether at twenty or eighty. Anyone who keeps learning stays you%,exact,64,3.94914e-05,PairHorspool,1.129,StdSearch,9.146,8.100x
+Quotes exact/underscore,underscore_len001,%_%,underscore,1,1,NaiveAuto,0.208,NaiveMixedWildcard,0.389,1.876x
+Quotes exact/underscore,underscore_len002,%t_%,underscore,2,0.992668,NaiveAvx512Wildcard,0.633,BM,5.874,9.283x
+Quotes exact/underscore,underscore_len004,%t__ %,underscore,4,0.773833,NaiveVectorizedV2Wildcard,1.408,BM,21.244,15.089x
+Quotes exact/underscore,underscore_len008,%le____ng%,underscore,8,0.0197062,NaiveVectorizedV2Wildcard,1.897,BM,25.457,13.419x
+Quotes exact/underscore,underscore_len016,%ge i________ue o%,underscore,16,1.31638e-05,NaiveAutoWildcard,1.917,BM,14.646,7.639x
+Quotes exact/underscore,underscore_len032,%Age is a________________over mat%,underscore,32,1.31638e-05,NaiveAutoWildcard,1.726,TwoWay,14.709,8.521x
+Quotes exact/underscore,underscore_len064,%whether ________________________________________________tays you%,underscore,64,3.94914e-05,NaiveVectorizedV2Wildcard,1.563,NaiveScalar,9.956,6.368x

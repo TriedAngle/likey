@@ -1,0 +1,35 @@
+dataset,complexity,specificity,patterns,median_static_wins,median_adaptive_wins,median_recursive_wins,geomean_static_wins,geomean_adaptive_wins,geomean_recursive_wins
+DNA full static/adaptive,complex_multi_percent,broad,5,0,5,0,0,5,0
+DNA full static/adaptive,complex_multi_percent,medium,1,0,1,0,0,1,0
+DNA full static/adaptive,complex_multi_percent,selective,2,2,0,0,2,0,0
+DNA full static/adaptive,ordered_segments,selective,1,1,0,0,1,0,0
+DNA full static/adaptive,simple_literal,selective,2,1,1,0,1,1,0
+DNA full static/adaptive,simple_literal,zero_match,2,1,1,0,1,1,0
+DNA full static/adaptive,single_gapped_segment,all_rows,1,0,1,0,0,1,0
+DNA full static/adaptive,single_gapped_segment,broad,1,0,1,0,0,1,0
+DNA full static/adaptive,single_gapped_segment,medium,2,0,2,0,0,2,0
+DNA full static/adaptive,single_gapped_segment,selective,5,1,4,0,1,4,0
+DNA full static/adaptive,single_gapped_segment,zero_match,3,1,2,0,1,2,0
+DNA full static/adaptive,wildcard_only,all_rows,1,1,0,0,0,1,0
+DNA shared recursive-safe,complex_multi_percent,broad,5,0,4,1,0,4,1
+DNA shared recursive-safe,complex_multi_percent,selective,2,2,0,0,2,0,0
+DNA shared recursive-safe,ordered_segments,selective,1,0,0,1,0,0,1
+DNA shared recursive-safe,simple_literal,selective,2,1,0,1,1,1,0
+DNA shared recursive-safe,simple_literal,zero_match,2,0,1,1,0,1,1
+DNA shared recursive-safe,single_gapped_segment,all_rows,1,0,1,0,0,1,0
+DNA shared recursive-safe,single_gapped_segment,broad,1,0,1,0,0,1,0
+DNA shared recursive-safe,single_gapped_segment,medium,2,0,2,0,0,2,0
+DNA shared recursive-safe,single_gapped_segment,selective,5,1,4,0,1,4,0
+DNA shared recursive-safe,single_gapped_segment,zero_match,3,1,0,2,1,0,2
+DNA shared recursive-safe,wildcard_only,all_rows,1,0,0,1,0,0,1
+Quotes,complex_multi_percent,broad,2,0,2,0,0,2,0
+Quotes,complex_multi_percent,medium,3,1,2,0,0,3,0
+Quotes,complex_multi_percent,selective,3,0,1,2,1,0,2
+Quotes,complex_multi_percent,zero_match,1,0,0,1,0,0,1
+Quotes,ordered_segments,selective,3,0,1,2,0,1,2
+Quotes,simple_literal,selective,3,1,1,1,0,2,1
+Quotes,simple_literal,zero_match,2,0,2,0,0,2,0
+Quotes,single_gapped_segment,broad,2,0,1,1,0,1,1
+Quotes,single_gapped_segment,medium,1,0,0,1,0,0,1
+Quotes,single_gapped_segment,selective,3,0,0,3,0,0,3
+Quotes,wildcard_only,all_rows,1,0,0,1,0,0,1

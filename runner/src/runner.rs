@@ -67,6 +67,7 @@ pub struct BenchRow {
     pub records_invalid_dna: u64,
     pub load_ns: u128,
     pub index_build_ns: u128,
+    pub index_size_bytes: u64,
     pub compile_ns: u128,
     pub candidate_prepare_ns: u128,
     pub execute_ns: u128,
@@ -115,6 +116,8 @@ pub struct SummaryRow {
     pub runs: usize,
     pub row_count: u64,
     pub rows_matched: u64,
+    pub index_build_ns: u128,
+    pub index_size_bytes: u64,
     pub sum_query_total_ns: u128,
     pub min_query_total_ns: u128,
     pub median_query_total_ns: f64,
@@ -133,6 +136,7 @@ pub struct SummaryRow {
 pub struct BuiltIndex<T> {
     pub index: T,
     pub build_ns: u128,
+    pub size_bytes: usize,
 }
 
 pub struct BuiltIndexes<C>
@@ -177,6 +181,7 @@ where
             FmIndex::build(column)?
         };
         out.fm = Some(BuiltIndex {
+            size_bytes: index.estimated_size_bytes(),
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -186,6 +191,7 @@ where
         let start = Instant::now();
         let index = TrigramIndex::build(column);
         out.trigram = Some(BuiltIndex {
+            size_bytes: index.estimated_size_bytes(),
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -195,6 +201,7 @@ where
         let start = Instant::now();
         let index = QgramIndex::build(column);
         out.qgram = Some(BuiltIndex {
+            size_bytes: index.estimated_size_bytes(),
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -204,6 +211,7 @@ where
         let start = Instant::now();
         let index = PrefixBtreeIndex::build(column);
         out.prefix_btree = Some(BuiltIndex {
+            size_bytes: index.estimated_size_bytes(),
             index,
             build_ns: start.elapsed().as_nanos(),
         });
@@ -1028,6 +1036,7 @@ where
 
         for &requested_index in &config.indexes {
             let index_build_ns = index_build_ns(indexes, requested_index);
+            let index_size_bytes = index_size_bytes(indexes, requested_index);
 
             for _ in 0..config.warmups {
                 let exec = execute_once::<C, A, M>(
@@ -1076,6 +1085,7 @@ where
                     records_invalid_dna: config.load_stats.records_invalid_dna,
                     load_ns: config.load_ns,
                     index_build_ns,
+                    index_size_bytes,
                     compile_ns,
                     candidate_prepare_ns: exec.candidate_prepare_ns,
                     execute_ns: exec.execute_ns,
@@ -1478,6 +1488,23 @@ where
     }
 }
 
+fn index_size_bytes<C>(indexes: &BuiltIndexes<C>, requested: IndexKind) -> u64
+where
+    C: Column<Symbol = u8>,
+{
+    let bytes = match requested {
+        IndexKind::FullScan => 0,
+        IndexKind::Fm => indexes.fm.as_ref().map_or(0, |idx| idx.size_bytes),
+        IndexKind::PrefixBtree => indexes
+            .prefix_btree
+            .as_ref()
+            .map_or(0, |idx| idx.size_bytes),
+        IndexKind::Qgram => indexes.qgram.as_ref().map_or(0, |idx| idx.size_bytes),
+        IndexKind::Trigram => indexes.trigram.as_ref().map_or(0, |idx| idx.size_bytes),
+    };
+    bytes.try_into().unwrap_or(u64::MAX)
+}
+
 fn ns_per(ns: u128, denom: u64) -> f64 {
     if denom == 0 {
         0.0
@@ -1617,6 +1644,8 @@ fn summarize_group(key: SummaryKey, rows: Vec<&BenchRow>) -> SummaryRow {
         runs,
         row_count: first.row_count,
         rows_matched: first.rows_matched,
+        index_build_ns: first.index_build_ns,
+        index_size_bytes: first.index_size_bytes,
         sum_query_total_ns: sum,
         min_query_total_ns: total[0],
         median_query_total_ns: median_total,

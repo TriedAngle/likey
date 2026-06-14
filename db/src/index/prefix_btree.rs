@@ -72,6 +72,22 @@ where
         self.rows_by_value.len()
     }
 
+    /// Approximate retained in-memory size of the prefix B-tree in bytes.
+    ///
+    /// This counts the index struct, stored keys, posting vectors, and a simple
+    /// per-entry payload estimate. It does not include exact B-tree node or
+    /// allocator overhead.
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.rows_by_value
+            .iter()
+            .fold(std::mem::size_of::<Self>(), |bytes, (key, rows)| {
+                bytes
+                    .saturating_add(std::mem::size_of::<(Box<[u8]>, Vec<RowId>)>())
+                    .saturating_add(key.len())
+                    .saturating_add(rows.capacity().saturating_mul(std::mem::size_of::<RowId>()))
+            })
+    }
+
     /// Return sorted candidate rows whose full value starts with `prefix`.
     ///
     /// `None` means the prefix is empty and therefore not selective. Callers

@@ -138,6 +138,7 @@ def main() -> int:
             command.extend(["--row-profile-max-rows", str(args.row_profile_max_rows)])
 
     (out_dir / "command.txt").write_text(" ".join(shell_quote(x) for x in command) + "\n")
+    (out_dir / "environment.txt").write_text(f"RUSTFLAGS={os.environ.get('RUSTFLAGS', '')}\n")
 
     if not args.no_run:
         print(f"Running benchmark; output directory: {out_dir}", file=sys.stderr)
@@ -458,7 +459,7 @@ def collect_hardware_info(args: argparse.Namespace) -> dict[str, object]:
         capabilities["neon"] = True
 
     return {
-        "timestamp_utc": dt.datetime.now(dt.UTC).isoformat(),
+        "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "platform": platform.platform(),
         "system": uname.system,
         "release": uname.release,
@@ -471,6 +472,7 @@ def collect_hardware_info(args: argparse.Namespace) -> dict[str, object]:
         "cpu_flags": flags,
         "capabilities": capabilities,
         "memory_total_bytes": read_mem_total_bytes(),
+        "rustflags": os.environ.get("RUSTFLAGS", ""),
         "cargo_version": command_output([args.cargo, "--version"]),
         "rustc_version_verbose": command_output(["rustc", "-Vv"]),
     }
@@ -535,6 +537,7 @@ def write_hardware_info(hardware: dict[str, object], out_dir: Path) -> None:
         f"cpu_model: {hardware.get('cpu_model', '')}",
         f"cpu_count_logical: {hardware.get('cpu_count_logical', '')}",
         f"memory_total_bytes: {hardware.get('memory_total_bytes', '')}",
+        f"rustflags: {hardware.get('rustflags', '')}",
         f"capabilities: {caps_text}",
         f"cargo_version: {hardware.get('cargo_version', '')}",
         "rustc_version_verbose:",
@@ -567,6 +570,7 @@ def write_info(args: argparse.Namespace, out_dir: Path, rows: list[dict[str, str
         f"max_total_bytes: {args.max_total_bytes}",
         f"max_row_bytes: {args.max_row_bytes}",
         f"row_profile: {args.row_profile}",
+        f"rustflags: {hardware.get('rustflags', '')}",
         f"hardware_platform: {hardware.get('platform', '')}",
         f"hardware_cpu_model: {hardware.get('cpu_model', '')}",
         f"hardware_cpu_count_logical: {hardware.get('cpu_count_logical', '')}",

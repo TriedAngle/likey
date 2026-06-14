@@ -1,7 +1,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 use crate::like::{LiteralAlgorithm, RowLiteralSearch};
-use crate::storage::dna2::{Dna2Column, Dna2Row, DnaBase};
+use crate::storage::dna2::{Dna2Column, Dna2NRange, Dna2Row, DnaBase};
 
 /// Algorithm-level wildcard symbol used by DNA2 literal needles.
 ///
@@ -269,6 +269,15 @@ macro_rules! impl_packed_row_search {
                 needle: &Self::Needle,
                 state: &Self::State,
             ) -> Option<u32> {
+                if needle.has_n() {
+                    let ranges = row.n_ranges()?;
+                    return packed_find_pattern_n_in_row_with_n(
+                        row,
+                        from,
+                        needle,
+                        ranges.as_slice(),
+                    );
+                }
                 $find(row, from, needle, state)
             }
         }
@@ -626,6 +635,36 @@ fn n_aware_find_from(row: &Dna2Row<'_>, from: u32, needle: &Dna2PackedNeedle) ->
         }
         pos += 1;
     }
+    None
+}
+
+fn packed_find_pattern_n_in_row_with_n(
+    row: &Dna2Row<'_>,
+    from: u32,
+    needle: &Dna2PackedNeedle,
+    ranges: &[Dna2NRange],
+) -> Option<u32> {
+    let (_, _, last_start) = checked_search_bounds(row, from, needle.symbols.len())?;
+    let &first_n = needle.n_positions().first()?;
+
+    for range in ranges {
+        if range.end <= first_n {
+            continue;
+        }
+
+        let mut pos = from.max(range.start.saturating_sub(first_n));
+        let max_pos = last_start.min(range.end - first_n - 1);
+        while pos <= max_pos {
+            if packed_matches_at(row, pos, needle) {
+                return Some(pos);
+            }
+            if pos == max_pos {
+                break;
+            }
+            pos += 1;
+        }
+    }
+
     None
 }
 

@@ -1,0 +1,9 @@
+suite,dataset,column,patterns,algorithms,rows,min_selectivity,max_selectivity
+DNA exact/underscore,GENCODE human transcripts,sequence,16,28,54107,1.84819e-05,1
+JOB cast_info.note,job_cast_info_note,cast_info.note,3,16,23313199,0.0309777,0.0489026
+JOB keyword.keyword,job_keyword_keyword,keyword.keyword,1,16,134170,0.000223597,0.000223597
+JOB movie_companies.note,job_movie_companies_note,movie_companies.note,16,16,2609129,1.993e-05,0.186966
+JOB movie_info.info,job_movie_info_info,movie_info.info,8,16,6674158,0.00127372,0.0441605
+JOB name.name,job_name_name,name.name,13,16,4167491,4.79905e-07,0.128786
+JOB title.title,job_title_title,title.title,18,16,2528312,2.76865e-06,0.0014389
+Quotes exact/underscore,quotes,quotes.quote,14,28,75966,1.31638e-05,1

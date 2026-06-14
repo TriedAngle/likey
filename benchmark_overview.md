@@ -5,12 +5,15 @@
 | `dna/exact-vs-underscore-algorithms/gencode` | Compare full-scan LIKE algorithms on exact and underscore-heavy GENCODE DNA patterns, split from the index cross product. | 54,107 | 592 |
 | `dna/exact-vs-underscore-indexes/gencode` | Measure representative UTF-8 and DNA2 algorithms across all indexes for exact and underscore-heavy GENCODE DNA patterns. | 54,107 | 560 |
 | `dna/matcher-comparison/gencode` | Compare static, adaptive, and recursive matcher engines on GENCODE DNA patterns while reusing the same data and indexes. | 54,107 | 1,425 |
+| `dna/matcher-multi-percent/gencode_utf8` | Compare static and adaptive matcher engines on the old matcher-comparison GENCODE DNA patterns plus grounded multi-`%` additions using UTF-8 full scans. Includes the known recursive edge-case pattern. | 50,421 | 132 |
+| `dna/matcher-multi-percent-recursive/gencode_utf8_recursive` | Run recursive matcher reference coverage on the old matcher-comparison GENCODE DNA patterns plus recursive-safe multi-`%` additions. Excludes the documented recursive edge-case pattern. | 50,421 | 63 |
 | `dna/index-comparison/gencode` | Compare full-scan and candidate index performance for prefix/equality-friendly GENCODE DNA patterns. | 54,107 | 210 |
 | `dna/fsst-index-memmem/gencode` | Compare UTF-8 vs FSST storage using fixed `LibcMemmem` across candidate indexes on GENCODE DNA. | 54,107 | 60 |
 | `dna/n-handling/n_sparse` | Stress deterministic sparse-N DNA data, comparing UTF-8 and DNA2 N-aware algorithms with and without qgram. | 2,048 | 182 |
 | `quotes/exact-vs-underscore/quotes` | Compare full-scan LIKE algorithms on exact and underscore-heavy quote patterns. | 75,966 | 2,100 |
 | `quotes/algorithm-cases/quotes` | Stress quote-specific algorithm cases for BM, TwoWay variants, PairHorspool, and Naive V2 prefilter variants. | 75,966 | 1,800 |
 | `quotes/matcher-comparison/quotes` | Compare static, adaptive, and recursive matcher engines on quote patterns using wildcard-capable algorithms. | 75,966 | 630 |
+| `quotes/matcher-multi-percent/quotes` | Compare static, adaptive, and recursive matcher engines on the old matcher-comparison quote patterns plus grounded multi-`%` additions, including internal underscore variants. | 75,966 | 180 |
 | `quotes/index-comparison/quotes` | Compare full-scan and candidate index performance for prefix/equality-friendly quote patterns. | 75,966 | 150 |
 | `quotes/fsst-index-memmem/quotes` | Compare UTF-8 vs FSST storage using fixed `LibcMemmem` across candidate indexes on quotes. | 75,966 | 60 |
 | `fftstr/abab-wildcards/abab` | Compare scalar/SIMD literal baselines, TwoWay variants, glibc-style exact search, `FftStr1`, and `FftstrV2` on artificial `abab...` wildcard patterns. | 1,000 | 1,170 |
@@ -47,6 +50,6 @@
 
 Raw row count is the loaded table row count reported by the benchmark results. The cross-product multiplier is enabled patterns x enabled indexes x compatible algorithms per storage x configured matcher engines. It excludes warmups and measured iteration repeats.
 
-The completed runs in `benchmark_results/` all report `iterations: 5`. If a repeated-execution total is needed, multiply raw row count x cross-product multiplier x 5.
+Most completed runs in `benchmark_results/` report `iterations: 5`. The multi-`%` matcher runs report `iterations: 10`. If a repeated-execution total is needed, multiply raw row count x cross-product multiplier x measured iterations.
 
 JOB predicates were taken from <https://github.com/gregrahn/join-order-benchmark>; the LIKE predicates were isolated from the SQL WHERE clauses.

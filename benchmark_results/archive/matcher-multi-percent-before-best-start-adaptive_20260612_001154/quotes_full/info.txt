@@ -1,0 +1,20 @@
+name: quotes
+rows: 1800
+datasets: quotes
+columns: quotes.quote
+storages: utf8
+generic_matchers: adaptive, recursive, static
+algorithms: NaiveVectorizedV2, NaiveVectorizedV2Wildcard, StdSearch
+indexes: full-scan
+patterns: anchored_prefix_exact, anchored_prefix_gap, common_first_selective_later, gap_16, gap_32, gap_8, multi_gap_common, multi_gap_selective, ordered_common, ordered_selective, quote_learning_gap_multi, quote_multi_common4, quote_multi_common5, quote_multi_common5_inner_underscore, quote_people_repeat_stance_dance, quote_relationship_multi5, selective_first_common_later, wild_4, wild_any, wild_short
+warmups: 1
+iterations: 10
+generic_matcher: static,adaptive,recursive
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+rustflags: -C target-cpu=native
+hardware_platform: macOS-26.3.1-arm64-arm-64bit
+hardware_cpu_model: arm
+hardware_cpu_count_logical: 16
+hardware_memory_total_bytes: None

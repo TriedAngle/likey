@@ -346,11 +346,7 @@ unsafe fn bytes_eq_neon(a: &[u8], b: &[u8]) -> bool {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    pub(crate) fn expected_find_from(
-        text: &[u8],
-        pattern: &[u8],
-        from: usize,
-    ) -> Option<usize> {
+    pub(crate) fn expected_find_from(text: &[u8], pattern: &[u8], from: usize) -> Option<usize> {
         if from > text.len() {
             return None;
         }

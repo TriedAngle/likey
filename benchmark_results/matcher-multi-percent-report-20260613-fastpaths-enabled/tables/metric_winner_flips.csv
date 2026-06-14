@@ -1,0 +1,6 @@
+dataset,pattern_name,complexity,specificity,rows_matched,median_execute_winner,geomean_total_winner,pattern
+DNA shared recursive-safe,suffix_short_hit,simple_literal,selective,1,recursive,adaptive,%GCATTAAAATT
+DNA full static/adaptive,any_len001,wildcard_only,all_rows,50421,static,adaptive,%_%
+Quotes,exact_age_issue,simple_literal,selective,1,static,adaptive,"Age is an issue of mind over matter. If you don't mind, it doesn't matter."
+Quotes,quote_multi_common4,complex_multi_percent,medium,3636,static,adaptive,%the_%of_%and_%to_%
+Quotes,quote_people_repeat_stance_dance,complex_multi_percent,selective,1,adaptive,static,%people%repeat%stance%dance%

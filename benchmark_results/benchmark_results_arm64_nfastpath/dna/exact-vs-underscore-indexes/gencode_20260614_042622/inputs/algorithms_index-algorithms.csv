@@ -1,0 +1,8 @@
+algorithm,enabled
+StdSearch,true
+LibcMemmem,true
+PairHorspool,true
+NaiveAutoWildcard,true
+TwoWay2,true
+Dna2TwoWay,true
+Dna2,true

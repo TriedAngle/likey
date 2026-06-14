@@ -1,0 +1,6 @@
+dataset,pattern_name,complexity,specificity,rows_matched,median_execute_winner,geomean_total_winner,pattern
+DNA shared recursive-safe,any_len001,wildcard_only,all_rows,50421,recursive,adaptive,%_%
+DNA shared recursive-safe,gap_len032,single_gapped_segment,selective,25,adaptive,static,%GGGCAC____________________GGTGTC%
+DNA full static/adaptive,any_len001,wildcard_only,all_rows,50421,static,adaptive,%_%
+DNA full static/adaptive,gap_len032,single_gapped_segment,selective,25,adaptive,static,%GGGCAC____________________GGTGTC%
+Quotes,ordered_selective,ordered_segments,selective,1,adaptive,static,%coffee%obituaries%

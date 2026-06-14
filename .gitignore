@@ -5,3 +5,7 @@ tmp/
 data/
 **/__pycache__/
 .venv
+plots/outputs/
+analysis
+local_scripts/
+**/.DS_Store

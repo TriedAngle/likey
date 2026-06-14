@@ -1,0 +1,9 @@
+suite,groups,median_execute_winner,median_execute_ms,geomean_total_winner,geomean_total_ms,p90_total_winner,p90_total_ms,metrics_agree
+DNA exact/underscore,16,NaiveAutoWildcard,8.671,NaiveAutoWildcard,8.919,NaiveAvx512V2Wildcard,9.667,False
+JOB cast_info.note,3,PairHorspool,64.768,PairHorspool,65.470,PairHorspool,69.051,True
+JOB keyword.keyword,1,PairHorspool,1.597,PairHorspool,1.599,PairHorspool,1.634,True
+JOB movie_companies.note,16,PairHorspool,15.963,PairHorspool,16.050,PairHorspool,16.455,True
+JOB movie_info.info,8,NaiveVectorizedV2Wildcard,48.526,NaiveVectorizedV2Wildcard,48.699,NaiveVectorizedV2Wildcard,49.784,True
+JOB name.name,13,PairHorspool,34.884,PairHorspool,34.980,PairHorspool,35.697,True
+JOB title.title,18,PairHorspool,19.239,PairHorspool,19.300,PairHorspool,19.884,True
+Quotes exact/underscore,14,NaiveAutoWildcard,1.348,NaiveAutoWildcard,1.355,NaiveAutoWildcard,1.389,True

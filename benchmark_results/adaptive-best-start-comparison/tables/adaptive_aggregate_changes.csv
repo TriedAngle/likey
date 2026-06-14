@@ -1,0 +1,5 @@
+comparison_set,metric,groups,geomean_ratio_after_before,geomean_speedup_before_after,median_ratio_after_before,improved_gt_5pct,regressed_gt_5pct,within_5pct
+DNA full static/adaptive,median_execute,66,1.1366324393808431,0.8797918881716319,1.0556700899147207,1,41,24
+DNA full static/adaptive,geomean_total,66,1.149280873708666,0.8701093204249152,1.0602565735679064,1,37,28
+Quotes,median_execute,60,1.050886648040403,0.9515774149997129,1.046298098030743,0,25,35
+Quotes,geomean_total,60,1.0532432261649634,0.949448308954399,1.047721965564467,0,25,35

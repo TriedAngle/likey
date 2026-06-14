@@ -130,11 +130,11 @@ Use `--generic-matcher static|adaptive|recursive` to choose the generic LIKE mat
 
 ## Algorithms and Semantics
 
-Byte algorithms run on UTF-8 storage: `StdSearch`, `Utf8Kmp`, `Naive`, `NaiveScalar`, `NaiveVectorized`, `NaiveVectorizedV2`, `NaiveAvx2`, `NaiveAvx2V2`, `NaiveAvx512`, `NaiveAvx512V2`, `NaiveAuto`, `NaiveMixed`, wildcard-aware naive variants, `BM`, `TwoWay`, `TwoWay2`, `LibcMemmem`, `FftStr0`, and `FftStr1`.
+Byte algorithms run on UTF-8 storage: `StdSearch`, `Utf8Kmp`, `Naive`, `NaiveScalar`, `NaiveVectorized`, `NaiveVectorizedV2`, `NaiveAvx2`, `NaiveAvx2V2`, `NaiveAvx512`, `NaiveAvx512V2`, `NaiveAuto`, `NaiveMixed`, wildcard-aware naive variants, `BM`, `BMBoundless`, `TwoWay`, `TwoWay2`, `TwoWay3`, `PairHorspool`, `LibcMemmem`, `FftStr0`, `FftStr1`, and `FftstrV2`.
 
-FSST storage runs decoded-row byte algorithms and supports FM/trigram indexing over decoded bytes. `FftStr0` and `FftStr1` are UTF-8 storage only for now.
+FSST storage runs decoded-row byte algorithms and supports FM/trigram indexing over decoded bytes. `FftStr0`, `FftStr1`, and `FftstrV2` are UTF-8 storage only for now.
 
-`Dna2` and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`.
+`Dna2`, `Dna2TwoWay`, and the DNA2 packed/vectorized variants run on DNA2 storage. DNA2 exposes bases as logical byte symbols: `A=0`, `C=1`, `G=2`, `T=3`. Ambiguous `N` bases are stored through a per-row side table of local `N` ranges; the packed 2-bit payload stores those positions as `A`, and DNA2 verifiers consult the side table so `N` remains a distinct logical symbol.
 
 FSST columns expose decoded bytes as logical symbols, so FM-index and typed trigram index construction work through the same `Column<Symbol = u8>` API. The current FSST LIKE path decodes candidate rows before verification; it is not compressed-domain matching yet.
 
@@ -162,7 +162,7 @@ Default load limits:
 
 ```text
 --max-rows             unbounded
---max-total-bytes      1GiB
+--max-total-bytes      100MB
 --max-row-bytes        50MiB
 --row-overflow-policy  truncate
 --invalid-dna          skip-record

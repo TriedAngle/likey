@@ -1,0 +1,15 @@
+name,pattern,enabled
+exact_len001,%e%,true
+underscore_len001,%_%,true
+exact_len002,%th%,true
+underscore_len002,%t_%,true
+exact_len004,%the %,true
+underscore_len004,%t__ %,true
+exact_len008,%learning%,true
+underscore_len008,%le____ng%,true
+exact_len016,%ge is an issue o%,true
+underscore_len016,%ge i________ue o%,true
+exact_len032,%Age is an issue of mind over mat%,true
+underscore_len032,%Age is a________________over mat%,true
+exact_len064,%whether at twenty or eighty. Anyone who keeps learning stays you%,true
+underscore_len064,%whether ________________________________________________tays you%,true

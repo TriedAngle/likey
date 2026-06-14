@@ -51,7 +51,6 @@ pub use crate::query::{
     AcceptAll, BitmapSink, CandidateBatch, CandidateProvider, CountSink, FullScan, QueryStats,
     ResultSink, RowVerifier, SortedRowsProbe, execute_like,
 };
-pub use crate::storage::Column;
 pub use crate::storage::dna2::{
     Dna2AsciiIter, Dna2Column, Dna2ColumnBuilder, Dna2ColumnDesc, Dna2Iter, Dna2NRange,
     Dna2NRanges, Dna2Row, Dna2RowEntry, Dna2Table, Dna2TableBuilder, Dna2TableDesc, DnaBase,
@@ -65,6 +64,7 @@ pub use crate::storage::utf8::{
     Utf8Column, Utf8ColumnBuilder, Utf8ColumnDesc, Utf8Row, Utf8RowEntry, Utf8Table,
     Utf8TableBuilder, Utf8TableDesc,
 };
+pub use crate::storage::{Column, ColumnStorageSize};
 
 /// Physical dense row ordinal.
 ///

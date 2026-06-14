@@ -1,0 +1,14 @@
+name,pattern,enabled
+no_n_exact_acgt,%ACGTACGTACGTACG%,true
+no_n_exact_tgca,%TGCATGCATGCATGC%,true
+no_n_with_underscore,%ACGTACGTACGTACG_%,true
+n_single_range_exact,%ACGTNNNNNNNNNNNTGCA%,true
+n_single_range_with_underscore,%ACGTNNNNNNNNNNNTGCA_%,true
+n_suffix_exact,%TGCANNNNNNNNNNNACGT%,true
+n_interleaved_exact,%ANANANANANANANANANA%,true
+n_interleaved_with_underscore,%ANANANANANANANANANA_%,true
+n_many_short_ranges,%NACGNACGNACGNACG%,true
+n_prefix_exact,%NNNNNNNNNNNNNNNACGT%,true
+n_multi_region_exact,%CGTANNNNACGTNNNNTACG%,true
+all_n_exact,%NNNNNNNNNNNNNNN%,true
+all_n_with_underscore,%NNNNNNNNNNNNNNN_NNNNNNNNNNNNNNN%,true

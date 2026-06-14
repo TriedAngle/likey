@@ -1,0 +1,5 @@
+dataset,pattern_name,complexity,specificity,rows_matched,median_execute_winner,geomean_total_winner,pattern
+DNA full static/adaptive,many_common_short_segments,complex_multi_percent,broad,50420,adaptive,static,%A_%C_%G_%T_%
+Quotes,gap_32,single_gapped_segment,selective,1,static,recursive,%Age is a________________over mat%
+Quotes,quote_multi_common5,complex_multi_percent,medium,1747,static,adaptive,%the_%of_%and_%to_%in_%
+Quotes,selective_first_common_later,ordered_segments,selective,236,recursive,adaptive,%relationship with%the%

@@ -288,6 +288,38 @@ impl FmIndex {
         self.checkpoint
     }
 
+    /// Approximate retained in-memory size of the FM-index in bytes.
+    ///
+    /// This counts the index struct and its owned buffers. It does not include
+    /// allocator bookkeeping or temporary memory used while building the suffix
+    /// array.
+    pub fn estimated_size_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            .saturating_add(self.sa.len().saturating_mul(std::mem::size_of::<usize>()))
+            .saturating_add(
+                self.bwt_ranks
+                    .len()
+                    .saturating_mul(std::mem::size_of::<u16>()),
+            )
+            .saturating_add(self.c.len().saturating_mul(std::mem::size_of::<usize>()))
+            .saturating_add(
+                self.counts
+                    .len()
+                    .saturating_mul(std::mem::size_of::<usize>()),
+            )
+            .saturating_add(self.occ.len().saturating_mul(std::mem::size_of::<u32>()))
+            .saturating_add(
+                self.symbol_to_rank
+                    .len()
+                    .saturating_mul(std::mem::size_of::<i16>()),
+            )
+            .saturating_add(
+                self.pos_to_row
+                    .len()
+                    .saturating_mul(std::mem::size_of::<RowId>()),
+            )
+    }
+
     /// Return the suffix-array interval for an exact literal.
     pub fn backward_search(&self, needle: &[u8]) -> Option<(usize, usize)> {
         if needle.is_empty() {

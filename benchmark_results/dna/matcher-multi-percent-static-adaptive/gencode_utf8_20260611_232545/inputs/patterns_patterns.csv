@@ -1,0 +1,4 @@
+name,pattern,enabled
+dna_multi_percent_medium4,%CCTA_TGAG%GTGG__GCAG%GCTT_CGAG%GAGA_TCCG%,true
+dna_multi_percent_common4,%CACA_GATC%AGCA__CACC%GACG_GCGG%GAGA_GCTG%,true
+dna_common_gap_multi_percent,%A_%C_%G_%T_%CCTA%CAAG__GGGA%,true

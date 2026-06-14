@@ -11,6 +11,26 @@ pub mod dna2;
 pub mod fsst;
 pub mod utf8;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// Retained byte accounting for dense column storage.
+///
+/// This counts the main owned arrays that make up the frozen column. It does
+/// not include allocator bookkeeping or opaque third-party state that cannot be
+/// inspected directly.
+pub struct ColumnStorageSize {
+    pub offsets_bytes: usize,
+    pub logical_lens_bytes: usize,
+    pub payload_bytes: usize,
+    pub codec_bytes: usize,
+}
+
+impl ColumnStorageSize {
+    #[inline]
+    pub const fn total_bytes(self) -> usize {
+        self.offsets_bytes + self.logical_lens_bytes + self.payload_bytes + self.codec_bytes
+    }
+}
+
 /// Dense logical-symbol column.
 ///
 /// This trait deliberately does not expose `get_string(row) -> String`. A row

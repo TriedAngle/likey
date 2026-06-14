@@ -6,6 +6,10 @@ edition = "2024"
 [dependencies]
 fsst = { package = "fsst-rs", version = "0.5.10" }
 
+[dev-dependencies]
+csv = "1.3"
+
 [features]
 default = []
 avx512 = []
+disable-like-fast-paths = []

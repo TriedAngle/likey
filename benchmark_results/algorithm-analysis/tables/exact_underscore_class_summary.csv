@@ -1,0 +1,5 @@
+suite,pattern_kind,non_wildcard_geomean_ms,wildcard_geomean_ms,wildcard_to_non_wildcard,groups_non_wildcard,groups_wildcard
+DNA exact/underscore,exact,21.334,16.715,0.783x,144,80
+DNA exact/underscore,underscore,14.243,11.335,0.796x,144,80
+Quotes exact/underscore,exact,2.759,2.120,0.768x,126,70
+Quotes exact/underscore,underscore,2.897,1.607,0.555x,126,70

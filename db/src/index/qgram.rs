@@ -137,6 +137,29 @@ where
         self.rows.len()
     }
 
+    /// Approximate retained in-memory size of the q-gram index in bytes.
+    ///
+    /// This counts the index struct and owned vectors. It does not include
+    /// allocator bookkeeping.
+    pub fn estimated_size_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            .saturating_add(
+                self.keys
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<u128>()),
+            )
+            .saturating_add(
+                self.offsets
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<usize>()),
+            )
+            .saturating_add(
+                self.rows
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<RowId>()),
+            )
+    }
+
     pub fn postings_for_key(&self, key: u128) -> Option<&[RowId]> {
         let idx = self.keys.binary_search(&key).ok()?;
         Some(&self.rows[self.offsets[idx]..self.offsets[idx + 1]])

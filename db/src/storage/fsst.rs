@@ -15,7 +15,7 @@ use fsst::{Compressor, CompressorBuilder};
 
 use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
-use crate::storage::Column;
+use crate::storage::{Column, ColumnStorageSize};
 
 #[derive(Clone)]
 /// FSST compressor plus a compact symbol-table snapshot.
@@ -68,6 +68,16 @@ impl FsstCodec {
     /// Number of symbols in the trained symbol table.
     pub fn symbol_count(&self) -> usize {
         self.symbol_lens.len()
+    }
+
+    #[inline]
+    /// Retained bytes for the public codec symbol snapshot.
+    ///
+    /// This does not include opaque state retained internally by the underlying
+    /// `fsst-rs` compressor.
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.symbol_words.len() * std::mem::size_of::<u64>()
+            + self.symbol_lens.len() * std::mem::size_of::<u8>()
     }
 }
 
@@ -150,6 +160,14 @@ impl<'a> FsstTable<'a> {
         1
     }
 
+    pub fn storage_size(&self) -> ColumnStorageSize {
+        self.text().storage_size()
+    }
+
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.storage_size().total_bytes()
+    }
+
     /// Borrow and decode one row.
     pub fn row(&self, row: RowId) -> FsstRowEntry {
         FsstRowEntry {
@@ -166,6 +184,7 @@ impl fmt::Debug for FsstTable<'_> {
             .field("row_count", &self.row_count())
             .field("compressed_bytes", &self.text().compressed_payload().len())
             .field("uncompressed_bytes", &self.text().uncompressed_bytes())
+            .field("storage_size", &self.storage_size())
             .finish()
     }
 }
@@ -232,6 +251,22 @@ impl<'a> FsstColumn<'a> {
         } else {
             Some(self.compressed_bytes() as f64 / self.desc.uncompressed_bytes as f64)
         }
+    }
+
+    #[inline]
+    /// Retained storage bytes for the compressed column arrays and codec snapshot.
+    pub fn storage_size(&self) -> ColumnStorageSize {
+        ColumnStorageSize {
+            offsets_bytes: self.offsets().len() * std::mem::size_of::<u64>(),
+            logical_lens_bytes: self.logical_lens().len() * std::mem::size_of::<u32>(),
+            payload_bytes: self.compressed_payload().len(),
+            codec_bytes: self.codec.estimated_size_bytes(),
+        }
+    }
+
+    #[inline]
+    pub fn estimated_size_bytes(&self) -> usize {
+        self.storage_size().total_bytes()
     }
 
     #[inline]
@@ -308,6 +343,7 @@ impl fmt::Debug for FsstColumn<'_> {
             .field("compressed_bytes", &self.compressed_bytes())
             .field("uncompressed_bytes", &self.uncompressed_bytes())
             .field("compression_ratio", &self.compression_ratio())
+            .field("storage_size", &self.storage_size())
             .finish()
     }
 }

@@ -13,3 +13,4 @@ db = { version = "0.1", path = "../db" }
 [features]
 default = []
 avx512 = ["db/avx512"]
+disable-like-fast-paths = ["db/disable-like-fast-paths"]

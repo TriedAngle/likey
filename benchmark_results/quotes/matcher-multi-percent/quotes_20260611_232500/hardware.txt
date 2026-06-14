@@ -1,0 +1,17 @@
+platform: macOS-26.3.1-arm64-arm-64bit
+system: Darwin
+release: 25.3.0
+machine: arm64
+cpu_model: arm
+cpu_count_logical: 16
+memory_total_bytes: None
+capabilities: 
+cargo_version: cargo 1.90.0 (840b83a10 2025-07-30)
+rustc_version_verbose:
+rustc 1.90.0 (1159e78c4 2025-09-14)
+binary: rustc
+commit-hash: 1159e78c4747b02ef996e55082b704c09b970588
+commit-date: 2025-09-14
+host: aarch64-apple-darwin
+release: 1.90.0
+LLVM version: 20.1.8

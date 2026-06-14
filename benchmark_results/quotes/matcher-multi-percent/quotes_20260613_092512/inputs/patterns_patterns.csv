@@ -1,0 +1,25 @@
+name,pattern,enabled
+wild_any,%_%,true
+exact_age_issue,"Age is an issue of mind over matter. If you don't mind, it doesn't matter.",true
+exact_nohit,This exact quote does not exist.,true
+suffix_age_issue,%it doesn't matter.,true
+suffix_nohit,%definitely not a quote suffix,true
+wild_short,%t_%,true
+wild_4,%t__ %,true
+gap_8,%le____ng%,true
+gap_16,%ge i________ue o%,true
+gap_32,%Age is a________________over mat%,true
+multi_gap_common,%the_%of_%and_%,true
+multi_gap_selective,%young_%learning_%mind%,true
+ordered_common,%the%of%the%,true
+ordered_selective,%coffee%obituaries%,true
+common_first_selective_later,%the%relationship with%,true
+selective_first_common_later,%relationship with%the%,true
+anchored_prefix_exact,Age is an issue%,true
+anchored_prefix_gap,Age is a________________over mat%,true
+quote_multi_common4,%the_%of_%and_%to_%,true
+quote_multi_common5,%the_%of_%and_%to_%in_%,true
+quote_multi_common5_inner_underscore,%t_e%of%a_d%to%in%,true
+quote_relationship_multi5,%f_m_l_%relationship%jealousy%anxiety%posturing%,true
+quote_learning_gap_multi,%A_yone%learning%young%m_nd%,true
+quote_people_repeat_stance_dance,%people%repeat%stance%dance%,true

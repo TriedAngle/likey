@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import os
 import shlex
 import subprocess
 import sys
@@ -58,6 +59,7 @@ CHECKPOINT_FIELDS = [
     "started_at",
     "finished_at",
     "exit_code",
+    "rustflags",
     "command",
 ]
 
@@ -73,6 +75,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-rows", type=int, default=4096)
     parser.add_argument("--cargo", default="cargo")
     parser.add_argument("--features", default="")
+    parser.add_argument(
+        "--rustflags",
+        help="RUSTFLAGS for benchmark cargo runs. Defaults to current RUSTFLAGS or '-C target-cpu=native'. Pass an empty string to unset.",
+    )
     parser.add_argument("--generic-matcher", help="Override each benchmark's configured generic matcher")
     parser.add_argument("--only-suite", action="append", choices=["dna", "quotes", "job", "fftstr"])
     parser.add_argument(
@@ -134,21 +140,24 @@ def main() -> int:
         timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         result_dir = result_root / row["result_subdir"] / f"{row['case']}_{timestamp}"
         command = build_command(args, repo_root, row, result_dir)
+        rustflags = effective_rustflags(args)
         row["result_dir"] = str(result_dir)
         row["started_at"] = now_iso()
         row["finished_at"] = ""
         row["exit_code"] = ""
         row["done"] = "false"
+        row["rustflags"] = rustflags
         row["command"] = shlex.join(command)
         write_checkpoint(checkpoint_csv, checkpoint)
 
         print(f"[START] {row['benchmark_id']}")
+        print(f"[ENV] RUSTFLAGS={rustflags}")
         print(f"[COMMAND] {row['command']}")
         if args.dry_run:
             print(f"[DRY-RUN] {row['benchmark_id']}")
             continue
 
-        completed = subprocess.run(command, cwd=repo_root)
+        completed = subprocess.run(command, cwd=repo_root, env=build_env(args))
         row["finished_at"] = now_iso()
         row["exit_code"] = str(completed.returncode)
         if completed.returncode == 0:
@@ -201,6 +210,30 @@ def all_benchmarks() -> list[Benchmark]:
             patterns_csv=Path("benchmarks/dna/matcher-comparison/patterns.csv"),
             indexes_csv=Path("benchmarks/dna/matcher-comparison/indexes.csv"),
             generic_matcher="static,adaptive,recursive",
+        ),
+        Benchmark(
+            benchmark_id="dna/matcher-multi-percent/gencode_utf8",
+            suite="dna",
+            mode="matcher-multi-percent",
+            case="gencode_utf8",
+            result_subdir="dna/matcher-multi-percent",
+            data_csv=Path("benchmarks/dna/data_gencode_dna_utf8_dna2.csv"),
+            algorithms_csv=Path("benchmarks/dna/matcher-multi-percent/algorithms-utf8.csv"),
+            patterns_csv=Path("benchmarks/dna/matcher-multi-percent/patterns.csv"),
+            indexes_csv=Path("benchmarks/dna/matcher-multi-percent/indexes.csv"),
+            generic_matcher="static,adaptive",
+        ),
+        Benchmark(
+            benchmark_id="dna/matcher-multi-percent-recursive/gencode_utf8",
+            suite="dna",
+            mode="matcher-multi-percent",
+            case="gencode_utf8_recursive",
+            result_subdir="dna/matcher-multi-percent-recursive",
+            data_csv=Path("benchmarks/dna/data_gencode_dna_utf8_dna2.csv"),
+            algorithms_csv=Path("benchmarks/dna/matcher-multi-percent/algorithms-utf8.csv"),
+            patterns_csv=Path("benchmarks/dna/matcher-multi-percent/patterns-recursive.csv"),
+            indexes_csv=Path("benchmarks/dna/matcher-multi-percent/indexes.csv"),
+            generic_matcher="recursive",
         ),
         Benchmark(
             benchmark_id="dna/index-comparison/gencode",
@@ -267,6 +300,18 @@ def all_benchmarks() -> list[Benchmark]:
             algorithms_csv=Path("benchmarks/quotes/matcher-comparison/algorithms.csv"),
             patterns_csv=Path("benchmarks/quotes/matcher-comparison/patterns.csv"),
             indexes_csv=Path("benchmarks/quotes/matcher-comparison/indexes.csv"),
+            generic_matcher="static,adaptive,recursive",
+        ),
+        Benchmark(
+            benchmark_id="quotes/matcher-multi-percent/quotes",
+            suite="quotes",
+            mode="matcher-multi-percent",
+            case="quotes",
+            result_subdir="quotes/matcher-multi-percent",
+            data_csv=Path("benchmarks/quotes/data_quotes_utf8.csv"),
+            algorithms_csv=Path("benchmarks/quotes/matcher-multi-percent/algorithms.csv"),
+            patterns_csv=Path("benchmarks/quotes/matcher-multi-percent/patterns.csv"),
+            indexes_csv=Path("benchmarks/quotes/matcher-multi-percent/indexes.csv"),
             generic_matcher="static,adaptive,recursive",
         ),
         Benchmark(
@@ -404,6 +449,7 @@ def checkpoint_row(bench: Benchmark, args: argparse.Namespace) -> dict[str, str]
         "started_at": "",
         "finished_at": "",
         "exit_code": "",
+        "rustflags": effective_rustflags(args),
         "command": "",
         "result_subdir": bench.result_subdir,
     }
@@ -445,6 +491,22 @@ def build_command(args: argparse.Namespace, repo_root: Path, row: dict[str, str]
     return command
 
 
+def effective_rustflags(args: argparse.Namespace) -> str:
+    if args.rustflags is not None:
+        return args.rustflags
+    return os.environ.get("RUSTFLAGS", "-C target-cpu=native")
+
+
+def build_env(args: argparse.Namespace) -> dict[str, str]:
+    env = os.environ.copy()
+    rustflags = effective_rustflags(args)
+    if rustflags:
+        env["RUSTFLAGS"] = rustflags
+    else:
+        env.pop("RUSTFLAGS", None)
+    return env
+
+
 def needs_fftstr_setup(benchmarks: list[Benchmark]) -> bool:
     return any(bench.suite == "fftstr" for bench in benchmarks)
 
@@ -475,6 +537,7 @@ def merge_checkpoint(existing: list[dict[str, str]], expected: list[dict[str, st
                 "algorithms_csv",
                 "indexes_csv",
                 "generic_matcher",
+                "rustflags",
                 "result_subdir",
             ]:
                 current[key] = row[key]
@@ -503,7 +566,7 @@ def is_done(row: dict[str, str]) -> bool:
 
 
 def now_iso() -> str:
-    return dt.datetime.now(dt.UTC).isoformat()
+    return dt.datetime.now(dt.timezone.utc).isoformat()
 
 
 if __name__ == "__main__":
