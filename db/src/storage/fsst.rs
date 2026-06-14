@@ -4,18 +4,21 @@
 //! Logical symbols are still uncompressed bytes, so generic indexes such as the
 //! FM-index and trigram index remain correct: they decode rows during index
 //! construction. The row-level LIKE fallback also decodes one candidate row into
-//! an owned `FsstRow` view before applying a byte literal algorithm.
+//! an `FsstRow` view before applying a byte literal algorithm.
 //!
 //! This is intentionally a correctness-first compressed storage type. It does
 //! not yet perform compressed-domain LIKE matching.
 
 use std::fmt;
+use std::sync::{Mutex, MutexGuard, TryLockError};
 
 use fsst::{Compressor, CompressorBuilder};
 
 use crate::RowId;
 use crate::arena::{ArenaBuilder, FrozenArena, RelSlice};
 use crate::storage::{Column, ColumnStorageSize};
+
+static FSST_DECODE_SCRATCH: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
 #[derive(Clone)]
 /// FSST compressor plus a compact symbol-table snapshot.
@@ -328,10 +331,21 @@ impl<'a> FsstColumn<'a> {
     }
 
     #[inline]
-    /// Decode one row into an owned row view.
+    /// Decode one row into a row view.
     pub fn row_view(&self, row: RowId) -> FsstRow {
-        FsstRow {
-            bytes: self.row_bytes_decoded(row).into_boxed_slice(),
+        match FSST_DECODE_SCRATCH.try_lock() {
+            Ok(mut scratch) => {
+                self.copy_row_decoded_to(row, &mut scratch);
+                FsstRow::scratch(scratch)
+            }
+            Err(TryLockError::Poisoned(poisoned)) => {
+                let mut scratch = poisoned.into_inner();
+                self.copy_row_decoded_to(row, &mut scratch);
+                FsstRow::scratch(scratch)
+            }
+            Err(TryLockError::WouldBlock) => {
+                FsstRow::owned(self.row_bytes_decoded(row).into_boxed_slice())
+            }
         }
     }
 }
@@ -355,43 +369,89 @@ pub struct FsstRowEntry {
     pub text: FsstRow,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// Owned decoded FSST row.
+/// Decoded FSST row bytes.
 pub struct FsstRow {
-    bytes: Box<[u8]>,
+    bytes: FsstRowBytes,
+}
+
+enum FsstRowBytes {
+    Owned(Box<[u8]>),
+    Scratch(MutexGuard<'static, Vec<u8>>),
 }
 
 impl FsstRow {
     #[inline]
+    fn owned(bytes: Box<[u8]>) -> Self {
+        Self {
+            bytes: FsstRowBytes::Owned(bytes),
+        }
+    }
+
+    #[inline]
+    fn scratch(bytes: MutexGuard<'static, Vec<u8>>) -> Self {
+        Self {
+            bytes: FsstRowBytes::Scratch(bytes),
+        }
+    }
+
+    #[inline]
     /// Decoded row bytes.
     pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+        match &self.bytes {
+            FsstRowBytes::Owned(bytes) => bytes,
+            FsstRowBytes::Scratch(bytes) => bytes.as_slice(),
+        }
     }
 
     #[inline]
     /// Interpret the decoded bytes as UTF-8.
     pub fn as_str(&self) -> Result<&str, std::str::Utf8Error> {
-        std::str::from_utf8(&self.bytes)
+        std::str::from_utf8(self.bytes())
     }
 
     #[inline]
     /// Decoded byte length.
     pub fn logical_len(&self) -> u32 {
-        self.bytes.len() as u32
+        self.bytes().len() as u32
     }
 
     #[inline]
     /// Whether the decoded row is empty.
     pub fn is_empty(&self) -> bool {
-        self.bytes.is_empty()
+        self.bytes().is_empty()
     }
 
     #[inline]
     /// Consume the row and return decoded bytes.
     pub fn into_bytes(self) -> Box<[u8]> {
-        self.bytes
+        match self.bytes {
+            FsstRowBytes::Owned(bytes) => bytes,
+            FsstRowBytes::Scratch(bytes) => bytes.as_slice().into(),
+        }
     }
 }
+
+impl fmt::Debug for FsstRow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FsstRow")
+            .field("bytes", &self.bytes())
+            .finish()
+    }
+}
+
+impl Clone for FsstRow {
+    fn clone(&self) -> Self {
+        FsstRow::owned(self.bytes().into())
+    }
+}
+
+impl PartialEq for FsstRow {
+    fn eq(&self, other: &Self) -> bool {
+        self.bytes() == other.bytes()
+    }
+}
+
+impl Eq for FsstRow {}
 
 impl<'a> Column for FsstColumn<'a> {
     type Row<'r>

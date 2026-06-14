@@ -138,6 +138,9 @@ pub fn pair_horspool_find(text: &[u8], pattern: &[u8], state: &PairHorspoolState
     if m == 2 {
         return find_two(text, pattern);
     }
+    if m == 4 {
+        return find_four(text, pattern);
+    }
     if m > 256 {
         let long_state = state
             .long_state
@@ -197,6 +200,25 @@ fn find_two(text: &[u8], pattern: &[u8]) -> Option<usize> {
     }
 
     (window == needle).then_some(i)
+}
+
+#[inline]
+fn find_four(text: &[u8], pattern: &[u8]) -> Option<usize> {
+    debug_assert_eq!(pattern.len(), 4);
+
+    let needle = unsafe { read_u32_unaligned(pattern.as_ptr()) };
+    let last_start = text.len() - 4;
+    let ptr = text.as_ptr();
+    let mut i = 0usize;
+
+    while i <= last_start {
+        if unsafe { read_u32_unaligned(ptr.add(i)) } == needle {
+            return Some(i);
+        }
+        i += 1;
+    }
+
+    None
 }
 
 #[inline]
@@ -302,6 +324,12 @@ unsafe fn read_u64_unaligned(ptr: *const u8) -> u64 {
     unsafe { core::ptr::read_unaligned(ptr.cast::<u64>()) }
 }
 
+#[inline(always)]
+unsafe fn read_u32_unaligned(ptr: *const u8) -> u32 {
+    // SAFETY: caller ensures the pointer is valid for reading 4 bytes.
+    unsafe { core::ptr::read_unaligned(ptr.cast::<u32>()) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -328,6 +356,8 @@ mod tests {
         assert_eq!(find(b"abc", b"b"), Some(1));
         assert_eq!(find(b"abc", b"bc"), Some(1));
         assert_eq!(find(b"abc", b"bd"), None);
+        assert_eq!(find(b"xxabcd", b"abcd"), Some(2));
+        assert_eq!(find(b"xxabce", b"abcd"), None);
     }
 
     #[test]
@@ -340,6 +370,21 @@ mod tests {
                 text.fill(b'a');
                 text[pos] = b'z';
                 assert_eq!(find_one(&text, b'z'), Some(pos));
+            }
+        }
+    }
+
+    #[test]
+    fn pair_horspool_find_four_matches_scalar() {
+        let pattern = b"abcd";
+        for len in 4..128 {
+            let mut text = vec![b'x'; len];
+            assert_eq!(find_four(&text, pattern), None);
+
+            for pos in 0..=len - pattern.len() {
+                text.fill(b'x');
+                text[pos..pos + pattern.len()].copy_from_slice(pattern);
+                assert_eq!(find_four(&text, pattern), Some(pos));
             }
         }
     }

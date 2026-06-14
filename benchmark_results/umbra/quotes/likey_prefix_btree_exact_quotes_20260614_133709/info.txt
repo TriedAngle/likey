@@ -1,0 +1,20 @@
+name: likey_prefix_btree_exact_quotes
+rows: 60
+datasets: quotes
+columns: quotes.quote
+storages: utf8
+generic_matchers: static
+algorithms: NaiveVectorized, NaiveVectorizedWildcard, PairHorspool
+indexes: prefix-btree
+patterns: equality_age_issue_full, prefix_age_issue, prefix_coffee_obituaries, prefix_learning
+warmups: 1
+iterations: 5
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+rustflags: -C target-cpu=native
+hardware_platform: macOS-26.3.1-arm64-arm-64bit
+hardware_cpu_model: arm
+hardware_cpu_count_logical: 16
+hardware_memory_total_bytes: None

@@ -1,0 +1,20 @@
+name: quotes_exact_problem_iter20
+rows: 160
+datasets: quotes
+columns: quotes.quote
+storages: utf8
+generic_matchers: static
+algorithms: NaiveAuto, PairHorspool
+indexes: full-scan
+patterns: exact_len004, exact_len008, exact_len016, exact_len032
+warmups: 2
+iterations: 20
+generic_matcher: static
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+rustflags: -C target-cpu=native
+hardware_platform: macOS-26.3.1-arm64-arm-64bit
+hardware_cpu_model: arm
+hardware_cpu_count_logical: 16
+hardware_memory_total_bytes: None

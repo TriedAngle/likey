@@ -1,0 +1,1 @@
+docker run --rm --cpus 1 -v /Users/sebastian/Projects/likey2:/work -w /work umbradb/umbra:latest umbra-sql -createdb /tmp/umbra.db /work/benchmark_results/umbra/quotes/exact_vs_underscore_quotes_cpus1_20260614_133613/load.sql /work/benchmark_results/umbra/quotes/exact_vs_underscore_quotes_cpus1_20260614_133613/queries.sql

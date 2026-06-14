@@ -9,13 +9,17 @@
 | `dna/matcher-multi-percent-recursive/gencode_utf8_recursive` | Run recursive matcher reference coverage on the old matcher-comparison GENCODE DNA patterns plus recursive-safe multi-`%` additions. Excludes the documented recursive edge-case pattern. | 50,421 | 63 |
 | `dna/index-comparison/gencode` | Compare full-scan and candidate index performance for prefix/equality-friendly GENCODE DNA patterns. | 54,107 | 210 |
 | `dna/fsst-index-memmem/gencode` | Compare UTF-8 vs FSST storage using fixed `LibcMemmem` across candidate indexes on GENCODE DNA. | 54,107 | 60 |
+| `dna/fsst-exact-fullscan/gencode` | Compare UTF-8 vs FSST storage on exact GENCODE DNA patterns using fixed full-scan `PairHorspool`, `NaiveVectorized`, and `NaiveVectorizedWildcard`. | 50,421 | 48 |
 | `dna/n-handling/n_sparse` | Stress deterministic sparse-N DNA data, comparing UTF-8 and DNA2 N-aware algorithms with and without qgram. | 2,048 | 182 |
 | `quotes/exact-vs-underscore/quotes` | Compare full-scan LIKE algorithms on exact and underscore-heavy quote patterns. | 75,966 | 2,100 |
+| `quotes/exact-vs-underscore-fullscan/quotes` | Compare fixed UTF-8 full-scan algorithms on exact and underscore-heavy quote patterns for Umbra-style reporting. | 75,966 | 42 |
 | `quotes/algorithm-cases/quotes` | Stress quote-specific algorithm cases for BM, TwoWay variants, PairHorspool, and Naive V2 prefilter variants. | 75,966 | 1,800 |
 | `quotes/matcher-comparison/quotes` | Compare static, adaptive, and recursive matcher engines on quote patterns using wildcard-capable algorithms. | 75,966 | 630 |
 | `quotes/matcher-multi-percent/quotes` | Compare static, adaptive, and recursive matcher engines on the old matcher-comparison quote patterns plus grounded multi-`%` additions, including internal underscore variants. | 75,966 | 180 |
 | `quotes/index-comparison/quotes` | Compare full-scan and candidate index performance for prefix/equality-friendly quote patterns. | 75,966 | 150 |
+| `quotes/prefix-btree-exact/quotes` | Compare fixed algorithms with `prefix-btree` on btree-applicable exact/prefix quote patterns. | 75,966 | 12 |
 | `quotes/fsst-index-memmem/quotes` | Compare UTF-8 vs FSST storage using fixed `LibcMemmem` across candidate indexes on quotes. | 75,966 | 60 |
+| `quotes/fsst-exact-fullscan/quotes` | Compare UTF-8 vs FSST storage on exact quote patterns using fixed full-scan `PairHorspool`, `NaiveVectorized`, and `NaiveVectorizedWildcard`. | 75,966 | 42 |
 | `fftstr/abab-wildcards/abab` | Compare scalar/SIMD literal baselines, TwoWay variants, glibc-style exact search, `FftStr1`, and `FftstrV2` on artificial `abab...` wildcard patterns. | 1,000 | 1,170 |
 | `job/index-consistency/cast_info_note` | Measure index performance on `cast_info.note` LIKE predicates across all configured indexes and several verifier algorithms. | 23,313,199 | 75 |
 | `job/algorithm-comparison/cast_info_note` | Compare full-scan algorithm performance for LIKE predicates on `cast_info.note`. | 23,313,199 | 57 |

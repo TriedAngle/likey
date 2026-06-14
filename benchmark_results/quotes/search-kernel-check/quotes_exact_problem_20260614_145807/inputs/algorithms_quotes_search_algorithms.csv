@@ -1,0 +1,10 @@
+algorithm,enabled
+StdSearch,true
+Utf8Kmp,true
+NaiveVectorized,true
+NaiveVectorizedV2,true
+NaiveAuto,true
+BM,true
+TwoWay2,true
+TwoWay3,true
+PairHorspool,true

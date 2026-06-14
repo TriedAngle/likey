@@ -1,0 +1,4 @@
+algorithm,enabled
+PairHorspool,true
+NaiveVectorizedWildcard,true
+Dna2PackedVectorized,true

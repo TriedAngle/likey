@@ -1,0 +1,20 @@
+name: quotes_recursive
+rows: 210
+datasets: quotes
+columns: quotes.quote
+storages: fsst, utf8
+generic_matchers: recursive
+algorithms: NaiveVectorized, NaiveVectorizedWildcard, PairHorspool
+indexes: full-scan
+patterns: exact_len001, exact_len002, exact_len004, exact_len008, exact_len016, exact_len032, exact_len064
+warmups: 1
+iterations: 5
+generic_matcher: recursive
+max_total_bytes: 100MB
+max_row_bytes: 50MB
+row_profile: False
+rustflags: -C target-cpu=native
+hardware_platform: macOS-26.3.1-arm64-arm-64bit
+hardware_cpu_model: arm
+hardware_cpu_count_logical: 16
+hardware_memory_total_bytes: None

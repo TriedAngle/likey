@@ -1,0 +1,4 @@
+algorithm,enabled
+PairHorspool,true
+NaiveVectorized,true
+NaiveVectorizedWildcard,true

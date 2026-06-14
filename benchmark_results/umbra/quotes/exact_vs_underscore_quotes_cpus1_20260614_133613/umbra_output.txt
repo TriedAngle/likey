@@ -1,0 +1,258 @@
+WARNING: Could not extract threads for numa node 0!
+INFO:    [s] execution: (0.009134 min, 0.009134 max, 0.009134 median, 0.0% relMAD, 0.009134 avg, 0.000000 sdev, 1 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000673 min, 0.000673 max, 0.000673 median, 0.0% relMAD, 0.000673 avg, 0.000000 sdev) alloc: 0 MB
+INFO:    [s] execution: (0.068589 min, 0.068589 max, 0.068589 median, 0.0% relMAD, 0.068589 avg, 0.000000 sdev, 1 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.005425 min, 0.005425 max, 0.005425 median, 0.0% relMAD, 0.005425 avg, 0.000000 sdev) alloc: 22 MB
+count
+75966
+INFO:    [s] execution: (0.001514 min, 0.001514 max, 0.001514 median, 0.0% relMAD, 0.001514 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.001939 min, 0.001939 max, 0.001939 median, 0.0% relMAD, 0.001939 avg, 0.000000 sdev) alloc: 2 MB
+count
+75837
+INFO:    [s] execution: (0.000854 min, 0.000854 max, 0.000854 median, 0.0% relMAD, 0.000854 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000478 min, 0.000478 max, 0.000478 median, 0.0% relMAD, 0.000478 avg, 0.000000 sdev) alloc: 2 MB
+count
+75837
+INFO:    [s] execution: (0.000210 min, 0.000210 max, 0.000210 median, 0.0% relMAD, 0.000210 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000290 min, 0.000290 max, 0.000290 median, 0.0% relMAD, 0.000290 avg, 0.000000 sdev) alloc: 2 MB
+count
+75837
+INFO:    [s] execution: (0.000834 min, 0.000834 max, 0.000834 median, 0.0% relMAD, 0.000834 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000218 min, 0.000218 max, 0.000218 median, 0.0% relMAD, 0.000218 avg, 0.000000 sdev) alloc: 2 MB
+count
+75837
+INFO:    [s] execution: (0.000697 min, 0.000697 max, 0.000697 median, 0.0% relMAD, 0.000697 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000241 min, 0.000241 max, 0.000241 median, 0.0% relMAD, 0.000241 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000851 min, 0.000851 max, 0.000851 median, 0.0% relMAD, 0.000851 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000181 min, 0.000181 max, 0.000181 median, 0.0% relMAD, 0.000181 avg, nan sdev) alloc: 2 MB
+count
+75837
+count
+75837
+INFO:    [s] execution: (0.000685 min, 0.000685 max, 0.000685 median, 0.0% relMAD, 0.000685 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000188 min, 0.000188 max, 0.000188 median, 0.0% relMAD, 0.000188 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000595 min, 0.000595 max, 0.000595 median, 0.0% relMAD, 0.000595 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000288 min, 0.000288 max, 0.000288 median, 0.0% relMAD, 0.000288 avg, nan sdev) alloc: 2 MB
+count
+75966
+count
+75966
+INFO:    [s] execution: (0.000833 min, 0.000833 max, 0.000833 median, 0.0% relMAD, 0.000833 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000159 min, 0.000159 max, 0.000159 median, 0.0% relMAD, 0.000159 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000839 min, 0.000839 max, 0.000839 median, 0.0% relMAD, 0.000839 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000156 min, 0.000156 max, 0.000156 median, 0.0% relMAD, 0.000156 avg, nan sdev) alloc: 2 MB
+count
+75966
+count
+75966
+INFO:    [s] execution: (0.000769 min, 0.000769 max, 0.000769 median, 0.0% relMAD, 0.000769 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000149 min, 0.000149 max, 0.000149 median, 0.0% relMAD, 0.000149 avg, nan sdev) alloc: 2 MB
+count
+75966
+INFO:    [s] execution: (0.000795 min, 0.000795 max, 0.000795 median, 0.0% relMAD, 0.000795 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000248 min, 0.000248 max, 0.000248 median, 0.0% relMAD, 0.000248 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000755 min, 0.000755 max, 0.000755 median, 0.0% relMAD, 0.000755 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000182 min, 0.000182 max, 0.000182 median, 0.0% relMAD, 0.000182 avg, 0.000000 sdev) alloc: 2 MB
+count
+75966
+count
+65821
+INFO:    [s] execution: (0.000816 min, 0.000816 max, 0.000816 median, 0.0% relMAD, 0.000816 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000291 min, 0.000291 max, 0.000291 median, 0.0% relMAD, 0.000291 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000753 min, 0.000753 max, 0.000753 median, 0.0% relMAD, 0.000753 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000223 min, 0.000223 max, 0.000223 median, 0.0% relMAD, 0.000223 avg, 0.000000 sdev) alloc: 2 MB
+count
+65821
+count
+65821
+INFO:    [s] execution: (0.000624 min, 0.000624 max, 0.000624 median, 0.0% relMAD, 0.000624 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000280 min, 0.000280 max, 0.000280 median, 0.0% relMAD, 0.000280 avg, nan sdev) alloc: 2 MB
+count
+65821
+INFO:    [s] execution: (0.000735 min, 0.000735 max, 0.000735 median, 0.0% relMAD, 0.000735 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000224 min, 0.000224 max, 0.000224 median, 0.0% relMAD, 0.000224 avg, nan sdev) alloc: 2 MB
+count
+65821
+INFO:    [s] execution: (0.000827 min, 0.000827 max, 0.000827 median, 0.0% relMAD, 0.000827 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000213 min, 0.000213 max, 0.000213 median, 0.0% relMAD, 0.000213 avg, nan sdev) alloc: 2 MB
+count
+65821
+INFO:    [s] execution: (0.000655 min, 0.000655 max, 0.000655 median, 0.0% relMAD, 0.000655 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000196 min, 0.000196 max, 0.000196 median, 0.0% relMAD, 0.000196 avg, 0.000000 sdev) alloc: 2 MB
+count
+75409
+INFO:    [s] execution: (0.000758 min, 0.000758 max, 0.000758 median, 0.0% relMAD, 0.000758 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000165 min, 0.000165 max, 0.000165 median, 0.0% relMAD, 0.000165 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000612 min, 0.000612 max, 0.000612 median, 0.0% relMAD, 0.000612 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000258 min, 0.000258 max, 0.000258 median, 0.0% relMAD, 0.000258 avg, nan sdev) alloc: 2 MB
+count
+75409
+count
+75409
+INFO:    [s] execution: (0.000766 min, 0.000766 max, 0.000766 median, 0.0% relMAD, 0.000766 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000258 min, 0.000258 max, 0.000258 median, 0.0% relMAD, 0.000258 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000697 min, 0.000697 max, 0.000697 median, 0.0% relMAD, 0.000697 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000257 min, 0.000257 max, 0.000257 median, 0.0% relMAD, 0.000257 avg, 0.000000 sdev) alloc: 2 MB
+count
+75409
+count
+75409
+INFO:    [s] execution: (0.000714 min, 0.000714 max, 0.000714 median, 0.0% relMAD, 0.000714 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000258 min, 0.000258 max, 0.000258 median, 0.0% relMAD, 0.000258 avg, nan sdev) alloc: 2 MB
+count
+75409
+INFO:    [s] execution: (0.000638 min, 0.000638 max, 0.000638 median, 0.0% relMAD, 0.000638 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000232 min, 0.000232 max, 0.000232 median, 0.0% relMAD, 0.000232 avg, nan sdev) alloc: 2 MB
+count
+44318
+INFO:    [s] execution: (0.001366 min, 0.001366 max, 0.001366 median, 0.0% relMAD, 0.001366 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000282 min, 0.000282 max, 0.000282 median, 0.0% relMAD, 0.000282 avg, nan sdev) alloc: 2 MB
+count
+44318
+INFO:    [s] execution: (0.072982 min, 0.072982 max, 0.072982 median, 0.0% relMAD, 0.072982 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000324 min, 0.000324 max, 0.000324 median, 0.0% relMAD, 0.000324 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001149 min, 0.001149 max, 0.001149 median, 0.0% relMAD, 0.001149 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000393 min, 0.000393 max, 0.000393 median, 0.0% relMAD, 0.000393 avg, nan sdev) alloc: 2 MB
+count
+44318
+count
+44318
+INFO:    [s] execution: (0.001594 min, 0.001594 max, 0.001594 median, 0.0% relMAD, 0.001594 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000397 min, 0.000397 max, 0.000397 median, 0.0% relMAD, 0.000397 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001552 min, 0.001552 max, 0.001552 median, 0.0% relMAD, 0.001552 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000400 min, 0.000400 max, 0.000400 median, 0.0% relMAD, 0.000400 avg, 0.000000 sdev) alloc: 2 MB
+count
+44318
+INFO:    [s] execution: (0.006832 min, 0.006832 max, 0.006832 median, 0.0% relMAD, 0.006832 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000303 min, 0.000303 max, 0.000303 median, 0.0% relMAD, 0.000303 avg, nan sdev) alloc: 2 MB
+count
+44318
+count
+58785
+INFO:    [s] execution: (0.001034 min, 0.001034 max, 0.001034 median, 0.0% relMAD, 0.001034 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000499 min, 0.000499 max, 0.000499 median, 0.0% relMAD, 0.000499 avg, nan sdev) alloc: 2 MB
+count
+58785
+INFO:    [s] execution: (0.087788 min, 0.087788 max, 0.087788 median, 0.0% relMAD, 0.087788 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000414 min, 0.000414 max, 0.000414 median, 0.0% relMAD, 0.000414 avg, nan sdev) alloc: 2 MB
+count
+58785
+INFO:    [s] execution: (0.001931 min, 0.001931 max, 0.001931 median, 0.0% relMAD, 0.001931 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000467 min, 0.000467 max, 0.000467 median, 0.0% relMAD, 0.000467 avg, nan sdev) alloc: 2 MB
+count
+58785
+INFO:    [s] execution: (0.002047 min, 0.002047 max, 0.002047 median, 0.0% relMAD, 0.002047 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000543 min, 0.000543 max, 0.000543 median, 0.0% relMAD, 0.000543 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001222 min, 0.001222 max, 0.001222 median, 0.0% relMAD, 0.001222 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000361 min, 0.000361 max, 0.000361 median, 0.0% relMAD, 0.000361 avg, 0.000000 sdev) alloc: 2 MB
+count
+58785
+count
+58785
+INFO:    [s] execution: (0.102723 min, 0.102723 max, 0.102723 median, 0.0% relMAD, 0.102723 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000435 min, 0.000435 max, 0.000435 median, 0.0% relMAD, 0.000435 avg, 0.000000 sdev) alloc: 2 MB
+count
+1170
+INFO:    [s] execution: (0.001417 min, 0.001417 max, 0.001417 median, 0.0% relMAD, 0.001417 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000436 min, 0.000436 max, 0.000436 median, 0.0% relMAD, 0.000436 avg, 0.000000 sdev) alloc: 2 MB
+count
+1170
+INFO:    [s] execution: (0.001359 min, 0.001359 max, 0.001359 median, 0.0% relMAD, 0.001359 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000422 min, 0.000422 max, 0.000422 median, 0.0% relMAD, 0.000422 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.006874 min, 0.006874 max, 0.006874 median, 0.0% relMAD, 0.006874 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000360 min, 0.000360 max, 0.000360 median, 0.0% relMAD, 0.000360 avg, 0.000000 sdev) alloc: 2 MB
+count
+1170
+INFO:    [s] execution: (0.088281 min, 0.088281 max, 0.088281 median, 0.0% relMAD, 0.088281 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000902 min, 0.000902 max, 0.000902 median, 0.0% relMAD, 0.000902 avg, nan sdev) alloc: 2 MB
+count
+1170
+INFO:    [s] execution: (0.001503 min, 0.001503 max, 0.001503 median, 0.0% relMAD, 0.001503 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000995 min, 0.000995 max, 0.000995 median, 0.0% relMAD, 0.000995 avg, nan sdev) alloc: 2 MB
+count
+1170
+count
+1170
+INFO:    [s] execution: (0.083609 min, 0.083609 max, 0.083609 median, 0.0% relMAD, 0.083609 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000541 min, 0.000541 max, 0.000541 median, 0.0% relMAD, 0.000541 avg, 0.000000 sdev) alloc: 2 MB
+count
+1497
+INFO:    [s] execution: (0.005588 min, 0.005588 max, 0.005588 median, 0.0% relMAD, 0.005588 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.001384 min, 0.001384 max, 0.001384 median, 0.0% relMAD, 0.001384 avg, nan sdev) alloc: 2 MB
+count
+1497
+INFO:    [s] execution: (0.102867 min, 0.102867 max, 0.102867 median, 0.0% relMAD, 0.102867 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000779 min, 0.000779 max, 0.000779 median, 0.0% relMAD, 0.000779 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001410 min, 0.001410 max, 0.001410 median, 0.0% relMAD, 0.001410 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000521 min, 0.000521 max, 0.000521 median, 0.0% relMAD, 0.000521 avg, 0.000000 sdev) alloc: 2 MB
+count
+1497
+count
+1497
+INFO:    [s] execution: (0.089157 min, 0.089157 max, 0.089157 median, 0.0% relMAD, 0.089157 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000376 min, 0.000376 max, 0.000376 median, 0.0% relMAD, 0.000376 avg, nan sdev) alloc: 2 MB
+count
+1497
+INFO:    [s] execution: (0.004511 min, 0.004511 max, 0.004511 median, 0.0% relMAD, 0.004511 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.001305 min, 0.001305 max, 0.001305 median, 0.0% relMAD, 0.001305 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.005059 min, 0.005059 max, 0.005059 median, 0.0% relMAD, 0.005059 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000771 min, 0.000771 max, 0.000771 median, 0.0% relMAD, 0.000771 avg, 0.000000 sdev) alloc: 2 MB
+count
+1497
+INFO:    [s] execution: (0.001616 min, 0.001616 max, 0.001616 median, 0.0% relMAD, 0.001616 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000378 min, 0.000378 max, 0.000378 median, 0.0% relMAD, 0.000378 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.084337 min, 0.084337 max, 0.084337 median, 0.0% relMAD, 0.084337 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000454 min, 0.000454 max, 0.000454 median, 0.0% relMAD, 0.000454 avg, nan sdev) alloc: 2 MB
+count
+1
+count
+1
+INFO:    [s] execution: (0.003711 min, 0.003711 max, 0.003711 median, 0.0% relMAD, 0.003711 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.002116 min, 0.002116 max, 0.002116 median, 0.0% relMAD, 0.002116 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.004771 min, 0.004771 max, 0.004771 median, 0.0% relMAD, 0.004771 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000671 min, 0.000671 max, 0.000671 median, 0.0% relMAD, 0.000671 avg, nan sdev) alloc: 2 MB
+count
+1
+count
+1
+INFO:    [s] execution: (0.007542 min, 0.007542 max, 0.007542 median, 0.0% relMAD, 0.007542 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000582 min, 0.000582 max, 0.000582 median, 0.0% relMAD, 0.000582 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001148 min, 0.001148 max, 0.001148 median, 0.0% relMAD, 0.001148 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000344 min, 0.000344 max, 0.000344 median, 0.0% relMAD, 0.000344 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.087258 min, 0.087258 max, 0.087258 median, 0.0% relMAD, 0.087258 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000382 min, 0.000382 max, 0.000382 median, 0.0% relMAD, 0.000382 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+count
+1
+INFO:    [s] execution: (0.002245 min, 0.002245 max, 0.002245 median, 0.0% relMAD, 0.002245 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000563 min, 0.000563 max, 0.000563 median, 0.0% relMAD, 0.000563 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.000887 min, 0.000887 max, 0.000887 median, 0.0% relMAD, 0.000887 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000428 min, 0.000428 max, 0.000428 median, 0.0% relMAD, 0.000428 avg, nan sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.085768 min, 0.085768 max, 0.085768 median, 0.0% relMAD, 0.085768 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000646 min, 0.000646 max, 0.000646 median, 0.0% relMAD, 0.000646 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.003962 min, 0.003962 max, 0.003962 median, 0.0% relMAD, 0.003962 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.001703 min, 0.001703 max, 0.001703 median, 0.0% relMAD, 0.001703 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000949 min, 0.000949 max, 0.000949 median, 0.0% relMAD, 0.000949 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000431 min, 0.000431 max, 0.000431 median, 0.0% relMAD, 0.000431 avg, nan sdev) alloc: 2 MB
+count
+1
+count
+1
+INFO:    [s] execution: (0.001279 min, 0.001279 max, 0.001279 median, 0.0% relMAD, 0.001279 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000499 min, 0.000499 max, 0.000499 median, 0.0% relMAD, 0.000499 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001665 min, 0.001665 max, 0.001665 median, 0.0% relMAD, 0.001665 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000330 min, 0.000330 max, 0.000330 median, 0.0% relMAD, 0.000330 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001480 min, 0.001480 max, 0.001480 median, 0.0% relMAD, 0.001480 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000430 min, 0.000430 max, 0.000430 median, 0.0% relMAD, 0.000430 avg, nan sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001495 min, 0.001495 max, 0.001495 median, 0.0% relMAD, 0.001495 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000353 min, 0.000353 max, 0.000353 median, 0.0% relMAD, 0.000353 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.000665 min, 0.000665 max, 0.000665 median, 0.0% relMAD, 0.000665 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000322 min, 0.000322 max, 0.000322 median, 0.0% relMAD, 0.000322 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001592 min, 0.001592 max, 0.001592 median, 0.0% relMAD, 0.001592 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000468 min, 0.000468 max, 0.000468 median, 0.0% relMAD, 0.000468 avg, nan sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.089172 min, 0.089172 max, 0.089172 median, 0.0% relMAD, 0.089172 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000392 min, 0.000392 max, 0.000392 median, 0.0% relMAD, 0.000392 avg, nan sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001090 min, 0.001090 max, 0.001090 median, 0.0% relMAD, 0.001090 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000485 min, 0.000485 max, 0.000485 median, 0.0% relMAD, 0.000485 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001472 min, 0.001472 max, 0.001472 median, 0.0% relMAD, 0.001472 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000295 min, 0.000295 max, 0.000295 median, 0.0% relMAD, 0.000295 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+count
+1
+INFO:    [s] execution: (0.001384 min, 0.001384 max, 0.001384 median, 0.0% relMAD, 0.001384 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000421 min, 0.000421 max, 0.000421 median, 0.0% relMAD, 0.000421 avg, nan sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.001413 min, 0.001413 max, 0.001413 median, 0.0% relMAD, 0.001413 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000367 min, 0.000367 max, 0.000367 median, 0.0% relMAD, 0.000367 avg, 0.000000 sdev) alloc: 2 MB
+count
+1
+INFO:    [s] execution: (0.000512 min, 0.000512 max, 0.000512 median, 0.0% relMAD, 0.000512 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000268 min, 0.000268 max, 0.000268 median, 0.0% relMAD, 0.000268 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.000881 min, 0.000881 max, 0.000881 median, 0.0% relMAD, 0.000881 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000229 min, 0.000229 max, 0.000229 median, 0.0% relMAD, 0.000229 avg, nan sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.000755 min, 0.000755 max, 0.000755 median, 0.0% relMAD, 0.000755 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000263 min, 0.000263 max, 0.000263 median, 0.0% relMAD, 0.000263 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.091082 min, 0.091082 max, 0.091082 median, 0.0% relMAD, 0.091082 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000308 min, 0.000308 max, 0.000308 median, 0.0% relMAD, 0.000308 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+count
+3
+INFO:    [s] execution: (0.001075 min, 0.001075 max, 0.001075 median, 0.0% relMAD, 0.001075 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000405 min, 0.000405 max, 0.000405 median, 0.0% relMAD, 0.000405 avg, nan sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001472 min, 0.001472 max, 0.001472 median, 0.0% relMAD, 0.001472 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000432 min, 0.000432 max, 0.000432 median, 0.0% relMAD, 0.000432 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+count
+3
+INFO:    [s] execution: (0.001612 min, 0.001612 max, 0.001612 median, 0.0% relMAD, 0.001612 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000323 min, 0.000323 max, 0.000323 median, 0.0% relMAD, 0.000323 avg, 0.000000 sdev) alloc: 2 MB
+INFO:    [s] execution: (0.001440 min, 0.001440 max, 0.001440 median, 0.0% relMAD, 0.001440 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000395 min, 0.000395 max, 0.000395 median, 0.0% relMAD, 0.000395 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+count
+3
+INFO:    [s] execution: (0.000906 min, 0.000906 max, 0.000906 median, 0.0% relMAD, 0.000906 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000207 min, 0.000207 max, 0.000207 median, 0.0% relMAD, 0.000207 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.000568 min, 0.000568 max, 0.000568 median, 0.0% relMAD, 0.000568 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000214 min, 0.000214 max, 0.000214 median, 0.0% relMAD, 0.000214 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.000740 min, 0.000740 max, 0.000740 median, 0.0% relMAD, 0.000740 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000288 min, 0.000288 max, 0.000288 median, 0.0% relMAD, 0.000288 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.088645 min, 0.088645 max, 0.088645 median, 0.0% relMAD, 0.088645 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000343 min, 0.000343 max, 0.000343 median, 0.0% relMAD, 0.000343 avg, 0.000000 sdev) alloc: 2 MB
+count
+3
+INFO:    [s] execution: (0.002163 min, 0.002163 max, 0.002163 median, 0.0% relMAD, 0.002163 avg, 0.000000 sdev, 75967 scale, nan IPC, nan CPUs, nan GHz) compilation: (0.000571 min, 0.000571 max, 0.000571 median, 0.0% relMAD, 0.000571 avg, nan sdev) alloc: 2 MB

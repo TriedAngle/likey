@@ -1,0 +1,8 @@
+name,pattern,enabled
+exact_len001,%e%,true
+exact_len002,%th%,true
+exact_len004,%the %,true
+exact_len008,%learning%,true
+exact_len016,%ge is an issue o%,true
+exact_len032,%Age is an issue of mind over mat%,true
+exact_len064,%whether at twenty or eighty. Anyone who keeps learning stays you%,true

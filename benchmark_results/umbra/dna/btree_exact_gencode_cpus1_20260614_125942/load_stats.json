@@ -1,0 +1,11 @@
+{
+  "records_seen": 50421,
+  "records_loaded": 50421,
+  "records_skipped": 0,
+  "records_truncated": 0,
+  "records_invalid_dna": 0,
+  "total_input_sequence_bytes": 93122942,
+  "total_loaded_symbols": 93122942,
+  "stopped_by_max_rows": false,
+  "stopped_by_max_total_bytes": false
+}

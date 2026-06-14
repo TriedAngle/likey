@@ -59,6 +59,24 @@ cargo run -p runner --bin runner --release -- \
 
 The checkpointed super-runner splits these into `dna/exact-vs-underscore-algorithms/gencode` and `dna/exact-vs-underscore-indexes/gencode` to avoid the full algorithm × index cross product.
 
+Run the focused UTF-8-vs-FSST full-scan comparison on exact GENCODE patterns with `PairHorspool`, `NaiveVectorized`, and `NaiveVectorizedWildcard`:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/dna/data_gencode_dna_utf8_fsst.csv \
+  --algorithms-csv benchmarks/dna/fsst-exact-fullscan/algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/dna/fsst-exact-fullscan/patterns.csv \
+  --indexes-csv benchmarks/dna/fsst-exact-fullscan/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/gencode_fsst_exact_fullscan_raw.csv \
+  --summary-csv results/gencode_fsst_exact_fullscan_summary.csv
+```
+
+The same case is included in the checkpointed super-runner as `dna/fsst-exact-fullscan/gencode`.
+
 Run the matcher-engine comparison with static, adaptive, and recursive matchers in one invocation. This reuses loaded data and requested indexes across matcher engines:
 
 ```bash
@@ -140,6 +158,24 @@ cargo run -p runner --bin runner --release -- \
   --summary-csv results/quotes_algos_summary.csv
 ```
 
+Run the focused quote exact-vs-underscore full-scan comparison used for Umbra-style fixed-algorithm reporting:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/quotes/data_quotes_utf8.csv \
+  --algorithms-csv benchmarks/quotes/exact-vs-underscore-fullscan/algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/quotes/exact-vs-underscore/patterns.csv \
+  --indexes-csv benchmarks/quotes/exact-vs-underscore-fullscan/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/quotes_exact_fullscan_raw.csv \
+  --summary-csv results/quotes_exact_fullscan_summary.csv
+```
+
+The same case is included in the checkpointed super-runner as `quotes/exact-vs-underscore-fullscan/quotes`.
+
 Run the quote-specific algorithm stress cases for BM, TwoWay, TwoWay2, TwoWay3, PairHorspool, and the Naive V2 prefilter variants:
 
 ```bash
@@ -189,6 +225,42 @@ cargo run -p runner --bin runner --release -- \
   --output-csv results/quotes_indexes_raw.csv \
   --summary-csv results/quotes_indexes_summary.csv
 ```
+
+Run the focused quote prefix-btree comparison on btree-applicable exact/prefix patterns:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/quotes/data_quotes_utf8.csv \
+  --algorithms-csv benchmarks/quotes/prefix-btree-exact/algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/quotes/prefix-btree-exact/patterns.csv \
+  --indexes-csv benchmarks/quotes/prefix-btree-exact/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/quotes_prefix_btree_exact_raw.csv \
+  --summary-csv results/quotes_prefix_btree_exact_summary.csv
+```
+
+The same case is included in the checkpointed super-runner as `quotes/prefix-btree-exact/quotes`.
+
+Run the focused UTF-8-vs-FSST full-scan comparison on exact quote patterns with `PairHorspool`, `NaiveVectorized`, and `NaiveVectorizedWildcard`:
+
+```bash
+cargo run -p runner --bin runner --release -- \
+  --data-csv benchmarks/quotes/data_quotes_utf8_fsst.csv \
+  --algorithms-csv benchmarks/quotes/fsst-exact-fullscan/algorithms.csv \
+  --generic-matcher static \
+  --patterns-csv benchmarks/quotes/fsst-exact-fullscan/patterns.csv \
+  --indexes-csv benchmarks/quotes/fsst-exact-fullscan/indexes.csv \
+  --iterations 3 \
+  --max-row-bytes 50MB \
+  --max-total-bytes 100MB \
+  --output-csv results/quotes_fsst_exact_fullscan_raw.csv \
+  --summary-csv results/quotes_fsst_exact_fullscan_summary.csv
+```
+
+The same case is included in the checkpointed super-runner as `quotes/fsst-exact-fullscan/quotes`.
 
 ## JOB Benchmark
 

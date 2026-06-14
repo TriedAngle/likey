@@ -1,0 +1,5 @@
+name,pattern,enabled
+prefix_exact_len016,CGCAGAGACGGGTAGA%,true
+prefix_exact_len032,CGCAGAGACGGGTAGAACCTCAGTAATCCGAA%,true
+prefix_exact_segments,CGCA%GAGA%CGGG%,true
+equality_nohit_len016,CGCAGAGACGGGTAGA,true

@@ -1,0 +1,5 @@
+name,pattern,enabled
+prefix_age_issue,Age is an issue%,true
+prefix_learning,Anyone who stops learning%,true
+prefix_coffee_obituaries,Like everyone else who makes the mistake%,true
+equality_age_issue_full,"Age is an issue of mind over matter. If you don't mind, it doesn't matter.",true
